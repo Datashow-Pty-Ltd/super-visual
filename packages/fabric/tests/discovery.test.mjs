@@ -6,7 +6,7 @@ function encoded(value) { return Buffer.from(JSON.stringify(value)).toString("ba
 function reportParts() {
   return [
     { path: "definition.pbir", payloadType: "InlineBase64", payload: encoded({ datasetReference: { byConnection: { connectionString: "Data Source=\"powerbi://api.powerbi.com/v1.0/myorg/Release\";initial catalog=\"Sales; governed\";semanticmodelid=model-1" } } }) },
-    { path: "definition/version.json", payloadType: "InlineBase64", payload: encoded({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" }) },
+    { path: "definition/version.json", payloadType: "InlineBase64", payload: encoded({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "2.0.0" }) },
   ];
 }
 

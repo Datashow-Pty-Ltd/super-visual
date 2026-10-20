@@ -11,7 +11,7 @@ async function fixture() {
   await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition.pbism"), "{}\n");
   await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition", "model.tmdl"), "model Model\n");
   await writeFile(path.join(root, "Report.Report", "definition.pbir"), JSON.stringify({ datasetReference: { byPath: { path: "../SemanticAdapter.SemanticModel" } } }));
-  await writeFile(path.join(root, "Report.Report", "definition", "version.json"), JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" }));
+  await writeFile(path.join(root, "Report.Report", "definition", "version.json"), JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "2.0.0" }));
   await writeFile(path.join(root, "Report.Report", "definition", "report.json"), "{}\n");
   return root;
 }
@@ -19,7 +19,7 @@ async function fixture() {
 function reportParts(definitionPbir = { datasetReference: {} }) {
   return [
     { path: "definition.pbir", payload: Buffer.from(JSON.stringify(definitionPbir)).toString("base64"), payloadType: "InlineBase64" },
-    { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" })).toString("base64"), payloadType: "InlineBase64" },
+    { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "2.0.0" })).toString("base64"), payloadType: "InlineBase64" },
   ];
 }
 
@@ -65,6 +65,13 @@ describe("safe Fabric deployment", () => {
       { path: "definition.pbir", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" },
       { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ version: "1.0.0", schemaVersion: "1.0.0" })).toString("base64"), payloadType: "InlineBase64" },
     ], "PBIR")).toThrow(/must declare/);
+  });
+
+  test("rejects the schema-valid report format version that produces an empty exploration surface", () => {
+    expect(() => verifyDefinitionParts([
+      { path: "definition.pbir", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" },
+      { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" })).toString("base64"), payloadType: "InlineBase64" },
+    ], "PBIR")).toThrow(/report format version 2\.0\.0/);
   });
 
   test("plans then creates semantic model before its bound report", async () => {

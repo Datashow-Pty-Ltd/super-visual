@@ -93,7 +93,7 @@ export function verifyDefinitionParts(parts, format) {
     }
     const schema = "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json";
     if (version?.$schema !== schema) throw new Error(`PBIR definition/version.json must declare ${schema}`);
-    if (typeof version.version !== "string" || !/^[1-9][0-9]*\.(?:0|[1-9][0-9]*)\.0$/.test(version.version)) throw new Error("PBIR definition/version.json has an invalid version");
+    if (version.version !== "2.0.0") throw new Error("PBIR definition/version.json must use report format version 2.0.0");
     if (Object.keys(version).some((key) => !["$schema", "version"].includes(key))) throw new Error("PBIR definition/version.json contains unsupported properties");
   }
 }
