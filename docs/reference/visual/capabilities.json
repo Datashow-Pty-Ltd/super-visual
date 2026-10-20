@@ -1,0 +1,118 @@
+{
+  "dataRoles": [
+    { "name": "widgetId", "displayName": "Broker — widget ID", "kind": "Grouping" },
+    { "name": "axisKey", "displayName": "Broker — axis key", "kind": "Grouping" },
+    { "name": "label", "displayName": "Broker — label", "kind": "Grouping" },
+    { "name": "sort", "displayName": "Broker — sort", "kind": "Grouping" },
+    { "name": "seriesKey", "displayName": "Broker — series key", "kind": "Grouping" },
+    { "name": "seriesLabel", "displayName": "Broker — series label", "kind": "Grouping" },
+    { "name": "value", "displayName": "Broker — value", "kind": "Measure" },
+    { "name": "context", "displayName": "Broker — context", "kind": "Measure" },
+    { "name": "dimensions", "displayName": "Native dataset dimensions", "kind": "Grouping" },
+    { "name": "measures", "displayName": "Native dataset measures", "kind": "Measure" },
+    { "name": "payloadWidget", "displayName": "Native payload widget", "kind": "Grouping" },
+    { "name": "payloadChunkIndex", "displayName": "Native payload chunk", "kind": "Grouping" },
+    { "name": "payloadChunk", "displayName": "Native payload", "kind": "Measure" }
+  ],
+  "objects": {
+    "general": {
+      "displayName": "General",
+      "properties": {
+        "filter": {
+          "displayName": "Business filter",
+          "type": { "filter": true }
+        },
+        "selfFilter": {
+          "displayName": "Widget request",
+          "type": { "filter": { "selfFilter": true } }
+        },
+        "nativeDimensionFilter": {
+          "displayName": "Native dimension request",
+          "type": { "filter": true }
+        },
+        "nativeMeasureFilter": {
+          "displayName": "Native measure request",
+          "type": { "filter": true }
+        }
+      }
+    }
+  },
+  "dataViewMappings": [
+    {
+      "conditions": [
+        {
+          "widgetId": { "min": 1, "max": 1 },
+          "axisKey": { "min": 1, "max": 1 },
+          "label": { "min": 1, "max": 1 },
+          "sort": { "min": 1, "max": 1 },
+          "seriesKey": { "max": 1 },
+          "seriesLabel": { "max": 1 },
+          "value": { "min": 1, "max": 1 },
+          "context": { "min": 1, "max": 1 }
+        }
+      ],
+      "table": {
+        "rows": {
+          "select": [
+            { "for": { "in": "widgetId" } },
+            { "for": { "in": "axisKey" } },
+            { "for": { "in": "label" } },
+            { "for": { "in": "sort" } },
+            { "for": { "in": "seriesKey" } },
+            { "for": { "in": "seriesLabel" } },
+            { "for": { "in": "value" } },
+            { "for": { "in": "context" } }
+          ],
+          "dataReductionAlgorithm": { "top": { "count": 30000 } }
+        }
+      }
+    },
+    {
+      "conditions": [
+        {
+          "dimensions": { "min": 1, "max": 5 },
+          "measures": { "min": 1, "max": 20 },
+          "context": { "max": 1 }
+        }
+      ],
+      "table": {
+        "rows": {
+          "select": [
+            { "for": { "in": "dimensions" } },
+            { "for": { "in": "measures" } },
+            { "for": { "in": "context" } }
+          ],
+          "dataReductionAlgorithm": { "top": { "count": 30000 } }
+        }
+      }
+    },
+    {
+      "conditions": [
+        {
+          "payloadWidget": { "min": 1, "max": 1 },
+          "payloadChunkIndex": { "min": 1, "max": 1 },
+          "payloadChunk": { "min": 1, "max": 1 },
+          "context": { "max": 1 }
+        }
+      ],
+      "table": {
+        "rows": {
+          "select": [
+            { "for": { "in": "payloadWidget" } },
+            { "for": { "in": "payloadChunkIndex" } },
+            { "for": { "in": "payloadChunk" } },
+            { "for": { "in": "context" } }
+          ],
+          "dataReductionAlgorithm": { "top": { "count": 100 } }
+        }
+      }
+    }
+  ],
+  "supportsHighlight": false,
+  "supportsKeyboardFocus": true,
+  "supportsMultiVisualSelection": false,
+  "supportsSynchronizingFilterState": true,
+  "supportsLandingPage": true,
+  "supportsEmptyDataView": true,
+  "privileges": []
+}

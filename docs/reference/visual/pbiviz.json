@@ -1,0 +1,26 @@
+{
+  "visual": {
+    "name": "datashowSuperDashboard",
+    "displayName": "Datashow Super Dashboard",
+    "guid": "datashowSuperDashboard56E84DD9B92A42F7A70D88B941DB48DE",
+    "visualClassName": "Visual",
+    "version": "1.0.0.38",
+    "description": "A YAML-compiled multi-route analytical application using cached broker datasets and host-driven filtering.",
+    "supportUrl": "https://datashow.com.au",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "Datashow",
+    "email": "support@datashow.com.au"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": null,
+  "stringResources": [],
+  "version": "1.0.0.30"
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "files": {
+    "custom-visuals/datashow-super-dashboard/src/component.tsx": "56dabfe836ac38514d10de0dcb3406b097bd7fbc6b4e64c325380eb6bf12cd65",
+    "custom-visuals/datashow-super-dashboard/src/dataView.ts": "8bc2bdf9d00edfbf14ed90c13d51140acee6a1d7579277c5719ef663fd77d3e1",
+    "custom-visuals/datashow-super-dashboard/src/datasetRegistry.ts": "f02228a55fab23b4f6d093c36f375476ec1d46602dffcc405c1a9c8c7c648ff4",
+    "custom-visuals/datashow-super-dashboard/src/dependency.ts": "7a8dfb7208546527a59868f519662df9a663f31af2e379752eba9c315387e726",
+    "custom-visuals/datashow-super-dashboard/src/dependencyManifest.ts": "5fb9251891a701b9a5197403e692896ee7b6eb47f6d92aa5288ccf3132db7075",
+    "custom-visuals/datashow-super-dashboard/src/filter.ts": "69ada3ff4c575b3ccda64c120debccd0cc2bb169adf8110dea22fe8453f4939c",
+    "custom-visuals/datashow-super-dashboard/src/filterTargets.ts": "44d3b70682b7d34d749d9d019d41704e07bcb9c5fc6ae752065d80b088338a02",
+    "custom-visuals/datashow-super-dashboard/src/graph.ts": "f242a12c1e5a4790f2d40d867dbd27600a52370c8669e4c05e7b41a3ec77c869",
+    "custom-visuals/datashow-super-dashboard/src/graphData.ts": "dd9933f8317b6b07cb6adb9d88423683bebb11547dbb422d1159b896872a337a",
+    "custom-visuals/datashow-super-dashboard/src/metricSemantics.ts": "35480b104c5328f6b72dbb6748383d93b341b94354b7cc4aefee619def943966",
+    "custom-visuals/datashow-super-dashboard/src/model.ts": "711da93786350f246c0ca2f5f9aa8e89197389ccc3e67da2bae74af3152c4775",
+    "custom-visuals/datashow-super-dashboard/src/nativeDatasetManifest.generated.ts": "4f65f052f2a0573a70b4146390a664dfcdffefee3a5e08916cccb748370cb63c",
+    "custom-visuals/datashow-super-dashboard/src/pageSetManifest.ts": "ef55c97b4cffb9e411bb920e8c565fafb4a7d82155f256ec4a8eefc6a29bae99",
+    "custom-visuals/datashow-super-dashboard/src/reportAppManifest.ts": "db957a06800d15c189d41881465be0e472e8ef1dffc87e5a3db29c7d2aa58a3b",
+    "custom-visuals/datashow-super-dashboard/src/reportApplication.tsx": "cb3beaee77c5d5e800e59806b67797355873a39dbf2e35cc72b15fa6843af407",
+    "custom-visuals/datashow-super-dashboard/src/reportRuntime.ts": "39dddf8c0570318f2e9964e03d71d85d6c5fbdbf92d1609ba857daaac3068e6e",
+    "custom-visuals/datashow-super-dashboard/src/visual.ts": "37c183047324606ad6884c46d5083c511b6c7eeb6284d5edb910e7cfca043994",
+    "custom-visuals/datashow-super-dashboard/src/widgetManifest.ts": "ea82347ba5907e3c03535a81fcb027fc77b8903f703d29aa49076dfd8a39a3e9"
+  }
+}
