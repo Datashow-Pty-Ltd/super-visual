@@ -1,5 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import os from "node:os";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
 import { buildSolution } from "@datashow/super-visual-compiler";
@@ -16,6 +15,12 @@ const loaded = {
   },
   reportSource: {},
 };
+
+async function createPreviewTestDirectory(prefix) {
+  const root = path.resolve(".artifacts", "tests");
+  await mkdir(root, { recursive: true });
+  return mkdtemp(path.join(root, prefix));
+}
 
 describe("semantic preview", () => {
   test("builds only contract-derived broker DAX and applies governed selections", () => {
@@ -68,7 +73,7 @@ describe("semantic preview", () => {
   });
 
   test("serves a loopback-only preview and guarded semantic gateway", async () => {
-    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-preview-test-"));
+    const temporary = await createPreviewTestDirectory("supervisual-preview-test-");
     const project = path.join(temporary, "project");
     const remote = path.join(temporary, "remote");
     let preview;
@@ -117,7 +122,7 @@ describe("semantic preview", () => {
   }, 30000);
 
   test("loads the AdventureWorks application and exercises a semantic selection", async () => {
-    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-adventure-preview-"));
+    const temporary = await createPreviewTestDirectory("supervisual-adventure-preview-");
     const projectFile = path.resolve("examples/adventureworks/supervisual.yaml");
     try {
       await buildSolution(projectFile, { outputDirectory: path.join(temporary, "remote") });

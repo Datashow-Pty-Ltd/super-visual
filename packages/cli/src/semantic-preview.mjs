@@ -264,12 +264,7 @@ export async function startSemanticPreview({ client, projectFile, workspaceId, w
   const server = await createServer({
     root: hostRoot,
     logLevel: "silent",
-    resolve: {
-      alias: dependencyAliases(),
-      dedupe: ["react", "react-dom"],
-      // Vite rejects Windows 8.3 short-name paths even when their parent is allow-listed.
-      preserveSymlinks: true,
-    },
+    resolve: { alias: dependencyAliases(), dedupe: ["react", "react-dom"] },
     server: {
       host,
       port: Number(port),
