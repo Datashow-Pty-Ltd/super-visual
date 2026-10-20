@@ -12,6 +12,14 @@ async function exists(file) {
   try { await access(file); return true; } catch { return false; }
 }
 
+async function readOptional(file) {
+  try { return await readFile(file, "utf8"); }
+  catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 function slug(value) {
   return String(value)
     .trim()
@@ -154,30 +162,37 @@ async function applicationFiles(input) {
   const metadata = await stat(resolved);
   const root = metadata.isDirectory() ? resolved : path.dirname(resolved);
   let entryPath = metadata.isDirectory() ? null : resolved;
+  let entryContent = metadata.isDirectory() ? null : await readFile(resolved, "utf8");
   if (metadata.isDirectory()) {
     for (const candidate of [path.join(root, "reportApplication.tsx"), path.join(root, "src", "reportApplication.tsx")]) {
-      if (await exists(candidate)) { entryPath = candidate; break; }
+      const content = await readOptional(candidate);
+      if (content !== null) { entryPath = candidate; entryContent = content; break; }
     }
   }
-  if (!entryPath || !await exists(entryPath)) throw new Error(`React application must contain reportApplication.tsx: ${resolved}`);
+  if (!entryPath || entryContent === null) throw new Error(`React application must contain reportApplication.tsx: ${resolved}`);
   const entryRoot = path.dirname(entryPath);
-  const files = [{ path: "src/reportApplication.tsx", content: await readFile(entryPath, "utf8") }];
+  const files = [{ path: "src/reportApplication.tsx", content: entryContent }];
   const reportRoot = path.join(entryRoot, "report");
-  if (await exists(reportRoot)) {
-    const addReportFiles = async (directory, relative = "") => {
-      for (const item of await readdir(directory, { withFileTypes: true })) {
-        const child = path.join(directory, item.name);
-        const childRelative = path.posix.join(relative, item.name);
-        if (item.isDirectory()) await addReportFiles(child, childRelative);
-        else if (/\.(?:ts|tsx)$/.test(item.name)) files.push({ path: `src/report/${childRelative}`, content: await readFile(child, "utf8") });
-      }
-    };
+  const addReportFiles = async (directory, relative = "") => {
+    for (const item of await readdir(directory, { withFileTypes: true })) {
+      const child = path.join(directory, item.name);
+      const childRelative = path.posix.join(relative, item.name);
+      if (item.isDirectory()) await addReportFiles(child, childRelative);
+      else if (/\.(?:ts|tsx)$/.test(item.name)) files.push({ path: `src/report/${childRelative}`, content: await readFile(child, "utf8") });
+    }
+  };
+  try {
     await addReportFiles(reportRoot);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
   }
   const styleCandidates = [path.join(root, "report-design.less"), path.join(root, "style", "report-design.less"), path.join(entryRoot, "report-design.less")];
-  let stylePath = null;
-  for (const candidate of styleCandidates) if (await exists(candidate)) { stylePath = candidate; break; }
-  return { files, style: stylePath ? await readFile(stylePath, "utf8") : null };
+  let style = null;
+  for (const candidate of styleCandidates) {
+    style = await readOptional(candidate);
+    if (style !== null) break;
+  }
+  return { files, style };
 }
 
 async function installApplication(target, input, projectTitle) {

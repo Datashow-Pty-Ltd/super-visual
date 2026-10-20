@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -16,9 +16,8 @@ for (const command of [["check", project], [process.argv.includes("--package") ?
 
 const baseCatalog = path.join(project, "dist", "Base.SemanticModel", "definition", "tables", "Super Visual Model Catalog.tmdl");
 const adapterCatalog = path.join(project, "dist", "SemanticAdapter.SemanticModel", "definition", "tables", "Super Visual Model Catalog.tmdl");
-await access(adapterCatalog);
 try {
-  await access(baseCatalog);
+  await readFile(baseCatalog, "utf8");
   throw new Error("Hello World generated catalog must not mutate Base.SemanticModel");
 } catch (error) {
   if (error?.code !== "ENOENT") throw error;
