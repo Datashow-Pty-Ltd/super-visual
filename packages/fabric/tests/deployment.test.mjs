@@ -32,6 +32,33 @@ class FakeClient {
   async getDefinition(_workspaceId, _type, id) { return this.definitions.get(id); }
 }
 
+class NormalizedReportClient extends FakeClient {
+  constructor(boundSemanticModelId = "semanticmodel-1") {
+    super();
+    this.boundSemanticModelId = boundSemanticModelId;
+  }
+
+  async getDefinition(workspaceId, type, id) {
+    const definition = await super.getDefinition(workspaceId, type, id);
+    if (type !== "Report") return definition;
+    return {
+      ...definition,
+      parts: definition.parts.map((part) => part.path === "definition.pbir"
+        ? {
+            ...part,
+            payload: Buffer.from(JSON.stringify({
+              datasetReference: {
+                byConnection: {
+                  connectionString: `Data Source="powerbi://api.powerbi.com/v1.0/myorg/Release";initial catalog="Sales; governed";integrated security=ClaimsToken;semanticmodelid=${this.boundSemanticModelId}`,
+                },
+              },
+            })).toString("base64"),
+          }
+        : part),
+    };
+  }
+}
+
 describe("safe Fabric deployment", () => {
   test("rejects PBIR version metadata that Fabric cannot import", () => {
     expect(() => verifyDefinitionParts([
@@ -49,6 +76,20 @@ describe("safe Fabric deployment", () => {
     expect(client.calls).toEqual(["create:SemanticModel", "create:Report"]);
     const report = client.definitions.get(result.items.report.id);
     expect(JSON.parse(decodePart(report.parts.find((part) => part.path === "definition.pbir")).toString()).datasetReference.byConnection.connectionString).toBe("semanticmodelid=semanticmodel-1");
+  });
+
+  test("accepts Fabric-normalized report connection strings with the planned semantic model ID", async () => {
+    const root = await fixture();
+    const client = new NormalizedReportClient();
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", workspaceName: "Release", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).resolves.toMatchObject({ items: { report: { id: "report-1" } } });
+  });
+
+  test("rejects Fabric-normalized report connection strings bound to another model", async () => {
+    const root = await fixture();
+    const client = new NormalizedReportClient("another-model");
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", workspaceName: "Release", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow("Deployed report is not bound to the deployed semantic model");
   });
 
   test("diffs create, unchanged, and update definitions without mutation", async () => {

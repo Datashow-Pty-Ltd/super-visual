@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { bindReportToSemanticModel, decodePart, encodeDefinition, verifyDefinitionParts } from "./parts.mjs";
+import { bindReportToSemanticModel, connectionStringValue, decodePart, encodeDefinition, verifyDefinitionParts } from "./parts.mjs";
 import { bindSemanticModelConnection, executeAcceptanceQuery, refreshSemanticModel } from "./operations.mjs";
 
 function stable(value) {
@@ -178,7 +178,8 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
     if (action.type === "Report") {
       const pbir = deployed.parts.find((part) => part.path === "definition.pbir");
       const parsed = JSON.parse(decodePart(pbir).toString("utf8"));
-      if (parsed.datasetReference?.byConnection?.connectionString?.toLowerCase() !== `semanticmodelid=${semanticModelId}`.toLowerCase()) throw new Error("Deployed report is not bound to the deployed semantic model");
+      const boundSemanticModelId = connectionStringValue(parsed.datasetReference?.byConnection?.connectionString, "semanticmodelid");
+      if (String(boundSemanticModelId).toLowerCase() !== String(semanticModelId).toLowerCase()) throw new Error("Deployed report is not bound to the deployed semantic model");
     }
     results[action.key] = { id: itemId, displayName: action.displayName, operation: action.operation };
     if (onProgress) await onProgress({ action: action.key, item: results[action.key] });

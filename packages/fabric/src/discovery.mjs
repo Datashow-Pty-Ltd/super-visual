@@ -1,4 +1,4 @@
-import { decodePart } from "./parts.mjs";
+import { connectionStringValue, decodePart } from "./parts.mjs";
 import { executeAcceptanceQuery } from "./operations.mjs";
 
 function publicConnection(connection) {
@@ -9,36 +9,6 @@ function publicConnection(connection) {
     connectionDetails: connection.connectionDetails ? { type: connection.connectionDetails.type ?? null, path: connection.connectionDetails.path ?? null } : null,
     gatewayId: connection.gatewayId ?? null,
   };
-}
-
-function connectionStringValue(connectionString, key) {
-  if (typeof connectionString !== "string") return null;
-  const segments = [];
-  let current = "";
-  let quoted = false;
-  for (let index = 0; index < connectionString.length; index += 1) {
-    const character = connectionString[index];
-    if (character === '"') {
-      if (quoted && connectionString[index + 1] === '"') {
-        current += '""';
-        index += 1;
-        continue;
-      }
-      quoted = !quoted;
-    }
-    if (character === ";" && !quoted) {
-      segments.push(current);
-      current = "";
-    } else current += character;
-  }
-  segments.push(current);
-  for (const segment of segments) {
-    const separator = segment.indexOf("=");
-    if (separator < 1 || segment.slice(0, separator).trim().toLowerCase() !== key.toLowerCase()) continue;
-    const raw = segment.slice(separator + 1).trim();
-    return raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1).replaceAll('""', '"') : raw;
-  }
-  return null;
 }
 
 export async function discoverFabricWorkspaces({ client }) {

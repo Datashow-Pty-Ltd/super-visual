@@ -12,3 +12,5 @@
   project governance files.
 - Corrected PBIR `version.json` generation to use Microsoft's required schema
   declaration and reject invalid version metadata before Fabric publication.
+- Accepted Fabric-normalized report connection strings during post-deployment
+  semantic-model binding verification while still rejecting the wrong model ID.
