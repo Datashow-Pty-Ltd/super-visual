@@ -17,11 +17,14 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("package");
     expect(help.stdout).toContain("import");
     expect(help.stdout).toContain("semantic");
+    expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
     expect(version.stdout.trim()).toBe("0.1.0-rc.0");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
+    expect(deployHelp.stdout).toContain("diff");
+    expect(deployHelp.stdout).toContain("restore");
     expect(deployHelp.stdout).toContain("status");
     const semanticHelp = await run(process.execPath, [cli, "semantic", "--help"], { cwd: root });
     expect(semanticHelp.stdout).toContain("discover");
@@ -56,6 +59,33 @@ describe("supervisual CLI", () => {
     expect(JSON.parse(discovered.stdout)).toMatchObject({ ok: true, type: "supervisual-project", supported: true });
     const inspected = await run(process.execPath, [cli, "inspect", "examples/adventureworks", "--json"], { cwd: root });
     expect(JSON.parse(inspected.stdout)).toMatchObject({ ok: true, application: { id: "adventureworks-product-ledger" } });
+  });
+
+  test("validates a complete live certification record", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-certification-"));
+    const file = path.join(temporary, "record.json");
+    try {
+      const record = {
+        contractVersion: 1,
+        kind: "super-visual-live-certification",
+        recordedAt: "2026-10-20T08:00:00Z",
+        commit: "a".repeat(40),
+        operator: "test operator",
+        environment: "disposable-sandbox",
+        workspace: { id: "workspace-1", displayName: "Sandbox" },
+        plan: { id: "b".repeat(20), operations: ["create"] },
+        items: { semanticModelId: "model-1", reportId: "report-1" },
+        connectionId: "connection-1",
+        cli: { status: "accepted", connectionBinding: true, reportBinding: true, refresh: "Completed", acceptance: { rowCount: 1, columnCount: 2, nonNull: true } },
+        browser: { reportOpens: true, visualRenders: true, labelsAndValues: true, keyboardNavigation: true, selectionInteraction: true, noUnexpectedErrors: true },
+        evidence: [{ kind: "receipt", reference: "receipt.json", sha256: "c".repeat(64) }, { kind: "screenshot", reference: "report.png", sha256: "d".repeat(64) }],
+      };
+      await writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
+      const certified = await run(process.execPath, [cli, "certify", "validate", file, "--json"], { cwd: root });
+      expect(JSON.parse(certified.stdout)).toMatchObject({ ok: true, status: "certified" });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
   });
 
   test("initializes, checks, compiles, and verifies hello world", async () => {

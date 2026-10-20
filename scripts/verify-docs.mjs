@@ -22,6 +22,8 @@ const required = [
   "docs/threat-model.md",
   "docs/agent-evals.md",
   "docs/certification/live-run-template.md",
+  "docs/certification/agent-skill-proof.md",
+  "docs/certification/live-run.example.json",
   "docs/reference/deployed-baseline.json",
 ];
 

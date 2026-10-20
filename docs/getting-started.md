@@ -113,3 +113,12 @@ npx supervisual deploy apply my-dashboard \
 Updates are never inferred. The backup is mandatory when a plan contains update
 operations. Deployment is not successful until binding, refresh, and the live
 acceptance query pass.
+
+After the browser checks, copy `docs/certification/live-run.example.json`, replace
+every placeholder with redacted run evidence and real SHA-256 hashes, then run:
+
+```bash
+npx supervisual certify validate ./live-run.json --json
+```
+
+Only `status: certified` is a complete CLI-and-browser certification record.

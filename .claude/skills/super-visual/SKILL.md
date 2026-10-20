@@ -49,13 +49,24 @@ that inventory with a project's semantic and broker contracts. Both commands are
 read-only; an optional acceptance query may return only its row-count evidence.
 
 Deployment uses plan/apply. Planning is read-only and requires an immutable
-workspace ID. Run `deploy discover` first and `deploy status` after apply.
+workspace ID. Run `deploy discover` first, use `deploy diff` when comparing a
+built bundle with same-named remote items, and run `deploy status` after apply.
 Report the target identity, operations, blockers, and exact plan ID. Apply only
 after the human explicitly authorizes that exact plan ID and target workspace.
 Never infer `--allow-updates`; updates replace complete definitions and require a
-backup directory. Do not claim deployment success until status confirms exact
+backup directory. An interrupted apply may resume only from its matching
+deployment receipt, with the same plan, confirmation, workspace, and original
+backup directory. Restore also uses plan/apply: inspect the backup manifest,
+report the exact restore plan ID and workspace, and require human authorization
+before `deploy restore apply`. A restore is `restored-unverified` until the
+normal live status checks pass. Do not claim deployment success until status confirms exact
 report and connection binding, refresh, and the configured live acceptance
 query. `published-unverified` is not success.
+
+After live CLI status and browser acceptance are recorded, run `certify
+validate <record> --json`. Do not describe a run as certified unless the command
+returns `status: certified`; placeholder hashes and incomplete browser evidence
+must fail.
 
 Read `docs/getting-started.md` for the end-to-end workflow and
 `docs/claude-dashboard-migration.md` for intake. Read

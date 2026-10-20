@@ -24,9 +24,25 @@ not edit anything under `dist/`; change a contract or source asset and rebuild.
 ## Configure the source
 
 The sample semantic contract uses `localhost` and `AdventureWorksDW2025` only as
-development defaults. Before deployment, set the source parameters to the
-server and database represented by the Fabric connection you will bind. A
-local-only server is not reachable from Power BI Service without a gateway.
+development defaults. A local-only server is not reachable from Power BI
+Service without a gateway. Copy the example profile into the ignored
+`.supervisual` directory and set the exact server and database represented by
+the Fabric connection you will bind:
+
+```bash
+mkdir -p .supervisual
+cp examples/adventureworks/deployment/source-profile.example.json \
+  .supervisual/adventureworks-source.json
+```
+
+Build the tenant-specific generated bundle without modifying the checked-in
+semantic contract:
+
+```bash
+npx supervisual package examples/adventureworks \
+  --parameters-file .supervisual/adventureworks-source.json --json
+npx supervisual verify examples/adventureworks --json
+```
 
 ## Plan
 
@@ -90,3 +106,6 @@ npx supervisual deploy status \
 
 Only `status: accepted` proves exact report binding, exact connection binding,
 a completed latest refresh, and a non-empty/non-null acceptance result.
+
+Record the item IDs, plan ID, source-profile identifier, CLI acceptance, and
+browser interaction checks using `docs/certification/live-run-template.md`.

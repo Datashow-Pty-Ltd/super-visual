@@ -7,7 +7,7 @@ function jsonLines(text) {
 function codexCommands(events) {
   return events.flatMap((event) => {
     const item = event.item;
-    return item?.type === "command_execution" && typeof item.command === "string" ? [item.command] : [];
+    return event.type === "item.completed" && item?.type === "command_execution" && typeof item.command === "string" ? [item.command] : [];
   });
 }
 

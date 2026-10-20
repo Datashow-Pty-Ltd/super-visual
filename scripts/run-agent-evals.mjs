@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -20,6 +20,33 @@ const evaluations = JSON.parse(await readFile(path.join(root, "evals", "agent-sk
 const selected = selectedCase ? evaluations.filter((item) => item.id === selectedCase) : evaluations;
 if (!selected.length) throw new Error(`Unknown evaluation case ${selectedCase}`);
 
+function runAgent(command, args, cwd) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.stdin.end();
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+      setTimeout(() => child.kill("SIGKILL"), 5_000).unref();
+    }, 600_000);
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      resolve({ stdout, stderr: `${stderr}\n${error.message}`.trim(), exitCode: 1 });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timeout);
+      resolve({ stdout, stderr: `${stderr}${timedOut ? "\nAgent evaluation exceeded 600 seconds" : ""}`.trim(), exitCode: code ?? 1 });
+    });
+  });
+}
+
 const temporary = await mkdtemp(path.join(os.tmpdir(), `supervisual-${agent}-eval-`));
 const worktree = path.join(temporary, "repo");
 const artifacts = path.join(root, ".artifacts", "agent-evals", agent);
@@ -32,24 +59,26 @@ try {
   for (const evaluation of selected) {
     const command = agent === "codex" ? "codex" : "claude";
     const args = agent === "codex"
-      ? ["exec", "--json", "--full-auto", evaluation.prompt]
+      ? ["exec", "--json", "--ephemeral", "--approve-for-me", evaluation.prompt]
       : ["-p", evaluation.prompt, "--output-format", "stream-json", "--verbose", "--allowedTools", "Read,Glob,Grep,Bash(npx supervisual *)"];
     let trace = "";
     let stderr = "";
     let exitCode = 0;
-    try {
-      const completed = await run(command, args, { cwd: worktree, timeout: 600_000, maxBuffer: 50 * 1024 * 1024 });
-      trace = completed.stdout;
-      stderr = completed.stderr;
-    } catch (error) {
-      trace = error.stdout ?? "";
-      stderr = error.stderr ?? error.message;
-      exitCode = error.code ?? 1;
-    }
+    const completed = await runAgent(command, args, worktree);
+    trace = completed.stdout;
+    stderr = completed.stderr;
+    exitCode = completed.exitCode;
     const tracePath = path.join(artifacts, `${evaluation.id}.jsonl`);
     await writeFile(tracePath, trace);
-    const grade = gradeAgentTrace(agent, trace, evaluation);
-    results.push({ ...grade, processExitCode: exitCode, tracePath, stderr: stderr.trim().slice(-2000) });
+    const stderrPath = path.join(artifacts, `${evaluation.id}.stderr.log`);
+    await writeFile(stderrPath, stderr);
+    let grade;
+    try {
+      grade = gradeAgentTrace(agent, trace, evaluation);
+    } catch (error) {
+      grade = { id: evaluation.id, agent, pass: false, operations: [], commands: [], checks: [{ id: "trace", pass: false, detail: error.message }] };
+    }
+    results.push({ ...grade, processExitCode: exitCode, tracePath, stderrPath, stderr: stderr.trim().slice(-2000) });
   }
   const report = { agent, pass: results.every((result) => result.pass && result.processExitCode === 0), results };
   const reportPath = path.join(artifacts, "report.json");

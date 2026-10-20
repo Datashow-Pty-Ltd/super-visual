@@ -27,3 +27,6 @@ The harness never supplies Fabric credentials and the cases forbid live
 deployment. Live agent certification is a separate, human-gated run: the agent
 may discover, inspect, package, and create a plan, but it must stop before apply
 until the human authorizes the exact plan ID and target workspace.
+
+The first redacted two-agent result is recorded in
+[certification/agent-skill-proof.md](certification/agent-skill-proof.md).

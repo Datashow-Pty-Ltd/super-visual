@@ -35,6 +35,11 @@ connection secrets, source rows, or customer data.
 Record links to redacted CI artifacts, release attestations, screenshots, and
 the saved deployment receipt. Never attach a token-bearing terminal transcript.
 
+Create the machine-readable companion by copying `live-run.example.json`,
+replacing every placeholder and hash, and running `supervisual certify validate
+<record> --json`. Keep failed or incomplete records as evidence; do not change
+their booleans merely to make validation pass.
+
 ## Exceptions and cleanup
 
 Record any accepted risk, follow-up issue, and retention or separately

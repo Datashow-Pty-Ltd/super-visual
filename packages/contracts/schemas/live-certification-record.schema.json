@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supervisual.dev/contracts/live-certification-record.schema.json",
+  "title": "Super Visual live certification record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "kind", "recordedAt", "commit", "operator", "environment", "workspace", "plan", "items", "connectionId", "cli", "browser", "evidence"],
+  "properties": {
+    "contractVersion": { "type": "integer", "const": 1 },
+    "kind": { "const": "super-visual-live-certification" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "operator": { "type": "string", "minLength": 1 },
+    "environment": { "enum": ["disposable-sandbox", "controlled-test"] },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName"],
+      "properties": { "id": { "type": "string", "minLength": 1 }, "displayName": { "type": "string", "minLength": 1 } }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "operations"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9a-f]{20}$" },
+        "operations": { "type": "array", "minItems": 1, "items": { "enum": ["create", "update", "restore"] } }
+      }
+    },
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["semanticModelId", "reportId"],
+      "properties": { "semanticModelId": { "type": "string", "minLength": 1 }, "reportId": { "type": "string", "minLength": 1 } }
+    },
+    "connectionId": { "type": "string", "minLength": 1 },
+    "cli": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "connectionBinding", "reportBinding", "refresh", "acceptance"],
+      "properties": {
+        "status": { "enum": ["accepted", "published-unverified", "restored-unverified", "failed"] },
+        "connectionBinding": { "type": "boolean" },
+        "reportBinding": { "type": "boolean" },
+        "refresh": { "type": "string" },
+        "acceptance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rowCount", "columnCount", "nonNull"],
+          "properties": {
+            "rowCount": { "type": "integer", "minimum": 0 },
+            "columnCount": { "type": "integer", "minimum": 0 },
+            "nonNull": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reportOpens", "visualRenders", "labelsAndValues", "keyboardNavigation", "selectionInteraction", "noUnexpectedErrors"],
+      "properties": {
+        "reportOpens": { "type": "boolean" },
+        "visualRenders": { "type": "boolean" },
+        "labelsAndValues": { "type": "boolean" },
+        "keyboardNavigation": { "type": "boolean" },
+        "selectionInteraction": { "type": "boolean" },
+        "noUnexpectedErrors": { "type": "boolean" }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "reference", "sha256"],
+        "properties": {
+          "kind": { "enum": ["receipt", "screenshot", "trace", "attestation"] },
+          "reference": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

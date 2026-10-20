@@ -6,7 +6,7 @@ import addFormats from "ajv-formats";
 import YAML from "yaml";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const schemaNames = ["supervisual-project", "report-app", "page-set", "widget-broker", "report-source-bundle", "claude-dashboard-bundle"];
+const schemaNames = ["supervisual-project", "report-app", "page-set", "widget-broker", "report-source-bundle", "claude-dashboard-bundle", "live-certification-record"];
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 
@@ -38,6 +38,29 @@ export async function loadContract(name, filePath) {
     throw new Error(`${name} contract is invalid:\n${result.errors.map((error) => `- ${error.path} ${error.message}`).join("\n")}`);
   }
   return value;
+}
+
+export function evaluateLiveCertification(record) {
+  const validation = validateContract("live-certification-record", record);
+  if (!validation.ok) return { ok: false, status: "invalid", checks: [], errors: validation.errors };
+  const checks = [
+    { id: "identity.commit", pass: !/^0+$/.test(record.commit) },
+    { id: "identity.plan", pass: !/^0+$/.test(record.plan.id) },
+    { id: "identity.operator", pass: !/^replace-/i.test(record.operator) },
+    { id: "cli.accepted", pass: record.cli.status === "accepted" },
+    { id: "binding.connection", pass: record.cli.connectionBinding === true },
+    { id: "binding.report", pass: record.cli.reportBinding === true },
+    { id: "refresh.completed", pass: record.cli.refresh === "Completed" },
+    { id: "acceptance.rows", pass: record.cli.acceptance.rowCount > 0 },
+    { id: "acceptance.columns", pass: record.cli.acceptance.columnCount > 0 },
+    { id: "acceptance.nonNull", pass: record.cli.acceptance.nonNull === true },
+    ...Object.entries(record.browser).map(([id, pass]) => ({ id: `browser.${id}`, pass: pass === true })),
+    { id: "evidence.receipt", pass: record.evidence.some((item) => item.kind === "receipt") },
+    { id: "evidence.screenshot", pass: record.evidence.some((item) => item.kind === "screenshot") },
+    { id: "evidence.resolved", pass: record.evidence.every((item) => !/^replace-/i.test(item.reference) && !/^0+$/.test(item.sha256)) },
+  ];
+  const ok = checks.every((check) => check.pass);
+  return { ok, status: ok ? "certified" : "incomplete", checks, errors: [] };
 }
 
 export function resolveProjectPath(projectRoot, relativePath) {

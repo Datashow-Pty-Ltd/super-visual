@@ -1,0 +1,53 @@
+{
+  "contractVersion": 1,
+  "kind": "super-visual-live-certification",
+  "recordedAt": "2026-10-20T08:00:00Z",
+  "commit": "0000000000000000000000000000000000000000",
+  "operator": "replace-with-operator",
+  "environment": "disposable-sandbox",
+  "workspace": {
+    "id": "replace-with-workspace-id",
+    "displayName": "replace-with-expected-workspace-name"
+  },
+  "plan": {
+    "id": "00000000000000000000",
+    "operations": ["create"]
+  },
+  "items": {
+    "semanticModelId": "replace-with-semantic-model-id",
+    "reportId": "replace-with-report-id"
+  },
+  "connectionId": "replace-with-connection-id",
+  "cli": {
+    "status": "accepted",
+    "connectionBinding": true,
+    "reportBinding": true,
+    "refresh": "Completed",
+    "acceptance": {
+      "rowCount": 1,
+      "columnCount": 2,
+      "nonNull": true
+    }
+  },
+  "browser": {
+    "reportOpens": true,
+    "visualRenders": true,
+    "labelsAndValues": true,
+    "keyboardNavigation": true,
+    "selectionInteraction": true,
+    "noUnexpectedErrors": true
+  },
+  "evidence": [
+    {
+      "kind": "receipt",
+      "reference": "replace-with-redacted-receipt-reference",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "kind": "screenshot",
+      "reference": "replace-with-screenshot-reference",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "notes": "Example shape only. Replace every placeholder and hash with run evidence."
+}

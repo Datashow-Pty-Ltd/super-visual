@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -6,7 +6,8 @@ import { promisify } from "node:util";
 import { Command, CommanderError } from "commander";
 import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
-import { applyDeploymentPlan, checkSemanticCompatibility, createDeploymentPlan, discoverFabric, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
+import { evaluateLiveCertification, loadContract } from "@datashow/super-visual-contracts";
+import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
 import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
 
@@ -70,6 +71,13 @@ async function build(project, shouldPackage, parametersFile) {
 
 function addJsonOption(command) {
   return command.option("--json", "emit one machine-readable JSON value");
+}
+
+async function writeJsonAtomic(file, value) {
+  await mkdir(path.dirname(file), { recursive: true });
+  const temporary = `${file}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`);
+  await rename(temporary, file);
 }
 
 function createProgram() {
@@ -163,6 +171,17 @@ function createProgram() {
       return result;
     });
 
+  const certify = program.command("certify").description("validate redacted live deployment and browser evidence");
+  addJsonOption(certify.command("validate <record>"))
+    .description("validate and grade a live certification record")
+    .action(async (record, options, command) => {
+      const value = await loadContract("live-certification-record", path.resolve(record));
+      const result = evaluateLiveCertification(value);
+      output({ ...result, record: path.resolve(record) }, jsonEnabled(command));
+      if (!result.ok) process.exitCode = 1;
+      return result;
+    });
+
   const semantic = program.command("semantic").description("inspect live semantic models and validate project compatibility without mutation");
   addJsonOption(semantic.command("discover"))
     .description("read a semantic model's TMDL inventory and optionally execute acceptance DAX")
@@ -225,6 +244,23 @@ function createProgram() {
       const result = await readDeploymentStatus({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId, reportId: options.reportId, connectionId: options.connectionId, acceptanceDax });
       output(result, jsonEnabled(command));
     });
+
+  addJsonOption(deploy.command("diff [project]"))
+    .description("compare local definitions with exact same-named Fabric items without mutation")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .requiredOption("--semantic-model-name <name>", "target semantic model name")
+    .requiredOption("--report-name <name>", "target report name")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (project = ".", options, command) => {
+      const loaded = await loadProject(projectFile(project));
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const solutionDirectory = path.resolve(loaded.root, loaded.project.output.directory);
+      const result = await createDeploymentDiff({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, solutionDirectory, semanticModelName: options.semanticModelName, reportName: options.reportName });
+      output(result, jsonEnabled(command));
+      return result;
+    });
+
   addJsonOption(deploy.command("plan [project]"))
     .description("inspect Fabric and write an immutable deployment plan")
     .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
@@ -257,15 +293,80 @@ function createProgram() {
     .requiredOption("--plan <file>", "deployment plan created by deploy plan")
     .requiredOption("--confirm <plan-id>", "exact plan ID authorized by a human")
     .option("--backup <directory>", "required backup destination for updates")
+    .option("--receipt <file>", "deployment progress receipt destination")
+    .option("--resume <file>", "resume from a receipt written by an interrupted apply")
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .action(async (project = ".", options, command) => {
-      await loadProject(projectFile(project));
+      const loaded = await loadProject(projectFile(project));
       const planPath = path.resolve(options.plan);
       const plan = JSON.parse(await readFile(planPath, "utf8"));
+      if (options.confirm !== plan.planId) throw new Error(`Deployment requires exact plan confirmation ${plan.planId}`);
+      if (options.receipt && options.resume && path.resolve(options.receipt) !== path.resolve(options.resume)) throw new Error("--receipt and --resume must identify the same file when both are supplied");
+      const receiptPath = path.resolve(options.receipt ?? options.resume ?? path.join(loaded.root, ".supervisual", "deploy-receipt.json"));
+      const receipt = options.resume
+        ? JSON.parse(await readFile(path.resolve(options.resume), "utf8"))
+        : { contractVersion: 1, kind: "supervisual-deployment-receipt", planId: plan.planId, workspace: plan.workspace, startedAt: new Date().toISOString(), status: "in-progress", items: {} };
+      await writeJsonAtomic(receiptPath, receipt);
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-      const result = await applyDeploymentPlan({ client, plan, confirmPlanId: options.confirm, backupDirectory: options.backup ? path.resolve(options.backup) : undefined });
-      output({ ok: result.accepted, ...result }, jsonEnabled(command));
-      if (!result.accepted) process.exitCode = 3;
+      try {
+        const result = await applyDeploymentPlan({
+          client,
+          plan,
+          confirmPlanId: options.confirm,
+          backupDirectory: options.backup ? path.resolve(options.backup) : undefined,
+          resumeState: options.resume ? receipt : null,
+          onProgress: async ({ action, item }) => {
+            receipt.items[action] = item;
+            receipt.status = "in-progress";
+            receipt.updatedAt = new Date().toISOString();
+            await writeJsonAtomic(receiptPath, receipt);
+          },
+        });
+        receipt.items = result.items;
+        receipt.status = result.status;
+        receipt.completedAt = new Date().toISOString();
+        receipt.verification = result.verification;
+        await writeJsonAtomic(receiptPath, receipt);
+        output({ ok: result.accepted, ...result, receiptPath }, jsonEnabled(command));
+        if (!result.accepted) process.exitCode = 3;
+        return result;
+      } catch (error) {
+        receipt.status = "interrupted";
+        receipt.updatedAt = new Date().toISOString();
+        await writeJsonAtomic(receiptPath, receipt);
+        throw error;
+      }
+    });
+
+  const restore = deploy.command("restore").description("plan and apply an exact backup restoration");
+  addJsonOption(restore.command("plan"))
+    .description("verify a deployment backup and write an immutable restore plan")
+    .requiredOption("--backup <directory>", "backup directory containing backup-manifest.json")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .option("--output <file>", "restore plan destination")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (options, command) => {
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const plan = await createRestorePlan({ client, backupDirectory: path.resolve(options.backup), workspaceId: options.workspaceId, workspaceName: options.workspaceName });
+      const planPath = path.resolve(options.output ?? path.join(options.backup, "restore-plan.json"));
+      await mkdir(path.dirname(planPath), { recursive: true });
+      await writeFile(planPath, `${JSON.stringify(plan, null, 2)}\n`);
+      output({ ...plan, planPath }, jsonEnabled(command));
+      return plan;
+    });
+
+  addJsonOption(restore.command("apply"))
+    .description("restore exact backed-up definitions after explicit plan confirmation")
+    .requiredOption("--plan <file>", "restore plan created by deploy restore plan")
+    .requiredOption("--confirm <plan-id>", "exact restore plan ID authorized by a human")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (options, command) => {
+      const plan = JSON.parse(await readFile(path.resolve(options.plan), "utf8"));
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const result = await applyRestorePlan({ client, plan, confirmPlanId: options.confirm });
+      output({ ok: false, ...result }, jsonEnabled(command));
+      process.exitCode = 3;
       return result;
     });
 

@@ -52,6 +52,18 @@ semantic model's `server` and `database`; it must use the versioned
 `fabric-sql-source` shape and should be stored under the ignored `.supervisual`
 directory.
 
+## Validate certification evidence
+
+```text
+supervisual certify validate <record>
+```
+
+The versioned record combines exact commit, plan, workspace, item and connection
+identity with CLI binding/refresh/DAX results, six browser acceptance checks,
+and hashed receipt and screenshot evidence. Valid JSON is not necessarily a
+passing record: unresolved placeholders, non-accepted CLI status, failed browser
+checks, missing evidence kinds, and zero hashes produce `status: incomplete`.
+
 ## Inspect a live semantic model
 
 ```text
@@ -96,6 +108,13 @@ supervisual deploy status
   [--acceptance-query-file <file>]
   [--timeout <seconds>]
 
+supervisual deploy diff [project]
+  --workspace-id <id>
+  [--workspace-name <name>]
+  --semantic-model-name <name>
+  --report-name <name>
+  [--timeout <seconds>]
+
 supervisual deploy plan [project]
   --workspace-id <id>
   [--workspace-name <name>]
@@ -112,14 +131,43 @@ supervisual deploy apply [project]
   --plan <file>
   --confirm <plan-id>
   [--backup <directory>]
+  [--receipt <file>]
+  [--resume <file>]
+  [--timeout <seconds>]
+
+supervisual deploy restore plan
+  --backup <directory>
+  --workspace-id <id>
+  [--workspace-name <name>]
+  [--output <file>]
+  [--timeout <seconds>]
+
+supervisual deploy restore apply
+  --plan <file>
+  --confirm <plan-id>
   [--timeout <seconds>]
 ```
 
-`discover` and `status` are read-only; an explicitly supplied acceptance query
-is executed but never triggers refresh. Planning captures local definition
+`discover`, `status`, and `diff` are read-only; an explicitly supplied acceptance
+query is executed but never triggers refresh. `diff` classifies the semantic
+model and report as `create`, `update`, or `unchanged`, normalizing an existing
+report's semantic-model binding before hashing. Planning captures local definition
 hashes and, for updates, remote definition hashes, then writes an immutable
 local plan. Applying changes Fabric and requires the exact plan ID. Any local or
 remote drift invalidates the plan. Update plans require a backup directory.
 Authentication uses the current Azure CLI identity; tokens must not be printed
 or stored in project files. Apply reports `published-unverified` with `ok:false`
 unless exact connection binding, refresh, and live acceptance all pass.
+
+Apply writes an atomic progress receipt after every verified item. A retry may
+use `--resume` with that receipt. Completed items are accepted only when their
+identity and deployed definition still match the reviewed plan. Update resumes
+also require the original backup manifest; completed updates are never backed up
+again from already-modified state.
+
+Update backups contain a versioned manifest, item identity, definition hashes,
+and the complete remote definitions captured before any write begins. Restore
+planning verifies the backup, target identity, and current remote hashes.
+Restore apply requires exact confirmation and refuses drift. It reports
+`restored-unverified`; run `deploy status` before treating the restored report as
+healthy.

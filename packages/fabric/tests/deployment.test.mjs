@@ -1,8 +1,8 @@
-import { access, mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { applyDeploymentPlan, createDeploymentPlan, decodePart } from "../src/index.mjs";
+import { applyDeploymentPlan, applyRestorePlan, createDeploymentDiff, createDeploymentPlan, createRestorePlan, decodePart } from "../src/index.mjs";
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "supervisual-deploy-"));
@@ -36,6 +36,26 @@ describe("safe Fabric deployment", () => {
     expect(JSON.parse(decodePart(report.parts.find((part) => part.path === "definition.pbir")).toString()).datasetReference.byConnection.connectionString).toBe("semanticmodelid=semanticmodel-1");
   });
 
+  test("diffs create, unchanged, and update definitions without mutation", async () => {
+    const root = await fixture();
+    const client = new FakeClient();
+    const createDiff = await createDeploymentDiff({ client, workspaceId: "workspace-1", workspaceName: "Release", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    expect(createDiff.summary).toEqual({ create: 2, update: 0, unchanged: 0 });
+    expect(client.calls).toEqual([]);
+
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", workspaceName: "Release", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    await applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId });
+    client.calls.length = 0;
+    const unchanged = await createDeploymentDiff({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    expect(unchanged.summary).toEqual({ create: 0, update: 0, unchanged: 2 });
+    expect(client.calls).toEqual([]);
+
+    await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition", "model.tmdl"), "model Changed\n");
+    const changed = await createDeploymentDiff({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    expect(changed.summary).toEqual({ create: 0, update: 1, unchanged: 1 });
+    expect(client.calls).toEqual([]);
+  });
+
   test("blocks same-name replacement unless updates were explicit", async () => {
     const root = await fixture();
     const client = new FakeClient([{ id: "model-existing", type: "SemanticModel", displayName: "Sales model" }]);
@@ -51,6 +71,34 @@ describe("safe Fabric deployment", () => {
     client.items.push({ id: "late-model", type: "SemanticModel", displayName: "Sales model" });
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow("appeared after planning");
     expect(client.calls).toEqual([]);
+  });
+
+  test("resumes an interrupted create plan from a matching progress receipt", async () => {
+    const root = await fixture();
+    class InterruptedClient extends FakeClient {
+      async createItem(workspaceId, type, displayName, format, parts) {
+        if (type === "Report" && !this.interrupted) {
+          this.interrupted = true;
+          throw new Error("simulated transient report failure");
+        }
+        return super.createItem(workspaceId, type, displayName, format, parts);
+      }
+    }
+    const client = new InterruptedClient();
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    const receipt = { contractVersion: 1, kind: "supervisual-deployment-receipt", planId: plan.planId, workspace: plan.workspace, status: "in-progress", items: {} };
+    await expect(applyDeploymentPlan({
+      client,
+      plan,
+      confirmPlanId: plan.planId,
+      onProgress: async ({ action, item }) => { receipt.items[action] = item; },
+    })).rejects.toThrow("simulated transient report failure");
+    expect(receipt.items.semanticModel.id).toBe("semanticmodel-1");
+
+    const resumed = await applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId, resumeState: receipt });
+    expect(resumed.items.semanticModel).toMatchObject({ id: "semanticmodel-1", resumed: true });
+    expect(resumed.items.report.id).toBe("report-1");
+    expect(client.calls).toEqual(["create:SemanticModel", "create:Report"]);
   });
 
   test("updates only after exact authorization and writes recoverable backups", async () => {
@@ -69,8 +117,18 @@ describe("safe Fabric deployment", () => {
     expect(client.calls).toEqual(["update:SemanticModel", "update:Report"]);
     await expect(access(path.join(backup, "SemanticModel-model-existing", "definition.pbism"))).resolves.toBeUndefined();
     await expect(access(path.join(backup, "Report-report-existing", "definition.pbir"))).resolves.toBeUndefined();
+    const backupManifest = JSON.parse(await readFile(path.join(backup, "backup-manifest.json"), "utf8"));
+    expect(backupManifest).toMatchObject({ contractVersion: 1, kind: "supervisual-fabric-backup", sourcePlanId: plan.planId, workspace: { id: "workspace-1" }, items: [{ key: "semanticModel" }, { key: "report" }] });
     expect(result.status).toBe("published-unverified");
     expect(result.accepted).toBe(false);
+
+    const restorePlan = await createRestorePlan({ client, backupDirectory: backup, workspaceId: "workspace-1", workspaceName: "Release" });
+    await expect(applyRestorePlan({ client, plan: restorePlan, confirmPlanId: "wrong" })).rejects.toThrow(/exact plan confirmation/);
+    client.calls.length = 0;
+    const restored = await applyRestorePlan({ client, plan: restorePlan, confirmPlanId: restorePlan.planId });
+    expect(client.calls).toEqual(["update:SemanticModel", "update:Report"]);
+    expect(restored).toMatchObject({ status: "restored-unverified", accepted: false, sourcePlanId: plan.planId });
+    expect(client.definitions.get("model-existing").parts).toEqual([{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }]);
   });
 
   test("rejects local solution content that changed after planning", async () => {
