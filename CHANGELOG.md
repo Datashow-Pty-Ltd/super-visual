@@ -14,3 +14,5 @@
   declaration and reject invalid version metadata before Fabric publication.
 - Accepted Fabric-normalized report connection strings during post-deployment
   semantic-model binding verification while still rejecting the wrong model ID.
+- Corrected generated PBIR report-format metadata to `2.0.0`, preventing a
+  Fabric import from succeeding while the report exploration surface stays empty.

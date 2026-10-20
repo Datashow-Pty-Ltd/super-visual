@@ -42,7 +42,7 @@ export async function generateReportWrapper({ outputDirectory, title, visualGuid
   });
   await json(path.join(definition, "version.json"), {
     $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json",
-    version: "1.0.0",
+    version: "2.0.0",
   });
   await json(path.join(definition, "report.json"), {
     $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.3.0/schema.json",
