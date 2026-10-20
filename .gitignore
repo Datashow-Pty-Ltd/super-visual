@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.tmp/
+.cache/
+coverage/
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log
+*.tsbuildinfo
+
+# Power BI visual build artifacts
+*.pbiviz
+webpack.statistics.*.html
