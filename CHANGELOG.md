@@ -10,3 +10,5 @@
 - Rebuilt AdventureWorks as a standalone, package-tested sample.
 - Added JSON CLI commands, agent instructions, a portable skill, CI, and public
   project governance files.
+- Corrected PBIR `version.json` generation to use Microsoft's required schema
+  declaration and reject invalid version metadata before Fabric publication.

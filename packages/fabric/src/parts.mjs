@@ -51,5 +51,19 @@ export function verifyDefinitionParts(parts, format) {
     if (totalBytes > MAX_DEFINITION_BYTES) throw new Error(`${format} definition exceeds ${MAX_DEFINITION_BYTES} bytes`);
   }
   if (format === "TMDL" && !paths.includes("definition.pbism")) throw new Error("TMDL definition is missing definition.pbism");
-  if (format === "PBIR" && !paths.includes("definition.pbir")) throw new Error("PBIR definition is missing definition.pbir");
+  if (format === "PBIR") {
+    if (!paths.includes("definition.pbir")) throw new Error("PBIR definition is missing definition.pbir");
+    const versionPart = parts.find((part) => part.path === "definition/version.json");
+    if (!versionPart) throw new Error("PBIR definition is missing definition/version.json");
+    let version;
+    try {
+      version = JSON.parse(decodePart(versionPart).toString("utf8"));
+    } catch {
+      throw new Error("PBIR definition/version.json is not valid JSON");
+    }
+    const schema = "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json";
+    if (version?.$schema !== schema) throw new Error(`PBIR definition/version.json must declare ${schema}`);
+    if (typeof version.version !== "string" || !/^[1-9][0-9]*\.(?:0|[1-9][0-9]*)\.0$/.test(version.version)) throw new Error("PBIR definition/version.json has an invalid version");
+    if (Object.keys(version).some((key) => !["$schema", "version"].includes(key))) throw new Error("PBIR definition/version.json contains unsupported properties");
+  }
 }

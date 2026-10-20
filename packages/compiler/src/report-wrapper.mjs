@@ -40,7 +40,10 @@ export async function generateReportWrapper({ outputDirectory, title, visualGuid
     $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/2.0.0/schema.json",
     version: "4.0", datasetReference: { byPath: { path: semanticPath } },
   });
-  await json(path.join(definition, "version.json"), { version: "1.0.0", schemaVersion: "1.0.0" });
+  await json(path.join(definition, "version.json"), {
+    $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json",
+    version: "1.0.0",
+  });
   await json(path.join(definition, "report.json"), {
     $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.3.0/schema.json",
     themeCollection: { baseTheme: { name: "CY24SU10", reportVersionAtImport: { visual: "2.6.0", report: "3.1.0", page: "2.3.0" }, type: "SharedResources" } },

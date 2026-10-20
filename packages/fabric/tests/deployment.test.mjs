@@ -2,7 +2,7 @@ import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { applyDeploymentPlan, applyRestorePlan, createDeploymentDiff, createDeploymentPlan, createRestorePlan, decodePart } from "../src/index.mjs";
+import { applyDeploymentPlan, applyRestorePlan, createDeploymentDiff, createDeploymentPlan, createRestorePlan, decodePart, verifyDefinitionParts } from "../src/index.mjs";
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "supervisual-deploy-"));
@@ -11,8 +11,16 @@ async function fixture() {
   await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition.pbism"), "{}\n");
   await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition", "model.tmdl"), "model Model\n");
   await writeFile(path.join(root, "Report.Report", "definition.pbir"), JSON.stringify({ datasetReference: { byPath: { path: "../SemanticAdapter.SemanticModel" } } }));
+  await writeFile(path.join(root, "Report.Report", "definition", "version.json"), JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" }));
   await writeFile(path.join(root, "Report.Report", "definition", "report.json"), "{}\n");
   return root;
+}
+
+function reportParts(definitionPbir = { datasetReference: {} }) {
+  return [
+    { path: "definition.pbir", payload: Buffer.from(JSON.stringify(definitionPbir)).toString("base64"), payloadType: "InlineBase64" },
+    { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" })).toString("base64"), payloadType: "InlineBase64" },
+  ];
 }
 
 class FakeClient {
@@ -25,6 +33,13 @@ class FakeClient {
 }
 
 describe("safe Fabric deployment", () => {
+  test("rejects PBIR version metadata that Fabric cannot import", () => {
+    expect(() => verifyDefinitionParts([
+      { path: "definition.pbir", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" },
+      { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ version: "1.0.0", schemaVersion: "1.0.0" })).toString("base64"), payloadType: "InlineBase64" },
+    ], "PBIR")).toThrow(/must declare/);
+  });
+
   test("plans then creates semantic model before its bound report", async () => {
     const root = await fixture();
     const client = new FakeClient();
@@ -59,6 +74,7 @@ describe("safe Fabric deployment", () => {
   test("blocks same-name replacement unless updates were explicit", async () => {
     const root = await fixture();
     const client = new FakeClient([{ id: "model-existing", type: "SemanticModel", displayName: "Sales model" }]);
+    client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }, { path: "definition/model.tmdl", payload: Buffer.from("model Existing\n").toString("base64"), payloadType: "InlineBase64" }] });
     const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
     expect(plan.blockers).toHaveLength(1);
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow("blocked");
@@ -110,7 +126,7 @@ describe("safe Fabric deployment", () => {
     ];
     const client = new FakeClient(items);
     client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }] });
-    client.definitions.set("report-existing", { format: "PBIR", parts: [{ path: "definition.pbir", payload: Buffer.from(JSON.stringify({ datasetReference: {} })).toString("base64"), payloadType: "InlineBase64" }] });
+    client.definitions.set("report-existing", { format: "PBIR", parts: reportParts() });
     const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report", allowUpdates: true });
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: "wrong", backupDirectory: backup })).rejects.toThrow(/exact plan confirmation/);
     const result = await applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId, backupDirectory: backup });
@@ -147,7 +163,7 @@ describe("safe Fabric deployment", () => {
       { id: "report-existing", type: "Report", displayName: "Sales report" },
     ]);
     client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }] });
-    client.definitions.set("report-existing", { format: "PBIR", parts: [{ path: "definition.pbir", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }] });
+    client.definitions.set("report-existing", { format: "PBIR", parts: reportParts() });
     const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report", allowUpdates: true });
     client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{\"changed\":true}\n").toString("base64"), payloadType: "InlineBase64" }] });
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId, backupDirectory: await mkdtemp(path.join(os.tmpdir(), "supervisual-backup-")) })).rejects.toThrow(/remote definition changed after planning/);
