@@ -30,6 +30,7 @@ class FakeClient {
   async createItem(_workspaceId, type, displayName, format, parts) { const id = `${type.toLowerCase()}-1`; this.items.push({ id, type, displayName }); this.definitions.set(id, { format, parts }); this.calls.push(`create:${type}`); return { id }; }
   async updateItem(_workspaceId, type, id, format, parts) { this.definitions.set(id, { format, parts }); this.calls.push(`update:${type}`); return { id }; }
   async getDefinition(_workspaceId, _type, id) { return this.definitions.get(id); }
+  async listConnections() { return []; }
 }
 
 class NormalizedReportClient extends FakeClient {
@@ -222,6 +223,25 @@ describe("safe Fabric deployment", () => {
     const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
     await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition", "model.tmdl"), "model Changed\n");
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow(/local definition changed after planning/);
+    expect(client.calls).toEqual([]);
+  });
+
+  test("blocks a connection that does not match the packaged semantic source before mutation", async () => {
+    const root = await fixture();
+    await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition", "expressions.tmdl"), 'expression Server = "localhost"\n\nexpression Database = "Demo"\n');
+    const client = new FakeClient();
+    client.listConnections = async () => [{ id: "connection-1", connectivityType: "ShareableCloud", connectionDetails: { type: "SQL", path: "server.example.com;Production" } }];
+    const plan = await createDeploymentPlan({
+      client,
+      workspaceId: "workspace-1",
+      solutionDirectory: root,
+      semanticModelName: "Sales model",
+      reportName: "Sales report",
+      postDeployment: { connectionId: "connection-1", connectivityType: "ShareableCloud" },
+    });
+    expect(plan.blockers).toEqual([expect.stringMatching(/does not exactly match packaged semantic source SQL localhost;Demo/)]);
+    plan.blockers = [];
+    await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow(/does not exactly match packaged semantic source SQL localhost;Demo/);
     expect(client.calls).toEqual([]);
   });
 
