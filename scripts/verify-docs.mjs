@@ -17,6 +17,7 @@ const required = [
   "docs/claude-dashboard-migration.md",
   "docs/adapter-compatibility.md",
   "docs/troubleshooting.md",
+  "docs/release-proof.md",
   "docs/reference/deployed-baseline.json",
 ];
 

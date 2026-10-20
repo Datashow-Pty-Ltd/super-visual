@@ -72,7 +72,7 @@ Acceptance: the skill passes structural validation, every documented command is
 exercised in CI or explicitly marked as requiring Fabric credentials, and no
 guide depends on private filesystem paths.
 
-### 14. Release proof
+### 14. Release proof — complete
 
 - Run all unit, integration, golden, security, CLI UX, example, packaging, and
   mocked deployment gates from a clean install.
