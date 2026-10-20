@@ -14,6 +14,11 @@ const require = createRequire(import.meta.url);
 const BROKER_FIELDS = ["WidgetId", "AxisKey", "Label", "Sort", "SeriesKey", "SeriesLabel", "WidgetValue", "BrokerContext"];
 const BROKER_COLUMNS = BROKER_FIELDS.slice(0, 6);
 const BROKER_MEASURES = ["Widget Value", "Broker Context"];
+const PREVIEW_RESPONSE_HEADERS = {
+  "Content-Security-Policy": "default-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+};
 
 function daxString(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
@@ -218,6 +223,18 @@ function semanticGateway({ client, workspaceId, semanticModelId, loaded, token }
   };
 }
 
+function previewResponseHeaders() {
+  return {
+    name: "supervisual-preview-response-headers",
+    configureServer(server) {
+      server.middlewares.use((_request, response, next) => {
+        for (const [name, value] of Object.entries(PREVIEW_RESPONSE_HEADERS)) response.setHeader(name, value);
+        next();
+      });
+    },
+  };
+}
+
 async function writePreviewHost(root, token) {
   await rm(root, { recursive: true, force: true });
   await mkdir(path.join(root, "src"), { recursive: true });
@@ -255,14 +272,10 @@ export async function startSemanticPreview({ client, projectFile, workspaceId, w
       open,
       allowedHosts: [host],
       cors: false,
-      headers: {
-        "Content-Security-Policy": "default-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-        "Referrer-Policy": "no-referrer",
-        "X-Content-Type-Options": "nosniff",
-      },
+      headers: PREVIEW_RESPONSE_HEADERS,
       fs: { strict: true, allow: [previewRoot] },
     },
-    plugins: [semanticGateway({ client, workspaceId, semanticModelId, loaded, token })],
+    plugins: [previewResponseHeaders(), semanticGateway({ client, workspaceId, semanticModelId, loaded, token })],
   });
   await server.listen();
   const address = server.httpServer?.address();
