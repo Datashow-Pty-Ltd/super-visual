@@ -38,16 +38,45 @@ compatibility boundary, and writes import provenance.
 supervisual init <directory> [--template hello-world] [--name <id>]
   [--title <title>] [--force]
 supervisual check [project]
-supervisual compile [project]
-supervisual build [project] [--package]
-supervisual package [project]
+supervisual compile [project] [--parameters-file <file>]
+supervisual build [project] [--package] [--parameters-file <file>]
+supervisual package [project] [--parameters-file <file>]
 supervisual verify [project]
 ```
 
 `compile` is an alias for `build`. The dedicated `package` command is equivalent
 to `build --package`. Initialization creates a unique visual GUID and refuses to
 write into a non-empty directory. `--force` permits an existing empty directory;
-it does not overwrite files.
+it does not overwrite files. A source profile overrides only the generated
+semantic model's `server` and `database`; it must use the versioned
+`fabric-sql-source` shape and should be stored under the ignored `.supervisual`
+directory.
+
+## Inspect a live semantic model
+
+```text
+supervisual semantic discover
+  --workspace-id <id>
+  [--workspace-name <name>]
+  --semantic-model-id <id>
+  [--acceptance-query-file <file>]
+  [--timeout <seconds>]
+
+supervisual semantic check [project]
+  --workspace-id <id>
+  [--workspace-name <name>]
+  --semantic-model-id <id>
+  [--acceptance-query-file <file>]
+  [--timeout <seconds>]
+```
+
+Both commands are read-only. `discover` downloads the selected model's TMDL
+definition and returns a safe inventory of tables, columns, measures,
+hierarchies, relationships, parameter names, culture, and compatibility level.
+It excludes expressions, Power Query, parameter values, and data rows. `check`
+compares that inventory with the project's semantic and widget-broker contracts
+and reports every matched, missing, or ambiguous object. An optional acceptance
+query returns row-count and non-null evidence, not the row values.
 
 ## Deploy to Fabric
 

@@ -7,7 +7,9 @@ const run = promisify(execFile);
 const root = path.resolve(".");
 const required = [
   "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
-  "CLAUDE.md", "AGENTS.md", ".claude/skills/super-visual/SKILL.md", ".github/workflows/ci.yml", ".github/workflows/release.yml",
+  "CLAUDE.md", "AGENTS.md", "skills/super-visual/SKILL.md", ".claude/skills/super-visual/SKILL.md", ".codex/skills/super-visual/SKILL.md",
+  ".github/workflows/ci.yml", ".github/workflows/release.yml", ".github/workflows/codeql.yml",
+  ".github/workflows/dependency-review.yml", ".github/workflows/scorecard.yml", ".github/dependabot.yml",
 ];
 await Promise.all(required.map((file) => access(path.join(root, file))));
 

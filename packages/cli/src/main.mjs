@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import { Command, CommanderError } from "commander";
 import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
-import { applyDeploymentPlan, createDeploymentPlan, discoverFabric, readDeploymentStatus } from "@datashow/super-visual-fabric";
+import { applyDeploymentPlan, checkSemanticCompatibility, createDeploymentPlan, discoverFabric, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
 import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
 
@@ -44,14 +44,26 @@ async function packageVisual(result) {
   return destination;
 }
 
-async function build(project, shouldPackage) {
-  const result = await buildSolution(projectFile(project));
+async function semanticParameters(file) {
+  if (!file) return null;
+  const profile = JSON.parse(await readFile(path.resolve(file), "utf8"));
+  if (profile?.contractVersion !== 1 || profile?.kind !== "fabric-sql-source") throw new Error("Source profile must use contractVersion 1 and kind fabric-sql-source");
+  const keys = Object.keys(profile.source ?? {});
+  if (!keys.length || keys.some((key) => !["server", "database"].includes(key))) throw new Error("Source profile may contain only source.server and source.database");
+  if (!["server", "database"].every((key) => typeof profile.source[key] === "string" && profile.source[key].trim())) throw new Error("Source profile requires non-empty source.server and source.database strings");
+  return { server: profile.source.server.trim(), database: profile.source.database.trim() };
+}
+
+async function build(project, shouldPackage, parametersFile) {
+  const parameters = await semanticParameters(parametersFile);
+  const result = await buildSolution(projectFile(project), { semanticParameters: parameters });
   const artifact = shouldPackage ? await packageVisual(result) : null;
   const verified = await verifySolutionManifest(result.outputDirectory);
   return {
     ok: verified.ok,
     outputDirectory: result.outputDirectory,
     fileCount: verified.fileCount,
+    sourceProfileApplied: Boolean(parameters),
     ...(artifact ? { visualPackage: artifact } : {}),
   };
 }
@@ -133,17 +145,54 @@ function createProgram() {
   addJsonOption(program.command("build [project]").alias("compile"))
     .description("compile a deterministic, inspectable solution bundle")
     .option("--package", "also create and embed the deployable .pbiviz archive")
-    .action(async (project = ".", options, command) => output(await build(project, Boolean(options.package)), jsonEnabled(command)));
+    .option("--parameters-file <file>", "deployment source profile with service-reachable server and database")
+    .action(async (project = ".", options, command) => output(await build(project, Boolean(options.package), options.parametersFile), jsonEnabled(command)));
 
   addJsonOption(program.command("package [project]"))
     .description("compile, package, embed, and verify a deployable solution")
-    .action(async (project = ".", options, command) => output(await build(project, true), jsonEnabled(command)));
+    .option("--parameters-file <file>", "deployment source profile with service-reachable server and database")
+    .action(async (project = ".", options, command) => output(await build(project, true, options.parametersFile), jsonEnabled(command)));
 
   addJsonOption(program.command("verify [project]"))
     .description("verify every generated file against the solution manifest")
     .action(async (project = ".", options, command) => {
       const loaded = await loadProject(projectFile(project));
       const result = await verifySolutionManifest(path.resolve(loaded.root, loaded.project.output.directory));
+      output(result, jsonEnabled(command));
+      if (!result.ok) process.exitCode = 1;
+      return result;
+    });
+
+  const semantic = program.command("semantic").description("inspect live semantic models and validate project compatibility without mutation");
+  addJsonOption(semantic.command("discover"))
+    .description("read a semantic model's TMDL inventory and optionally execute acceptance DAX")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .requiredOption("--semantic-model-id <id>", "exact semantic model ID")
+    .option("--acceptance-query-file <file>", "DAX acceptance query to execute read-only")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (options, command) => {
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : null;
+      const result = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId, acceptanceDax });
+      output(result, jsonEnabled(command));
+      return result;
+    });
+
+  addJsonOption(semantic.command("check [project]"))
+    .description("compare a project's semantic and broker contracts with a live semantic model")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .requiredOption("--semantic-model-id <id>", "exact semantic model ID")
+    .option("--acceptance-query-file <file>", "DAX acceptance query to execute read-only")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (project = ".", options, command) => {
+      const loaded = await loadProject(projectFile(project));
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : null;
+      const inspected = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId, acceptanceDax });
+      const compatibility = checkSemanticCompatibility(inspected.semanticModel, loaded.semanticModel, loaded.broker);
+      const result = { ...inspected, ok: compatibility.ok, compatibility };
       output(result, jsonEnabled(command));
       if (!result.ok) process.exitCode = 1;
       return result;

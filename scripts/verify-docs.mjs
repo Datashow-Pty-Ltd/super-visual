@@ -18,6 +18,10 @@ const required = [
   "docs/adapter-compatibility.md",
   "docs/troubleshooting.md",
   "docs/release-proof.md",
+  "docs/security-assurance.md",
+  "docs/threat-model.md",
+  "docs/agent-evals.md",
+  "docs/certification/live-run-template.md",
   "docs/reference/deployed-baseline.json",
 ];
 

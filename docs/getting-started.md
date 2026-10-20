@@ -63,6 +63,28 @@ Read [Claude Dashboard migration](./claude-dashboard-migration.md) before using
 real source. The format is Super Visual's documented interchange contract, not
 an official Anthropic export schema.
 
+## Check a live semantic model
+
+Before deploying, inspect a model with immutable IDs and no mutation:
+
+```bash
+npx supervisual semantic discover \
+  --workspace-id <workspace-guid> \
+  --workspace-name <expected-name> \
+  --semantic-model-id <model-guid> \
+  --json
+
+npx supervisual semantic check examples/hello-world \
+  --workspace-id <workspace-guid> \
+  --workspace-name <expected-name> \
+  --semantic-model-id <model-guid> \
+  --json
+```
+
+The discovery result intentionally excludes DAX, Power Query, parameter values,
+and business rows. Compatibility checking proves that the project-required
+columns, measures, and hierarchies exist without changing the model.
+
 ## Deploy safely
 
 First compile and verify. Then create a read-only plan using immutable target

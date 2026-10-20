@@ -85,7 +85,10 @@ export async function loadProject(projectFile) {
 
 export async function buildSolution(projectFile, options = {}) {
   const loaded = await loadProject(projectFile);
-  const { root, project, semanticModel, broker, pageSet, reportSource } = loaded;
+  const { root, project, broker, pageSet, reportSource } = loaded;
+  const semanticModel = options.semanticParameters
+    ? { ...loaded.semanticModel, sourceParameters: { ...loaded.semanticModel.sourceParameters, ...options.semanticParameters } }
+    : loaded.semanticModel;
   const diagnostics = validateCompilation({ semanticModel, broker, pageSet, reportSource });
   if (diagnostics.length) throw new Error(`Compilation failed:\n- ${diagnostics.join("\n- ")}`);
   const output = options.outputDirectory ?? resolveProjectPath(root, project.output.directory);
@@ -112,7 +115,11 @@ export async function buildSolution(projectFile, options = {}) {
     target: project.target,
     inputs: { project: path.basename(projectFile), semanticModel: project.semantic.model, broker: project.semantic.broker, pageSet: project.semantic.pageSet, reportSource: project.source.bundle },
     outputs: { baseModel: "Base.SemanticModel", semanticAdapter: "SemanticAdapter.SemanticModel", visualSource: "Visual", report: "Report.Report" },
-    provenance: { compiler: "@datashow/super-visual-compiler", reference: "AdventureWorks deployed v38" },
+    provenance: {
+      compiler: "@datashow/super-visual-compiler",
+      reference: "AdventureWorks deployed v38",
+      semanticParameterOverrides: Object.keys(options.semanticParameters ?? {}).sort(),
+    },
     files: await hashes(output),
   };
   await writeFile(path.join(output, "supervisual.manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

@@ -43,11 +43,16 @@ data through the semantic and widget-broker contracts.
 
 ## Fabric safety boundary
 
+Use `semantic discover` to inspect a selected live model without returning DAX,
+Power Query, parameter values, or business rows. Use `semantic check` to compare
+that inventory with a project's semantic and broker contracts. Both commands are
+read-only; an optional acceptance query may return only its row-count evidence.
+
 Deployment uses plan/apply. Planning is read-only and requires an immutable
 workspace ID. Run `deploy discover` first and `deploy status` after apply.
-Report the target identity, operations, blockers, and exact plan
-ID. Apply only after the human explicitly authorizes that exact plan ID. Never
-infer `--allow-updates`; updates replace complete definitions and require a
+Report the target identity, operations, blockers, and exact plan ID. Apply only
+after the human explicitly authorizes that exact plan ID and target workspace.
+Never infer `--allow-updates`; updates replace complete definitions and require a
 backup directory. Do not claim deployment success until status confirms exact
 report and connection binding, refresh, and the configured live acceptance
 query. `published-unverified` is not success.

@@ -8,6 +8,10 @@ single JSON object when that flag is present.
 npx supervisual check <project> --json
 npx supervisual build <project> [--package] --json
 npx supervisual verify <project> --json
+npx supervisual semantic discover --workspace-id <id> \
+  --semantic-model-id <id> --json
+npx supervisual semantic check <project> --workspace-id <id> \
+  --semantic-model-id <id> --json
 npx supervisual deploy discover --workspace-id <id> [--connections] --json
 npx supervisual deploy status --workspace-id <id> \
   [--semantic-model-id <id> --report-id <id> --connection-id <id>] \
@@ -22,8 +26,9 @@ npx supervisual deploy apply <project> --plan <file> --confirm <plan-id> \
 ```
 
 `check` is side-effect free. `build` replaces only the project's configured
-output directory. `verify` is read-only. `deploy plan` makes read-only Fabric
-calls and writes a local plan. `deploy apply` is the only command that changes
+output directory. `verify` and both `semantic` commands are read-only. Semantic
+inspection returns metadata, not source expressions or business data. `deploy
+plan` makes read-only Fabric calls and writes a local plan. `deploy apply` is the only command that changes
 Fabric; it refuses stale workspace identity, blocked actions, missing update
 backups, changed local/remote definition hashes, or a mismatched confirmation
 ID. `deploy apply` returning `published-unverified` is not a successful release.

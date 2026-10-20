@@ -1,5 +1,9 @@
 # Super Visual
 
+[![CI](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/ci.yml/badge.svg)](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/codeql.yml/badge.svg)](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Datashow-Pty-Ltd/super-visual/badge)](https://scorecard.dev/viewer/?uri=github.com/Datashow-Pty-Ltd/super-visual)
+
 Super Visual compiles governed React dashboards into semantically bound,
 deployable Power BI applications.
 
@@ -52,7 +56,13 @@ example:package` rebuilds and packages it end to end.
 
 Coding agents should follow [CLAUDE.md](CLAUDE.md) and the
 [agent interface](docs/agent-guide.md). Reusable Claude commands are included in
-`.claude/commands/`.
+`.claude/commands/`. The canonical Super Visual skill is distributed for both
+Claude and Codex and is checked for drift in CI.
+
+Security evidence, scan coverage, release attestations, and the distinction
+between automated assurance and independent certification are documented in the
+[security assurance guide](docs/security-assurance.md). See [SECURITY.md](SECURITY.md)
+for private vulnerability reporting.
 
 ## License
 

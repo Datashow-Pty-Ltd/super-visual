@@ -1,0 +1,8 @@
+{
+  "contractVersion": 1,
+  "kind": "fabric-sql-source",
+  "source": {
+    "server": "your-service-reachable-sql-endpoint.example.com",
+    "database": "SuperVisualSandbox"
+  }
+}

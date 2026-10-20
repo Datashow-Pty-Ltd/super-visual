@@ -15,3 +15,7 @@ npm run verify
 
 Edit the contracts under `contracts/` to point at your governed data. Application
 source receives data only through `ReportApplicationProps`.
+
+For a real Fabric sandbox, follow [deployment/CERTIFICATION.md](deployment/CERTIFICATION.md).
+The source profile overrides only the generated bundle and keeps tenant-specific
+endpoint values out of the checked-in contract.

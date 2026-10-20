@@ -43,5 +43,5 @@ export async function executeAcceptanceQuery({ client, workspaceId, semanticMode
   const rows = await client.executeDax(workspaceId, semanticModelId, query);
   if (!rows.length) throw new Error("Acceptance DAX returned no rows");
   if (rows.some((row) => Object.values(row).some((value) => value === null || value === undefined))) throw new Error("Acceptance DAX returned null values");
-  return { rowCount: rows.length, rows };
+  return { rowCount: rows.length, columnCount: Math.max(...rows.map((row) => Object.keys(row).length)), nonNull: true };
 }

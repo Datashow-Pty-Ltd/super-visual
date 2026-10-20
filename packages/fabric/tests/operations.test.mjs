@@ -13,7 +13,7 @@ test("binds an exact connection, refreshes, and executes acceptance DAX", async 
   };
   expect((await bindSemanticModelConnection({ client, workspaceId: "w", semanticModelId: "m", connectionId: "connection-1", pollIntervalMs: 0 })).referenceCount).toBe(1);
   expect((await refreshSemanticModel({ client, workspaceId: "w", semanticModelId: "m", pollIntervalMs: 0 })).status).toBe("Completed");
-  expect((await executeAcceptanceQuery({ client, workspaceId: "w", semanticModelId: "m", query: "EVALUATE ROW(\"Sales\", [Sales])" })).rowCount).toBe(1);
+  expect(await executeAcceptanceQuery({ client, workspaceId: "w", semanticModelId: "m", query: "EVALUATE ROW(\"Sales\", [Sales])" })).toEqual({ rowCount: 1, columnCount: 1, nonNull: true });
 });
 
 test("fails a deployment refresh whose latest operation failed", async () => {

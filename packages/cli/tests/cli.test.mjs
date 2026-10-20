@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -16,12 +16,16 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("init");
     expect(help.stdout).toContain("package");
     expect(help.stdout).toContain("import");
+    expect(help.stdout).toContain("semantic");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
     expect(version.stdout.trim()).toBe("0.1.0-rc.0");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("status");
+    const semanticHelp = await run(process.execPath, [cli, "semantic", "--help"], { cwd: root });
+    expect(semanticHelp.stdout).toContain("discover");
+    expect(semanticHelp.stdout).toContain("check");
   });
 
   test("discovers and inspects a Claude-style bundle", async () => {
@@ -66,6 +70,25 @@ describe("supervisual CLI", () => {
       expect(JSON.parse(built.stdout).fileCount).toBeGreaterThan(35);
       const verified = await run(process.execPath, [cli, "verify", project, "--json"], { cwd: root });
       expect(JSON.parse(verified.stdout).ok).toBe(true);
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("builds hello world with an untracked hosted source profile", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-profile-"));
+    const project = path.join(temporary, "hosted-hello");
+    const profile = path.join(temporary, "source-profile.json");
+    try {
+      await run(process.execPath, [cli, "init", project, "--json"], { cwd: root });
+      await writeFile(profile, `${JSON.stringify({ contractVersion: 1, kind: "fabric-sql-source", source: { server: "warehouse.example.fabric.microsoft.com", database: "SuperVisualSandbox" } }, null, 2)}\n`);
+      const built = await run(process.execPath, [cli, "compile", project, "--parameters-file", profile, "--json"], { cwd: root });
+      expect(JSON.parse(built.stdout)).toMatchObject({ ok: true, sourceProfileApplied: true });
+      const expressions = await readFile(path.join(project, "dist", "SemanticAdapter.SemanticModel", "definition", "expressions.tmdl"), "utf8");
+      expect(expressions).toContain("warehouse.example.fabric.microsoft.com");
+      expect(expressions).toContain("SuperVisualSandbox");
+      const manifest = JSON.parse(await readFile(path.join(project, "dist", "supervisual.manifest.json"), "utf8"));
+      expect(manifest.provenance.semanticParameterOverrides).toEqual(["database", "server"]);
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }

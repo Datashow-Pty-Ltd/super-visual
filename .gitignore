@@ -4,6 +4,7 @@ dist/
 .cache/
 coverage/
 .supervisual/
+.artifacts/
 
 .env
 .env.*
