@@ -5,14 +5,14 @@ shell:
   defaultPage: overview
   designSystem:
     id: hello-world
-    sha256: bc90c2951876eca7c26813120629e0ec30a11b58d01683c9516a0b156ea8022e
+    sha256: 867a5f2b3227e49397037e1f7d83efbf2a58385f0b3b787350bedcd02612e49a
   acceptedConcept: { id: hello-world }
   governanceLabel: Power BI governed
   locale: en-AU
-  currencyCode: AUD
+  currencyCode: ''
   filterContext: []
   navigation:
-    - { page: overview, label: Overview }
+    - { page: overview, label: Model catalog }
   theme:
     background: '#F4F7F5'
     surface: '#FFFFFF'
@@ -40,39 +40,35 @@ shell:
     typography: { findingMin: 40, findingMax: 56, sectionTitle: 22, kpiValue: 32, body: 15, chart: 12, table: 13, metadata: 11 }
 pages:
   - id: overview
-    title: Hello World
-    eyebrow: Super Visual / minimal example
+    title: Semantic Model Catalog
+    eyebrow: Super Visual / connectivity proof
     summary:
-      headline: Your first governed React dashboard.
-      body: One dataset and one chart prove the complete semantic-to-visual path.
-      emphasisBinding: { dataset: sales, field: value, aggregation: sum }
-    search: null
-    kpis:
-      - id: total-sales
-        conceptRegionId: total-sales
-        label: Total sales
-        binding: { dataset: sales, field: value, aggregation: sum }
-        reportWidgetIds: [sales]
-        businessQuestionIds: [sales-mix]
-        format: currency-compact
-        comparison: null
+      headline: Hello, semantic model.
+      body: Search the declared model entities returned through the governed Super Visual broker.
+      emphasisBinding: null
+    search:
+      placeholder: Search type, parent, or name
+      dataset: model-catalog
+      filterTarget: Super Visual Model Catalog[Entity]
+    kpis: []
     widgets:
-      - id: sales
-        conceptRegionId: sales
-        primitive: bar
-        title: Sales by category
-        subtitle: Governed data from the semantic model
-        dataset: sales
-        reportWidgetIds: [sales]
-        businessQuestionIds: [sales-mix]
-        layout: { columns: 12, minHeight: 320 }
-        settings: { orientation: horizontal, curve: null, showLegend: false, showLabels: true, sort: descending, limit: 10, emphasis: bars }
+      - id: model-catalog
+        conceptRegionId: model-catalog
+        primitive: ranked-table
+        title: Semantic model entities
+        subtitle: Generated from the semantic contract and queried through the live adapter
+        dataset: model-catalog
+        reportWidgetIds: [model-catalog]
+        businessQuestionIds: [semantic-connectivity]
+        layout: { columns: 12, minHeight: 420 }
+        settings: { orientation: null, curve: null, showLegend: false, showLabels: true, sort: ascending, limit: 100, emphasis: null }
 interactions: []
 designRationale:
-  narrative: Demonstrate the smallest complete Super Visual project.
+  narrative: Make the smallest sample an inspectable proof that React is receiving governed semantic-model rows.
   decisions:
-    - Keep the example to one page, one dataset, one measure, and one chart.
+    - Replace arbitrary business data with a generated semantic-model catalog.
+    - Keep search client-side so it is immediate and does not create model filters.
   accessibility:
-    - Use semantic headings, a native list, visible values, and no colour-only meaning.
+    - Use a labelled search field, semantic table headings, visible connection status, and text counts.
   risks:
-    - A Fabric deployment still requires a reachable SQL endpoint and connection binding.
+    - Catalog rows prove the report-to-semantic-provider path; source refresh remains a separate deployment acceptance check.

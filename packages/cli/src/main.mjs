@@ -2,14 +2,16 @@ import { cp, mkdir, mkdtemp, readFile, readdir, rename, writeFile } from "node:f
 import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { promisify } from "node:util";
 import { Command, CommanderError } from "commander";
 import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
 import { evaluateLiveCertification, loadContract, migrateProjectContracts } from "@datashow/super-visual-contracts";
 import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, discoverFabricWorkspaces, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
-import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates } from "./project.mjs";
+import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates, syncProjectSource } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
+import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./project-target.mjs";
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
@@ -57,6 +59,7 @@ async function semanticParameters(file) {
 }
 
 async function build(project, shouldPackage, parametersFile) {
+  await syncProjectSource(projectFile(project));
   const parameters = await semanticParameters(parametersFile);
   const result = await buildSolution(projectFile(project), { semanticParameters: parameters });
   const artifact = shouldPackage ? await packageVisual(result) : null;
@@ -88,6 +91,57 @@ async function waitForPreviewShutdown(preview) {
     process.once("SIGTERM", stop);
   });
   await preview.close();
+}
+
+async function confirmDeploymentPlan(plan) {
+  const operations = plan.actions.map((action) => `${action.operation} ${action.type} “${action.displayName}”`).join("\n  - ");
+  process.stdout.write(`\nReady to publish to ${plan.workspace.displayName} (${plan.workspace.id}):\n  - ${operations}\n\nPlan ID: ${plan.planId}\n`);
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await prompt.question(`Type ${plan.planId} to publish, or press Enter to stop: `);
+    return answer.trim() === plan.planId;
+  } finally {
+    prompt.close();
+  }
+}
+
+async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt: receiptOption, resume, timeout }) {
+  const resolvedPlanPath = path.resolve(planPath);
+  const plan = JSON.parse(await readFile(resolvedPlanPath, "utf8"));
+  if (confirm !== plan.planId) throw new Error(`Deployment requires exact plan confirmation ${plan.planId}`);
+  if (receiptOption && resume && path.resolve(receiptOption) !== path.resolve(resume)) throw new Error("--receipt and --resume must identify the same file when both are supplied");
+  const receiptPath = path.resolve(receiptOption ?? resume ?? path.join(loaded.root, ".supervisual", "deploy-receipt.json"));
+  const receipt = resume
+    ? JSON.parse(await readFile(path.resolve(resume), "utf8"))
+    : { contractVersion: 1, kind: "supervisual-deployment-receipt", planId: plan.planId, workspace: plan.workspace, startedAt: new Date().toISOString(), status: "in-progress", items: {} };
+  await writeJsonAtomic(receiptPath, receipt);
+  const client = new FabricHttpClient({ timeoutSeconds: Number(timeout) });
+  try {
+    const result = await applyDeploymentPlan({
+      client,
+      plan,
+      confirmPlanId: confirm,
+      backupDirectory: backup ? path.resolve(backup) : undefined,
+      resumeState: resume ? receipt : null,
+      onProgress: async ({ action, item }) => {
+        receipt.items[action] = item;
+        receipt.status = "in-progress";
+        receipt.updatedAt = new Date().toISOString();
+        await writeJsonAtomic(receiptPath, receipt);
+      },
+    });
+    receipt.items = result.items;
+    receipt.status = result.status;
+    receipt.completedAt = new Date().toISOString();
+    receipt.verification = result.verification;
+    await writeJsonAtomic(receiptPath, receipt);
+    return { ...result, receiptPath, planPath: resolvedPlanPath };
+  } catch (error) {
+    receipt.status = "interrupted";
+    receipt.updatedAt = new Date().toISOString();
+    await writeJsonAtomic(receiptPath, receipt);
+    throw error;
+  }
 }
 
 function createProgram() {
@@ -151,12 +205,29 @@ function createProgram() {
 
   addJsonOption(program.command("init <directory>"))
     .description("create a new Super Visual project")
-    .option("--template <name>", "project template", "hello-world")
+    .option("--template <name>", "project template", "blank")
+    .option("--app <path>", "existing Super Visual-compatible React application source")
     .option("--name <id>", "project identifier")
     .option("--title <title>", "display title")
+    .option("--workspace-id <id>", "bind the project to an immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .option("--semantic-model-id <id>", "bind local preview to an existing deployed semantic adapter")
+    .option("--semantic-model-name <name>", "target semantic adapter name")
+    .option("--report-name <name>", "target report name")
+    .option("--connection-id <id>", "Fabric connection used for deployment verification")
+    .option("--connection-mode <mode>", "Fabric connectivity type", "ShareableCloud")
     .option("--force", "write into an existing empty directory")
     .action(async (directory, options, command) => {
-      const result = await initializeProject({ directory, template: options.template, name: options.name, title: options.title, force: options.force });
+      if ((options.workspaceName || options.semanticModelId || options.semanticModelName || options.reportName || options.connectionId) && !options.workspaceId) throw new Error("--workspace-id is required when saving a Fabric binding");
+      const result = await initializeProject({ directory, template: options.template, name: options.name, title: options.title, app: options.app, force: options.force });
+      if (options.workspaceId) {
+        const saved = await writeProjectTarget(result.directory, targetUpdate({
+          ...options,
+          semanticModelName: options.semanticModelName ?? result.application.title,
+          reportName: options.reportName ?? result.application.title,
+        }));
+        result.binding = { file: saved.file, ...saved.value };
+      }
       output(result, jsonEnabled(command));
     });
 
@@ -194,21 +265,24 @@ function createProgram() {
 
   addJsonOption(program.command("dev [project]"))
     .description("serve the local React application against a live semantic model")
-    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-id <id>", "immutable Fabric workspace ID; defaults to the saved project binding")
     .option("--workspace-name <name>", "expected workspace display name")
-    .requiredOption("--semantic-model-id <id>", "exact semantic model ID containing the generated broker")
+    .option("--semantic-model-id <id>", "exact semantic model ID containing the generated broker; defaults to the saved binding")
     .option("--host <host>", "loopback host", "127.0.0.1")
     .option("--port <port>", "local preview port", "5173")
     .option("--open", "open the preview in the default browser")
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .action(async (project = ".", options, command) => {
+      await syncProjectSource(projectFile(project));
+      const loaded = await loadProject(projectFile(project));
+      const target = await resolveProjectTarget(loaded.root, options, { requireSemanticModel: true });
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const preview = await startSemanticPreview({
         client,
         projectFile: projectFile(project),
-        workspaceId: options.workspaceId,
-        workspaceName: options.workspaceName,
-        semanticModelId: options.semanticModelId,
+        workspaceId: target.workspaceId,
+        workspaceName: target.workspaceName,
+        semanticModelId: target.semanticModelId,
         host: options.host,
         port: Number(options.port),
         open: Boolean(options.open),
@@ -221,19 +295,22 @@ function createProgram() {
   const preview = program.command("preview").description("exercise the local React host against a live semantic model");
   addJsonOption(preview.command("test [project]"))
     .description("run a headless semantic-data and interaction smoke test")
-    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-id <id>", "immutable Fabric workspace ID; defaults to the saved project binding")
     .option("--workspace-name <name>", "expected workspace display name")
-    .requiredOption("--semantic-model-id <id>", "exact semantic model ID containing the generated broker")
+    .option("--semantic-model-id <id>", "exact semantic model ID containing the generated broker; defaults to the saved binding")
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .option("--browser-timeout <milliseconds>", "browser acceptance timeout", "60000")
     .action(async (project = ".", options, command) => {
+      await syncProjectSource(projectFile(project));
+      const loaded = await loadProject(projectFile(project));
+      const target = await resolveProjectTarget(loaded.root, options, { requireSemanticModel: true });
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const result = await runSemanticPreviewTest({
         client,
         projectFile: projectFile(project),
-        workspaceId: options.workspaceId,
-        workspaceName: options.workspaceName,
-        semanticModelId: options.semanticModelId,
+        workspaceId: target.workspaceId,
+        workspaceName: target.workspaceName,
+        semanticModelId: target.semanticModelId,
         timeoutMs: Number(options.browserTimeout),
       });
       output(result, jsonEnabled(command));
@@ -283,6 +360,100 @@ function createProgram() {
       const result = { ...inspected, ok: compatibility.ok, compatibility };
       output(result, jsonEnabled(command));
       if (!result.ok) process.exitCode = 1;
+      return result;
+    });
+
+  addJsonOption(program.command("publish [project]"))
+    .description("package, plan, and safely publish the report using its saved Fabric binding")
+    .option("--workspace-id <id>", "immutable Fabric workspace ID; defaults to the saved project binding")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .option("--semantic-model-name <name>", "target semantic adapter name")
+    .option("--report-name <name>", "target report name")
+    .option("--connection-id <id>", "Fabric connection ID for binding and verification")
+    .option("--connection-mode <mode>", "Fabric connectivity type", "ShareableCloud")
+    .option("--parameters-file <file>", "deployment source profile with service-reachable server and database")
+    .option("--acceptance-query-file <file>", "DAX acceptance query to run after refresh")
+    .option("--allow-updates", "allow a plan that replaces same-named remote items")
+    .option("--confirm <plan-id>", "apply the previously reviewed exact plan ID")
+    .option("--plan <file>", "deployment plan path; defaults to .supervisual/deploy-plan.json")
+    .option("--backup <directory>", "required backup destination for updates")
+    .option("--receipt <file>", "deployment progress receipt destination")
+    .option("--resume <file>", "resume from a matching interrupted receipt")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (project = ".", options, command) => {
+      const loaded = await loadProject(projectFile(project));
+      const planPath = path.resolve(options.plan ?? path.join(loaded.root, ".supervisual", "deploy-plan.json"));
+      if (options.confirm) {
+        const result = await applySavedDeployment({ loaded, planPath, confirm: options.confirm, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
+        await writeProjectTarget(loaded.root, targetUpdate({
+          workspaceId: result.workspace.id,
+          workspaceName: result.workspace.displayName,
+          semanticModelId: result.items.semanticModel?.id,
+          semanticModelName: result.items.semanticModel?.displayName,
+          reportId: result.items.report?.id,
+          reportName: result.items.report?.displayName,
+        }));
+        output({ ok: result.accepted, ...result }, jsonEnabled(command));
+        if (!result.accepted) process.exitCode = 3;
+        return result;
+      }
+
+      const target = await resolveProjectTarget(loaded.root, options);
+      const semanticModelName = target.semanticModelName ?? loaded.project.application.title;
+      const reportName = target.reportName ?? loaded.project.application.title;
+      const packaged = await build(project, true, options.parametersFile);
+      if (!packaged.ok) throw new Error("Packaged solution manifest verification failed");
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : null;
+      const postDeployment = target.connectionId ? { connectionId: target.connectionId, connectivityType: target.connectionMode, timeoutSeconds: Number(options.timeout), acceptanceDax } : null;
+      const plan = await createDeploymentPlan({
+        client,
+        workspaceId: target.workspaceId,
+        workspaceName: target.workspaceName,
+        solutionDirectory: packaged.outputDirectory,
+        semanticModelName,
+        reportName,
+        allowUpdates: Boolean(options.allowUpdates),
+        postDeployment,
+      });
+      await writeJsonAtomic(planPath, plan);
+      await writeProjectTarget(loaded.root, targetUpdate({
+        workspaceId: target.workspaceId,
+        workspaceName: plan.workspace.displayName,
+        semanticModelName,
+        reportName,
+        connectionId: target.connectionId,
+        connectionMode: target.connectionMode,
+      }));
+      const result = {
+        ok: plan.blockers.length === 0,
+        status: plan.blockers.length ? "blocked" : "planned",
+        packaged,
+        ...plan,
+        planPath,
+        next: plan.blockers.length ? null : `supervisual publish --confirm ${plan.planId}`,
+      };
+      if (!plan.blockers.length && !jsonEnabled(command) && process.stdin.isTTY && process.stdout.isTTY) {
+        const confirmed = await confirmDeploymentPlan(plan);
+        if (confirmed) {
+          const applied = await applySavedDeployment({ loaded, planPath, confirm: plan.planId, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
+          await writeProjectTarget(loaded.root, targetUpdate({
+            workspaceId: applied.workspace.id,
+            workspaceName: applied.workspace.displayName,
+            semanticModelId: applied.items.semanticModel?.id,
+            semanticModelName: applied.items.semanticModel?.displayName,
+            reportId: applied.items.report?.id,
+            reportName: applied.items.report?.displayName,
+          }));
+          output({ ok: applied.accepted, ...applied }, false);
+          if (!applied.accepted) process.exitCode = 3;
+          return applied;
+        }
+        output(`Publish cancelled. The reviewed plan is saved at ${planPath}.`, false);
+        return result;
+      }
+      output(result, jsonEnabled(command));
+      if (plan.blockers.length) process.exitCode = 2;
       return result;
     });
 
@@ -375,44 +546,10 @@ function createProgram() {
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .action(async (project = ".", options, command) => {
       const loaded = await loadProject(projectFile(project));
-      const planPath = path.resolve(options.plan);
-      const plan = JSON.parse(await readFile(planPath, "utf8"));
-      if (options.confirm !== plan.planId) throw new Error(`Deployment requires exact plan confirmation ${plan.planId}`);
-      if (options.receipt && options.resume && path.resolve(options.receipt) !== path.resolve(options.resume)) throw new Error("--receipt and --resume must identify the same file when both are supplied");
-      const receiptPath = path.resolve(options.receipt ?? options.resume ?? path.join(loaded.root, ".supervisual", "deploy-receipt.json"));
-      const receipt = options.resume
-        ? JSON.parse(await readFile(path.resolve(options.resume), "utf8"))
-        : { contractVersion: 1, kind: "supervisual-deployment-receipt", planId: plan.planId, workspace: plan.workspace, startedAt: new Date().toISOString(), status: "in-progress", items: {} };
-      await writeJsonAtomic(receiptPath, receipt);
-      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-      try {
-        const result = await applyDeploymentPlan({
-          client,
-          plan,
-          confirmPlanId: options.confirm,
-          backupDirectory: options.backup ? path.resolve(options.backup) : undefined,
-          resumeState: options.resume ? receipt : null,
-          onProgress: async ({ action, item }) => {
-            receipt.items[action] = item;
-            receipt.status = "in-progress";
-            receipt.updatedAt = new Date().toISOString();
-            await writeJsonAtomic(receiptPath, receipt);
-          },
-        });
-        receipt.items = result.items;
-        receipt.status = result.status;
-        receipt.completedAt = new Date().toISOString();
-        receipt.verification = result.verification;
-        await writeJsonAtomic(receiptPath, receipt);
-        output({ ok: result.accepted, ...result, receiptPath }, jsonEnabled(command));
-        if (!result.accepted) process.exitCode = 3;
-        return result;
-      } catch (error) {
-        receipt.status = "interrupted";
-        receipt.updatedAt = new Date().toISOString();
-        await writeJsonAtomic(receiptPath, receipt);
-        throw error;
-      }
+      const result = await applySavedDeployment({ loaded, planPath: options.plan, confirm: options.confirm, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
+      output({ ok: result.accepted, ...result }, jsonEnabled(command));
+      if (!result.accepted) process.exitCode = 3;
+      return result;
     });
 
   const restore = deploy.command("restore").description("plan and apply an exact backup restoration");

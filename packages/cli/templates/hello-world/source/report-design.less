@@ -1,20 +1,35 @@
-.hello-world {
-  box-sizing: border-box;
-  min-height: 100%;
-  padding: 32px;
-  color: #173c36;
-  background: #f4f7f5;
-  font-family: Aptos, "Segoe UI", sans-serif;
+.hello-world { box-sizing: border-box; min-height: 100%; padding: 32px; color: #173c36; background: #f4f7f5; font-family: Aptos, "Segoe UI", sans-serif; }
+.hello-world * { box-sizing: border-box; }
+.hero { display: flex; gap: 32px; align-items: flex-start; justify-content: space-between; max-width: 1200px; margin: 0 auto; }
+.eyebrow { margin: 0 0 8px; color: #167d6c; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.hero h1 { margin: 0; font: 600 clamp(36px, 6vw, 64px)/1 Georgia, serif; }
+.lede { max-width: 720px; margin: 16px 0 0; color: #5e6d68; font-size: 17px; line-height: 1.5; }
+.connection { display: inline-flex; flex: 0 0 auto; gap: 8px; align-items: center; margin: 4px 0 0; padding: 9px 13px; border: 1px solid #d3ddd8; border-radius: 999px; background: #fff; color: #5e6d68; font-size: 13px; font-weight: 700; }
+.connection span { width: 9px; height: 9px; border-radius: 50%; background: #9b6b23; }
+.connection.connected span { background: #2e7d5b; box-shadow: 0 0 0 3px #dcebe5; }
+.summary { display: flex; flex-wrap: wrap; gap: 1px; max-width: 1200px; margin: 28px auto 0; overflow: hidden; border: 1px solid #d3ddd8; border-radius: 8px; background: #d3ddd8; }
+.summary div { display: grid; min-width: 128px; flex: 1 1 128px; gap: 3px; padding: 16px 18px; background: #fff; }
+.summary strong { font: 600 28px/1 Georgia, serif; }
+.summary span { color: #5e6d68; font-size: 12px; }
+.catalog { max-width: 1200px; margin: 18px auto 0; overflow: hidden; border: 1px solid #d3ddd8; border-radius: 8px; background: #fff; }
+.catalog-heading { display: flex; gap: 24px; align-items: end; justify-content: space-between; padding: 22px 24px; border-bottom: 1px solid #d3ddd8; }
+.catalog-heading h2 { margin: 0; font-size: 20px; }
+.catalog-heading p { margin: 6px 0 0; color: #5e6d68; font-size: 13px; }
+.search { display: grid; min-width: min(340px, 100%); gap: 6px; color: #5e6d68; font-size: 12px; font-weight: 700; }
+.search input { width: 100%; padding: 10px 12px; border: 1px solid #b9c7c0; border-radius: 6px; color: #173c36; background: #fff; font: inherit; font-size: 14px; font-weight: 400; }
+.search input:focus { outline: 3px solid #b8ddd5; outline-offset: 1px; border-color: #167d6c; }
+.table-scroll { overflow-x: auto; }
+.catalog table { width: 100%; border-collapse: collapse; text-align: left; }
+.catalog th, .catalog td { padding: 13px 24px; border-bottom: 1px solid #e3eae6; }
+.catalog thead th { color: #5e6d68; background: #f8faf9; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.catalog tbody th { font-weight: 600; }
+.catalog tbody td { color: #5e6d68; }
+.catalog tbody tr:last-child th, .catalog tbody tr:last-child td { border-bottom: 0; }
+.type { display: inline-block; padding: 4px 8px; border-radius: 999px; color: #126858; background: #e5f2ee; font-size: 11px; font-weight: 700; }
+.empty { margin: 0; padding: 32px 24px; color: #5e6d68; }
+@media (max-width: 720px) {
+  .hello-world { padding: 20px; }
+  .hero, .catalog-heading { align-items: stretch; flex-direction: column; }
+  .search { min-width: 0; }
+  .catalog th, .catalog td { padding: 12px 16px; }
 }
-
-.hello-world .eyebrow { margin: 0 0 8px; color: #167d6c; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.hello-world h1 { margin: 0; font: 600 clamp(36px, 6vw, 64px)/1 Georgia, serif; }
-.hello-world .lede { max-width: 620px; color: #5e6d68; font-size: 17px; }
-.hello-world section { margin-top: 28px; padding: 24px; border: 1px solid #d3ddd8; border-radius: 8px; background: #fff; }
-.hello-world h2 { margin: 0 0 16px; font-size: 18px; }
-.hello-world .total { font: 600 42px/1 Georgia, serif; }
-.hello-world .bars { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.hello-world .bars li { display: grid; grid-template-columns: minmax(90px, 1fr) 3fr minmax(70px, auto); gap: 12px; align-items: center; }
-.hello-world .track { height: 14px; overflow: hidden; border-radius: 7px; background: #eaf0ed; }
-.hello-world .bar { display: block; height: 100%; border-radius: inherit; background: #167d6c; }
-@media (max-width: 640px) { .hello-world { padding: 18px; } .hello-world .bars li { grid-template-columns: 1fr auto; } .hello-world .track { grid-column: 1 / -1; } }

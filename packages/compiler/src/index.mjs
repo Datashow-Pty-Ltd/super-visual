@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { validatePageSetPrimitives, validateReportGraphBindings, validateSourceBundle, validateWidgetBrokerContract } from "@datashow/super-visual-compliance";
+import { semanticModelWithCatalog } from "@datashow/super-visual-semantic";
 
 function moduleText(comment, name, value) {
   return `${comment}\nexport const ${name} = ${JSON.stringify(value, null, 2)} as const;\n`;
@@ -14,8 +15,9 @@ function qualifiedReference(value) {
 }
 
 export function validateCompilation({ semanticModel, broker, pageSet, reportSource }) {
+  const brokerSemanticModel = semanticModelWithCatalog(semanticModel, broker);
   return [
-    ...validateWidgetBrokerContract(broker, semanticModel),
+    ...validateWidgetBrokerContract(broker, brokerSemanticModel),
     ...validateReportGraphBindings(pageSet, broker),
     ...validatePageSetPrimitives(pageSet),
     ...validateSourceBundle(reportSource).map((diagnostic) => `${diagnostic.code}: ${diagnostic.path} ${diagnostic.message}`),

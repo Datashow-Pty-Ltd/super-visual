@@ -1,8 +1,9 @@
 # Recipe: deploy Hello World
 
-This recipe deploys the smallest complete Super Visual project, proves its live
-semantic binding, and shows the local React development loop. Run all commands
-from the repository root.
+This recipe deploys the smallest complete Super Visual project: a searchable
+catalog of the current semantic model. Seeing the catalog populate proves the
+live report → adapter → semantic source → React path. Run all commands from the
+repository root.
 
 ## What you need
 
@@ -12,9 +13,9 @@ from the repository root.
 - Permission to create semantic models and reports in that workspace.
 - A Fabric cloud connection to a service-reachable SQL endpoint.
 
-Hello World creates its sample rows with a SQL `VALUES` expression, so
-the connected database does not need sample tables. It must still be a valid,
-reachable connection that can execute the generated query.
+Hello World creates its connectivity row and generated catalog with static SQL,
+so the connected database does not need sample tables. It must still be a
+valid, reachable connection that can execute the generated queries.
 
 ## 1. Validate the project
 
@@ -137,5 +138,6 @@ again. A later deployment to the same names requires a fresh plan with
 `--allow-updates`, explicit authorization of its new plan ID, and retained
 backups. Never reuse the first plan.
 
-Finally, open the report in Power BI Service and verify rendering, labels,
-selection behavior, and accessibility with live rows.
+Finally, open the report in Power BI Service, search for a known table or
+measure, and verify rendering, labels, responsive table scrolling, and
+accessibility with live rows.

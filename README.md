@@ -4,240 +4,119 @@
 [![CodeQL](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/codeql.yml/badge.svg)](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Datashow-Pty-Ltd/super-visual/badge)](https://scorecard.dev/viewer/?uri=github.com/Datashow-Pty-Ltd/super-visual)
 
-Super Visual turns a governed React analytical page into a semantically bound,
-deployable Power BI application. It compiles and verifies the React source,
-custom visual, report-specific semantic adapter, PBIR report wrapper, local
-assets, and deployment manifest as one solution.
+## Why Super Visual exists
 
-The current `0.1.0-rc.0` release candidate includes:
+Power BI custom visuals are useful for a single chart, but they are a difficult
+place to build a complete analytical experience. Each visual gets a constrained
+drawing canvas, complex layouts must be split across many visual instances, and
+coordination with native visuals and filters can feel awkward.
 
-- project discovery, initialization, migration, validation, and compilation;
-- source-policy and Power BI compatibility checks;
-- live local preview against the exact deployed semantic adapter;
-- deterministic `.pbiviz`, TMDL, PBIR, and manifest packaging;
-- guarded Fabric discovery, diff, plan, apply, backup, restore, and status;
-- a Claude dashboard bundle adapter and agent skills for Claude and Codex; and
-- Hello World and AdventureWorks reference projects.
+That led to a simpler idea: make one visual fill the entire report page and use
+that space to host a real web application. The application can own its layout,
+navigation, charts, tables, and interactions while Power BI continues to own the
+semantic model, security context, refresh, and distribution. React is the first
+supported application format; the adapter boundary allows other web formats to
+be added without changing the Power BI host.
 
-AdventureWorks is the golden behavioral sample. The reusable compiler and
-runtime do not contain AdventureWorks-specific behavior.
+## What Super Visual is
 
-## Requirements
+Super Visual is an open-source compiler and deployment toolchain for full-page
+web applications in Power BI. It packages a React application, a report-specific
+semantic adapter, the custom-visual host, local assets, and the PBIR report
+wrapper as one inspectable solution.
 
-- Node.js 22.12 or newer.
-- Azure CLI authentication for live Fabric operations.
-- A Fabric-capacity workspace and permission to create semantic models and
-  reports for deployment.
-- A service-reachable SQL source and Fabric connection for live semantic data.
+The application never needs to issue SQL or DAX. It asks for named, governed
+datasets through `ReportApplicationProps`. Super Visual batches those requests
+through one Power BI DataView, separates the returned rows by dataset ID, and
+hands ordinary JavaScript data to each React component. Before packaging it also
+checks the source policy, model references, page bindings, and generated files.
 
-## Install and inspect
+The result is the freedom of a web application with the governance and semantic
+model of Power BI.
+
+## Get started
+
+Requirements are Node.js 22.12 or newer, Azure CLI authentication, and a
+Fabric-capacity workspace. From this repository, install once with `npm ci`.
+
+If your React application already exports `ReportApplication`, create and bind
+the report in one command. `--app` accepts a source directory containing
+`reportApplication.tsx`, optional `report/` modules, and optional
+`report-design.less`:
 
 ```bash
-git clone https://github.com/Datashow-Pty-Ltd/super-visual.git
-cd super-visual
-npm ci
-
-npx supervisual discover examples/hello-world --json
-npx supervisual inspect examples/hello-world --json
-npx supervisual check examples/hello-world --json
+npx supervisual init sales-report \
+  --app ./my-react-app \
+  --workspace-id <workspace-guid> \
+  --semantic-model-id <deployed-adapter-model-guid>
 ```
 
-Create a project from the smallest complete template:
+The Fabric IDs are saved locally under the ignored `.supervisual/` directory,
+so normal development is just:
 
 ```bash
-npx supervisual init my-dashboard --template hello-world --json
+cd sales-report
+npx supervisual dev --open
 ```
 
-`supervisual.yaml` is the project entry point. Edit the React application under
-`source/` and the governed semantic, broker, and page contracts under
-`contracts/`. Never edit or commit generated `dist/` output.
+When the page is ready, package, verify, and create its deployment plan with one
+command:
 
-## Multiple widgets, one semantic provider
-
-A React page can contain many charts, tables, KPIs, and routes with different
-data needs. Each component names a governed broker dataset; each dataset declares
-its own semantic dimensions, measures, row limits, and dependencies. Super
-Visual batches the currently needed dataset IDs through one long-table Power BI
-DataView, partitions returned rows by `WidgetId`, and caches each logical result.
-Multiple components may reuse the same dataset without another semantic query.
-
-For example, imagine one React page with a monthly trend and a category bar
-chart. Its broker declares two logical datasets with different semantic queries:
-
-```jsonc
-{
-  "widgets": [
-    {
-      "id": "trend",
-      "dimensions": [{ "key": "Date[Year Month]" }],
-      "measures": ["[Total Sales]", "[Gross Profit]"],
-      "rowLimit": 48
-    },
-    {
-      "id": "category",
-      "dimensions": [{ "key": "Product[Product Category]" }],
-      "measures": ["[Total Sales]"],
-      "rowLimit": 12
-    }
-  ]
-}
+```bash
+npx supervisual publish
 ```
 
-The page binds each visual component to a dataset ID:
+`publish` shows the exact workspace, operations, and plan ID, then asks you to
+type that plan ID to confirm. Press Enter to cancel without changing Fabric.
+For a non-interactive agent or CI job, the equivalent is:
 
-```yaml
-widgets:
-  - { id: monthly-trend, primitive: line, dataset: trend }
-  - { id: category-bars, primitive: bar, dataset: category }
+```bash
+npx supervisual publish --json
+npx supervisual publish --confirm <plan-id>
 ```
 
-React does not write SQL or DAX. It tells the runtime which governed datasets
-are visible and reads their materialized points from `ReportApplicationProps`:
+That confirmation prompt is intentional: a live Fabric change must always be
+authorized for the exact plan and workspace. Updates also require
+`--allow-updates` while planning and `--backup <directory>` while applying.
+
+Use the built-in app when starting from scratch:
+
+```bash
+npx supervisual init sales-report \
+  --workspace-id <workspace-guid> \
+  --semantic-model-id <deployed-adapter-model-guid>
+```
+
+The default is a clean full-page canvas with the minimum model-binding contract.
+Choose `--template hello-world` for a searchable catalog that proves React is
+receiving live semantic-model metadata, or start with the complete
+[AdventureWorks example](examples/adventureworks). On a first deployment where
+no report-specific adapter exists yet, run `publish` to create it; the returned
+model ID is saved automatically for subsequent local previews.
+
+## More than one widget
+
+One React page can contain any number of components with different queries.
+Each component names a governed dataset, and the runtime requests the visible
+dataset IDs together:
 
 ```tsx
 export function ReportApplication({ model, onVisibleDatasetsChange }) {
-  useEffect(
-    () => onVisibleDatasetsChange?.(["trend", "category"]),
-    [onVisibleDatasetsChange],
-  );
+  useEffect(() => {
+    onVisibleDatasetsChange?.(["trend", "category"]);
+  }, [onVisibleDatasetsChange]);
 
   return <>
-    <TrendChart dataset={model.datasets.trend} />
-    <CategoryBars dataset={model.datasets.category} />
+    <TrendChart data={model.datasets.trend} />
+    <CategoryChart data={model.datasets.category} />
   </>;
 }
 ```
 
-The semantic adapter turns that request into one batch filtered to
-`WidgetId IN ("trend", "category")`. Power BI can therefore return rows for
-both logical queries through one predictable DataView:
-
-```text
-WidgetId  AxisKey  Label       SeriesLabel  WidgetValue
-trend     2024-01  Jan 2024    Total Sales       420000
-trend     2024-01  Jan 2024    Gross Profit      135000
-category  Bikes    Bikes       Total Sales       310000
-category  Clothing Clothing    Total Sales        82000
-```
-
-The runtime partitions these rows by `WidgetId`, caches `trend` and `category`
-independently, and passes ordinary JavaScript datasets to React. If a category
-selection affects the trend, the dependency contract marks `trend` stale and
-requests only the affected dataset IDs again. If two React components both use
-`dataset: category`, they share the same cached semantic result.
-
-See [semantic binding](docs/semantic-binding.md#how-one-react-page-supports-many-widgets)
-for the complete query, filtering, invalidation, caching, and local-preview flow.
-
-## Test and deploy a React page
-
-### 1. Check and compile locally
-
-```bash
-npx supervisual check my-dashboard --json
-npx supervisual compile my-dashboard --json
-```
-
-These commands validate source policy, contracts, bindings, and generated
-definitions without changing Fabric.
-
-### 2. Test against real semantic data
-
-Local semantic preview is intentionally not a fixture preview. It queries the
-broker in an already deployed semantic adapter, then runs the local React page
-with those rows and interactions:
-
-Skip this step until after the first apply when the project does not yet have a
-deployed adapter.
-
-```bash
-npx supervisual dev my-dashboard \
-  --workspace-id <workspace-guid> \
-  --semantic-model-id <adapter-model-guid> \
-  --open
-```
-
-In another terminal, run the bounded browser smoke test:
-
-```bash
-npx supervisual preview test my-dashboard \
-  --workspace-id <workspace-guid> \
-  --semantic-model-id <adapter-model-guid> \
-  --json
-```
-
-The first project deployment bootstraps that adapter. On later React-only
-changes, use its returned model ID to test locally before planning the report
-update. If the semantic contract itself changes, deploy and refresh the new
-adapter before treating preview as semantic acceptance.
-
-### 3. Package and verify
-
-Copy the project sample profile to an ignored `.supervisual/` path and set its
-server and database to the exact endpoint represented by the Fabric connection:
-
-```bash
-mkdir -p .supervisual
-cp my-dashboard/deployment/source-profile.example.json \
-  .supervisual/source-profile.json
-```
-
-Then build the deployable bundle:
-
-```bash
-npx supervisual package my-dashboard \
-  --parameters-file .supervisual/source-profile.json \
-  --json
-npx supervisual verify my-dashboard --json
-```
-
-### 4. Discover and plan
-
-```bash
-npx supervisual deploy discover \
-  --workspace-id <workspace-guid> \
-  --workspace-name "<expected workspace name>" \
-  --connections \
-  --json
-
-npx supervisual deploy plan my-dashboard \
-  --workspace-id <workspace-guid> \
-  --workspace-name "<expected workspace name>" \
-  --semantic-model-name "My Dashboard" \
-  --report-name "My Dashboard" \
-  --connection-id <fabric-connection-guid> \
-  --connection-mode ShareableCloud \
-  --acceptance-query-file my-dashboard/deployment/acceptance.dax \
-  --json
-```
-
-Review the immutable workspace ID, item names, actions, blockers, and plan ID.
-Same-named items are blocked unless `--allow-updates` was deliberately included.
-
-### 5. Authorize, apply, and prove status
-
-Live deployment must pause until a human authorizes the exact plan ID for the
-exact workspace. After that authorization:
-
-```bash
-npx supervisual deploy apply my-dashboard \
-  --plan my-dashboard/.supervisual/deploy-plan.json \
-  --confirm <authorized-plan-id> \
-  --backup .supervisual/backups \
-  --json
-
-npx supervisual deploy status \
-  --workspace-id <workspace-guid> \
-  --semantic-model-id <deployed-semantic-model-guid> \
-  --report-id <deployed-report-guid> \
-  --connection-id <fabric-connection-guid> \
-  --acceptance-query-file my-dashboard/deployment/acceptance.dax \
-  --json
-```
-
-Only `status: accepted` proves report binding, connection binding, completed
-refresh, and non-empty acceptance data. Finish with browser interaction checks
-in Power BI Service.
+The broker defines the semantic dimensions and measures behind `trend` and
+`category`. Super Visual batches both through one provider, then caches and
+invalidates them independently. See [semantic binding](docs/semantic-binding.md#how-one-react-page-supports-many-widgets)
+for the complete example.
 
 ## Runnable recipes
 

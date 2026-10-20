@@ -12,6 +12,14 @@ async function exists(file) {
   try { await access(file); return true; } catch { return false; }
 }
 
+async function readOptional(file) {
+  try { return await readFile(file, "utf8"); }
+  catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 function slug(value) {
   return String(value)
     .trim()
@@ -26,7 +34,10 @@ function displayTitle(value) {
 }
 
 export function supportedTemplates() {
-  return [{ id: "hello-world", description: "One page, one dataset, one measure, and one accessible bar chart.", status: "supported" }];
+  return [
+    { id: "blank", description: "A clean full-page React canvas with the minimum governed model binding.", status: "supported" },
+    { id: "hello-world", description: "A searchable semantic-model catalog that proves the governed data connection.", status: "supported" },
+  ];
 }
 
 export function supportedAdapters() {
@@ -107,7 +118,129 @@ async function replaceTemplateTokens(root, replacements, relative = "") {
   }
 }
 
-export async function initializeProject({ directory, template = "hello-world", name, title, force = false }) {
+const blankApplication = `import { useEffect, type ReactElement } from "react";
+import type { ReportApplicationProps } from "./reportRuntime";
+
+export function ReportApplication({ model, onVisibleDatasetsChange }: ReportApplicationProps): ReactElement {
+  useEffect(() => onVisibleDatasetsChange?.(["sales"]), [onVisibleDatasetsChange]);
+  const rowCount = model.datasets.sales?.points.length ?? 0;
+
+  return <main className="supervisual-page">
+    <p className="eyebrow">Super Visual</p>
+    <h1>{{PROJECT_TITLE}}</h1>
+    <p>Your full-page React canvas is ready and bound to the semantic provider.</p>
+    <p className="status" role="status">{rowCount ? "Received " + rowCount + " semantic rows." : "Waiting for semantic data…"}</p>
+  </main>;
+}
+`;
+
+const blankStyle = `.supervisual-page { box-sizing: border-box; min-height: 100%; padding: 40px; color: #173c36; background: #f4f7f5; font-family: Aptos, "Segoe UI", sans-serif; }
+.supervisual-page .eyebrow { margin: 0 0 8px; color: #167d6c; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.supervisual-page h1 { margin: 0; font: 600 clamp(36px, 6vw, 64px)/1 Georgia, serif; }
+.supervisual-page .status { margin-top: 28px; color: #5e6d68; }
+`;
+
+const blankReadme = (title) => `# ${title}
+
+This is a clean full-page Super Visual project with the minimum governed
+semantic binding. Build the page in \`source/reportApplication.tsx\` and define
+its named datasets under \`contracts/\`.
+
+With a workspace and deployed adapter saved during initialization:
+
+\`\`\`bash
+npx supervisual dev --open
+npx supervisual publish
+\`\`\`
+
+Publish shows the exact Fabric plan and asks you to type its plan ID before it
+changes the workspace.
+`;
+
+async function applicationFiles(input) {
+  const resolved = path.resolve(input);
+  let root = path.dirname(resolved);
+  let entryPath = resolved;
+  let entryContent;
+  try {
+    entryContent = await readFile(resolved, "utf8");
+  } catch (error) {
+    if (error?.code !== "EISDIR") throw error;
+    root = resolved;
+    entryPath = null;
+    entryContent = null;
+    for (const candidate of [path.join(root, "reportApplication.tsx"), path.join(root, "src", "reportApplication.tsx")]) {
+      const content = await readOptional(candidate);
+      if (content !== null) { entryPath = candidate; entryContent = content; break; }
+    }
+  }
+  if (!entryPath || entryContent === null) throw new Error(`React application must contain reportApplication.tsx: ${resolved}`);
+  const entryRoot = path.dirname(entryPath);
+  const files = [{ path: "src/reportApplication.tsx", content: entryContent }];
+  const reportRoot = path.join(entryRoot, "report");
+  const addReportFiles = async (directory, relative = "") => {
+    for (const item of await readdir(directory, { withFileTypes: true })) {
+      const child = path.join(directory, item.name);
+      const childRelative = path.posix.join(relative, item.name);
+      if (item.isDirectory()) await addReportFiles(child, childRelative);
+      else if (/\.(?:ts|tsx)$/.test(item.name)) files.push({ path: `src/report/${childRelative}`, content: await readFile(child, "utf8") });
+    }
+  };
+  try {
+    await addReportFiles(reportRoot);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  const styleCandidates = [path.join(root, "report-design.less"), path.join(root, "style", "report-design.less"), path.join(entryRoot, "report-design.less")];
+  let style = null;
+  for (const candidate of styleCandidates) {
+    style = await readOptional(candidate);
+    if (style !== null) break;
+  }
+  return { files, style };
+}
+
+async function installApplication(target, input, projectTitle) {
+  const imported = await applicationFiles(input);
+  const sourceRoot = path.join(target, "source");
+  await writeFile(path.join(sourceRoot, "reportApplication.tsx"), imported.files[0].content);
+  for (const file of imported.files.slice(1)) {
+    const destination = path.join(sourceRoot, file.path.slice("src/".length));
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, file.content);
+  }
+  if (imported.style) await writeFile(path.join(sourceRoot, "report-design.less"), imported.style);
+  const bundlePath = path.join(target, "contracts", "report-source.json");
+  const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
+  const style = imported.style ?? await readFile(path.join(sourceRoot, "report-design.less"), "utf8");
+  bundle.files = [...imported.files, { path: "style/report-design.less", content: style }];
+  bundle.designRationale.direction = `${projectTitle} React application hosted as a governed full-page Super Visual.`;
+  await writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
+}
+
+export async function syncProjectSource(projectFile) {
+  const loaded = await loadProject(projectFile);
+  if (loaded.reportSource.adapter) return { ok: true, synced: false, reason: "adapter-managed-source" };
+  const sourceRoot = path.join(loaded.root, "source");
+  if (!await exists(sourceRoot)) return { ok: true, synced: false, reason: "source-directory-missing" };
+  const imported = await applicationFiles(sourceRoot);
+  const style = imported.style ?? loaded.reportSource.files.find((file) => file.path === "style/report-design.less")?.content;
+  if (!style) throw new Error("React application source requires source/report-design.less");
+  const sourceHash = createHash("sha256").update(style).digest("hex");
+  const nextFiles = [...imported.files, { path: "style/report-design.less", content: style }];
+  const nextBundle = { ...loaded.reportSource, designSystem: { ...loaded.reportSource.designSystem, sha256: sourceHash }, files: nextFiles };
+  const changed = JSON.stringify(nextBundle) !== JSON.stringify(loaded.reportSource);
+  if (!changed) return { ok: true, synced: false, files: nextFiles.length };
+  const bundlePath = path.resolve(loaded.root, loaded.project.source.bundle);
+  await writeFile(bundlePath, `${JSON.stringify(nextBundle, null, 2)}\n`);
+  const pageSetPath = path.resolve(loaded.root, loaded.project.semantic.pageSet);
+  const pageSet = await readFile(pageSetPath, "utf8");
+  if (!/sha256:\s*[a-f0-9]{64}/.test(pageSet)) throw new Error(`Page set does not contain a design-system SHA-256: ${pageSetPath}`);
+  await writeFile(pageSetPath, pageSet.replace(/sha256:\s*[a-f0-9]{64}/, `sha256: ${sourceHash}`));
+  return { ok: true, synced: true, files: nextFiles.length, bundlePath, pageSetPath };
+}
+
+export async function initializeProject({ directory, template = "blank", name, title, app, force = false }) {
   if (!supportedTemplates().some((candidate) => candidate.id === template)) throw new Error(`Unknown template ${template}`);
   const target = path.resolve(directory);
   if (await exists(target)) {
@@ -128,6 +261,20 @@ export async function initializeProject({ directory, template = "hello-world", n
     VISUAL_NAME: visualName,
     VISUAL_GUID: visualGuid,
   });
+  if (template === "blank") {
+    const entry = blankApplication.replaceAll("{{PROJECT_TITLE}}", projectTitle);
+    await writeFile(path.join(target, "source", "reportApplication.tsx"), entry);
+    await writeFile(path.join(target, "source", "report-design.less"), blankStyle);
+    const bundlePath = path.join(target, "contracts", "report-source.json");
+    const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
+    bundle.designSystem.id = "super-visual-blank";
+    bundle.files = [{ path: "src/reportApplication.tsx", content: entry }, { path: "style/report-design.less", content: blankStyle }];
+    bundle.designRationale.direction = "A clean, full-page React canvas with a minimal governed semantic binding.";
+    bundle.designRationale.dataVisualisation = ["No prescribed visualisation; the page reports semantic data readiness."];
+    await writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
+    await writeFile(path.join(target, "README.md"), blankReadme(projectTitle));
+  }
+  if (app) await installApplication(target, app, projectTitle);
   const style = await readFile(path.join(target, "source", "report-design.less"), "utf8");
   const designHash = createHash("sha256").update(style).digest("hex");
   await replaceTemplateTokens(target, { DESIGN_HASH: designHash });
@@ -137,5 +284,5 @@ export async function initializeProject({ directory, template = "hello-world", n
   await writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
   const inspection = await inspectProject(path.join(target, "supervisual.yaml"));
   if (!inspection.ok) throw new Error(`Generated project did not validate:\n- ${inspection.diagnostics.join("\n- ")}`);
-  return { ok: true, directory: target, projectFile: path.join(target, "supervisual.yaml"), template, application: inspection.application, next: [`supervisual check ${target}`, `supervisual build ${target}`, `supervisual package ${target}`] };
+  return { ok: true, directory: target, projectFile: path.join(target, "supervisual.yaml"), template, application: inspection.application, ...(app ? { reactApplication: path.resolve(app) } : {}), next: [`cd ${target}`, "supervisual dev", "supervisual publish"] };
 }

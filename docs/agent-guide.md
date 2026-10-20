@@ -8,10 +8,10 @@ single JSON object when that flag is present.
 npx supervisual check <project> --json
 npx supervisual build <project> [--package] --json
 npx supervisual verify <project> --json
-npx supervisual dev <project> --workspace-id <id> \
-  --semantic-model-id <id> --json
-npx supervisual preview test <project> --workspace-id <id> \
-  --semantic-model-id <id> --json
+npx supervisual dev <project> --json
+npx supervisual preview test <project> --json
+npx supervisual publish <project> --json
+npx supervisual publish <project> --confirm <authorized-plan-id> --json
 npx supervisual certify validate <record> --json
 npx supervisual semantic discover --workspace-id <id> \
   --semantic-model-id <id> --json
@@ -39,13 +39,16 @@ npx supervisual deploy restore apply --plan <file> --confirm <plan-id> --json
 output directory. `verify`, `dev`, `preview test`, and both `semantic` commands
 are read-only with respect to Fabric. `dev` writes only ignored generated files
 under `.supervisual/semantic-preview/` and remains active after emitting its
-ready JSON until interrupted. It must target the exact deployed semantic
-adapter, not the base model. Semantic
+ready JSON until interrupted. It uses the saved project binding when IDs are
+omitted and must target the exact deployed semantic adapter, not the base model. Semantic
 inspection returns metadata, not source expressions or business data. `deploy
 plan` makes read-only Fabric calls and writes a local plan. `deploy apply` is the only command that changes
 Fabric; it refuses stale workspace identity, blocked actions, missing update
 backups, changed local/remote definition hashes, or a mismatched confirmation
 ID. `deploy apply` returning `published-unverified` is not a successful release.
+`publish` is the high-level package/verify/plan/apply interface. In JSON mode it
+never prompts or applies implicitly: the agent must report the exact plan and
+wait for human authorization before calling it again with `--confirm`.
 Resume only from the receipt written by the interrupted exact plan; do not
 construct or edit a receipt manually.
 Restore has the same authorization boundary and returns `restored-unverified`

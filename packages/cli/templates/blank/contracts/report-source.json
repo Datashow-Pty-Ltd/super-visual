@@ -1,0 +1,30 @@
+{
+  "contractVersion": 1,
+  "designSystem": { "id": "hello-world", "sha256": "{{DESIGN_HASH}}" },
+  "acceptedConcept": { "id": "{{PROJECT_ID}}" },
+  "entry": "src/reportApplication.tsx",
+  "files": [
+    {
+      "path": "src/reportApplication.tsx",
+      "content": "import { useEffect, type ReactElement } from \"react\";\nimport type { ReportApplicationProps } from \"./reportRuntime\";\n\nexport function ReportApplication({ model, onVisibleDatasetsChange }: ReportApplicationProps): ReactElement {\n  useEffect(() => onVisibleDatasetsChange?.([\"sales\"]), [onVisibleDatasetsChange]);\n  const dataset = model.datasets.sales;\n  const maximum = Math.max(1, ...(dataset?.points.map((point) => point.value) ?? [1]));\n  const total = dataset?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;\n\n  return <main className=\"hello-world\">\n    <p className=\"eyebrow\">Super Visual / minimal example</p>\n    <h1>Hello, governed data.</h1>\n    <p className=\"lede\">This React page is bound only through ReportApplicationProps.</p>\n    <section aria-labelledby=\"total-sales\">\n      <h2 id=\"total-sales\">Total sales</h2>\n      <strong className=\"total\">{new Intl.NumberFormat(undefined, { style: \"currency\", currency: \"AUD\", maximumFractionDigits: 0 }).format(total)}</strong>\n    </section>\n    <section aria-labelledby=\"sales-by-category\">\n      <h2 id=\"sales-by-category\">Sales by category</h2>\n      {!dataset?.points.length ? <p>Waiting for Power BI data…</p> : <ol className=\"bars\">\n        {dataset.points.map((point) => <li key={point.key}>\n          <span>{point.label}</span>\n          <span className=\"track\"><span className=\"bar\" style={{ width: `${Math.max(2, (point.value / maximum) * 100)}%` }} /></span>\n          <strong>{new Intl.NumberFormat().format(point.value)}</strong>\n        </li>)}\n      </ol>}\n    </section>\n  </main>;\n}\n"
+    },
+    {
+      "path": "style/report-design.less",
+      "content": ".hello-world { box-sizing: border-box; min-height: 100%; padding: 32px; color: #173c36; background: #f4f7f5; font-family: Aptos, \"Segoe UI\", sans-serif; }\n.hello-world .eyebrow { margin: 0 0 8px; color: #167d6c; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }\n.hello-world h1 { margin: 0; font: 600 clamp(36px, 6vw, 64px)/1 Georgia, serif; }\n.hello-world .lede { max-width: 620px; color: #5e6d68; font-size: 17px; }\n.hello-world section { margin-top: 28px; padding: 24px; border: 1px solid #d3ddd8; border-radius: 8px; background: #fff; }\n.hello-world h2 { margin: 0 0 16px; font-size: 18px; }\n.hello-world .total { font: 600 42px/1 Georgia, serif; }\n.hello-world .bars { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }\n.hello-world .bars li { display: grid; grid-template-columns: minmax(90px, 1fr) 3fr minmax(70px, auto); gap: 12px; align-items: center; }\n.hello-world .track { height: 14px; overflow: hidden; border-radius: 7px; background: #eaf0ed; }\n.hello-world .bar { display: block; height: 100%; border-radius: inherit; background: #167d6c; }\n@media (max-width: 640px) { .hello-world { padding: 18px; } .hello-world .bars li { grid-template-columns: 1fr auto; } .hello-world .track { grid-column: 1 / -1; } }\n"
+    }
+  ],
+  "routes": [
+    { "id": "overview", "title": "Hello World", "datasets": ["sales"], "businessQuestionIds": ["sales-mix"] }
+  ],
+  "bindings": [
+    { "dataset": "sales", "component": "bar", "reportWidgetIds": ["sales"], "businessQuestionIds": ["sales-mix"] }
+  ],
+  "designRationale": {
+    "direction": "The smallest complete governed analytical application.",
+    "pageCompositions": ["One overview page"],
+    "dataVisualisation": ["One accessible horizontal bar chart"],
+    "responsiveBehaviour": ["The label and chart track stack on narrow screens."],
+    "accessibility": ["Semantic headings, native list structure, and visible numeric values."],
+    "risks": ["Live deployment requires a Fabric connection binding."]
+  }
+}

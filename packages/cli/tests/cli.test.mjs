@@ -19,6 +19,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("import");
     expect(help.stdout).toContain("semantic");
     expect(help.stdout).toContain("dev");
+    expect(help.stdout).toContain("publish");
     expect(help.stdout).toContain("preview");
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
@@ -58,7 +59,7 @@ describe("supervisual CLI", () => {
       const verified = await run(process.execPath, [cli, "verify", project, "--json"], { cwd: root });
       expect(JSON.parse(verified.stdout).ok).toBe(true);
     } finally { await rm(temporary, { recursive: true, force: true }); }
-  });
+  }, 15000);
 
   test("discovers and inspects a project", async () => {
     const discovered = await run(process.execPath, [cli, "discover", "examples/adventureworks", "--json"], { cwd: root });
@@ -94,18 +95,57 @@ describe("supervisual CLI", () => {
     }
   });
 
-  test("initializes, checks, compiles, and verifies hello world", async () => {
+  test("initializes, checks, compiles, and verifies the blank starter", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-test-"));
     const project = path.join(temporary, "first-dashboard");
     try {
       const initialized = await run(process.execPath, [cli, "init", project, "--title", "First Dashboard", "--json"], { cwd: root });
-      expect(JSON.parse(initialized.stdout)).toMatchObject({ ok: true, template: "hello-world", application: { id: "first-dashboard", title: "First Dashboard" } });
+      expect(JSON.parse(initialized.stdout)).toMatchObject({ ok: true, template: "blank", application: { id: "first-dashboard", title: "First Dashboard" } });
       const checked = await run(process.execPath, [cli, "check", project, "--json"], { cwd: root });
       expect(JSON.parse(checked.stdout).ok).toBe(true);
+      const sourcePath = path.join(project, "source", "reportApplication.tsx");
+      const source = (await readFile(sourcePath, "utf8")).replace("Your full-page React canvas is ready", "This edit came from the live source directory");
+      await writeFile(sourcePath, source);
       const built = await run(process.execPath, [cli, "compile", project, "--json"], { cwd: root });
       expect(JSON.parse(built.stdout).fileCount).toBeGreaterThan(35);
+      expect(await readFile(path.join(project, "dist", "Visual", "src", "reportApplication.tsx"), "utf8")).toContain("This edit came from the live source directory");
       const verified = await run(process.execPath, [cli, "verify", project, "--json"], { cwd: root });
       expect(JSON.parse(verified.stdout).ok).toBe(true);
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  }, 15000);
+
+  test("initializes a project with a reusable Fabric binding and existing React application", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-bound-"));
+    const project = path.join(temporary, "bound-dashboard");
+    try {
+      const initialized = await run(process.execPath, [
+        cli, "init", project,
+        "--app", "examples/hello-world/source",
+        "--workspace-id", "workspace-1",
+        "--workspace-name", "Sandbox",
+        "--semantic-model-id", "model-1",
+        "--semantic-model-name", "Bound Dashboard",
+        "--report-name", "Bound Dashboard",
+        "--json",
+      ], { cwd: root });
+      expect(JSON.parse(initialized.stdout)).toMatchObject({
+        ok: true,
+        template: "blank",
+        reactApplication: path.resolve("examples/hello-world/source"),
+        binding: {
+          workspace: { id: "workspace-1", name: "Sandbox" },
+          semanticModel: { id: "model-1", name: "Bound Dashboard" },
+          report: { name: "Bound Dashboard" },
+        },
+      });
+      const target = JSON.parse(await readFile(path.join(project, ".supervisual", "target.json"), "utf8"));
+      expect(target).toMatchObject({ contractVersion: 1, kind: "supervisual-project-target", workspace: { id: "workspace-1" }, semanticModel: { id: "model-1" } });
+      const checked = await run(process.execPath, [cli, "check", project, "--json"], { cwd: root });
+      expect(JSON.parse(checked.stdout).ok).toBe(true);
+      const devHelp = await run(process.execPath, [cli, "dev", "--help"], { cwd: root });
+      expect(devHelp.stdout).not.toContain("required option '--workspace-id");
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }
@@ -140,13 +180,16 @@ describe("supervisual CLI", () => {
     const project = path.join(temporary, "hosted-hello");
     const profile = path.join(temporary, "source-profile.json");
     try {
-      await run(process.execPath, [cli, "init", project, "--json"], { cwd: root });
+      await run(process.execPath, [cli, "init", project, "--template", "hello-world", "--json"], { cwd: root });
       await writeFile(profile, `${JSON.stringify({ contractVersion: 1, kind: "fabric-sql-source", source: { server: "warehouse.example.fabric.microsoft.com", database: "SuperVisualSandbox" } }, null, 2)}\n`);
       const built = await run(process.execPath, [cli, "compile", project, "--parameters-file", profile, "--json"], { cwd: root });
       expect(JSON.parse(built.stdout)).toMatchObject({ ok: true, sourceProfileApplied: true });
       const expressions = await readFile(path.join(project, "dist", "SemanticAdapter.SemanticModel", "definition", "expressions.tmdl"), "utf8");
       expect(expressions).toContain("warehouse.example.fabric.microsoft.com");
       expect(expressions).toContain("SuperVisualSandbox");
+      const catalog = await readFile(path.join(project, "dist", "SemanticAdapter.SemanticModel", "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8");
+      expect(catalog).toContain("Entity Count");
+      await expect(readFile(path.join(project, "dist", "Base.SemanticModel", "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8")).rejects.toThrow();
       const manifest = JSON.parse(await readFile(path.join(project, "dist", "supervisual.manifest.json"), "utf8"));
       expect(manifest.provenance.semanticParameterOverrides).toEqual(["database", "server"]);
     } finally {

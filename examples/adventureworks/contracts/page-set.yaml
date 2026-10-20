@@ -5,7 +5,7 @@ shell:
   defaultPage: products
   designSystem:
     id: datashow-analytical
-    sha256: cb6129f16bffcc202ae700d58f207f12112151f712d32ed4f081a1e96780e8ca
+    sha256: ca4574158504940193c4963cf5cd54434af675d22b26a32c4f86a39b1f529275
   acceptedConcept: { id: adventureworks-product-ledger }
   governanceLabel: Power BI governed
   locale: en-AU

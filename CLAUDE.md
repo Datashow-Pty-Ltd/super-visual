@@ -16,10 +16,11 @@ source assets, run `check`, then rebuild.
    `--inspect-only` before allowing it to update a project.
 3. Run `npx supervisual check <project> --json` and resolve every diagnostic.
 4. When validating data or interactions locally, run `npx supervisual dev
-   <project> --workspace-id <id> --semantic-model-id <id> --json` against the
-   exact deployed semantic adapter, or use `preview test` for a bounded browser
-   check. These commands are read-only in Fabric; do not use fixture data as
-   semantic acceptance.
+   <project> --json` against the exact deployed semantic adapter saved in the
+   project binding. Supply `--workspace-id` and `--semantic-model-id` when no
+   binding exists, or use `preview test` for a bounded browser check. These
+   commands are read-only in Fabric; do not use fixture data as semantic
+   acceptance.
 5. Run `npx supervisual compile <project> --json` while iterating. Run
    `npx supervisual package <project> --json` when a deployable `.pbiviz` and
    embedded PBIR resource bundle are required.
@@ -32,6 +33,13 @@ source assets, run `check`, then rebuild.
    ID. Never infer `--allow-updates`; updates replace full remote definitions.
 9. Run `deploy status` with the returned item IDs. Treat
    `published-unverified` or `observed` as incomplete, not success.
+
+`supervisual publish` is the supported short path for steps 5–8. It still
+creates an immutable plan and must pause for explicit confirmation of the exact
+plan ID and workspace. Interactive users type the ID at its prompt. Agents and
+JSON callers must return the plan to the human and use `--confirm <plan-id>`
+only after that exact authorization. All update, backup, receipt, and status
+requirements still apply.
 
 Use `--json` for automation. A non-zero exit status or `ok: false` is a failed
 tool call. A deployment plan with blockers is not applyable.

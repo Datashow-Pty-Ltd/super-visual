@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { compileBrokerAdapter, compileTmdl, validateSemanticModel } from "../src/index.mjs";
+import { compileBrokerAdapter, compileTmdl, semanticModelWithCatalog, validateSemanticModel } from "../src/index.mjs";
 
 const semantic = {
   contractVersion: 1, name: "Test Sales", culture: "en-AU", compatibilityLevel: 1702, storageMode: "import",
@@ -20,6 +20,20 @@ const broker = {
   adapterMode: "source-direct-import", baseModelMutation: false,
   dataView: { mapping: "table", discriminator: "WidgetId", fields: ["WidgetId", "AxisKey", "Label", "Sort", "SeriesKey", "SeriesLabel", "WidgetValue", "BrokerContext"] },
   widgets: [{ id: "product", title: "Sales by product", shape: "categorical", dimensions: [{ key: "Sales[Product]", label: "Sales[Product]" }], axis: "Sales[Product]", measures: ["[Total Sales]"], rowLimit: 10, rowSelection: "top-by-value", selectable: true, invalidates: [] }],
+};
+
+const catalogBroker = {
+  ...broker,
+  widgets: [{
+    id: "model-catalog", title: "Semantic model entities", shape: "hierarchy",
+    dimensions: [
+      { key: "Super Visual Model Catalog[Entity Type]", label: "Super Visual Model Catalog[Entity Type]" },
+      { key: "Super Visual Model Catalog[Parent]", label: "Super Visual Model Catalog[Parent]" },
+      { key: "Super Visual Model Catalog[Entity]", label: "Super Visual Model Catalog[Entity]" },
+    ],
+    axis: "Super Visual Model Catalog[Entity]", measures: ["[Entity Count]"],
+    rowLimit: 250, rowSelection: "first-by-axis", selectable: false, invalidates: [],
+  }],
 };
 
 describe("semantic compiler", () => {
@@ -43,5 +57,27 @@ describe("semantic compiler", () => {
     expect(widgetAxis).not.toContain("RETURN UNION(_widgetRows1)");
     expect(await readFile(path.join(adapter, "definition", "model.tmdl"), "utf8")).toContain("ref table 'Widget Axis'");
     expect(await readFile(path.join(base, "definition", "model.tmdl"), "utf8")).toBe(before);
+  });
+
+  test("generates a source-backed model catalog only for the report adapter", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "supervisual-catalog-"));
+    const base = path.join(root, "base");
+    const catalogBase = path.join(root, "catalog-base");
+    const adapter = path.join(root, "adapter");
+    const augmented = semanticModelWithCatalog(semantic, catalogBroker);
+
+    expect(semantic.tables.map((table) => table.name)).toEqual(["Sales"]);
+    expect(augmented.tables.map((table) => table.name)).toEqual(["Sales", "Super Visual Model Catalog"]);
+    expect(validateSemanticModel(augmented)).toEqual([]);
+
+    await compileTmdl(semantic, base);
+    await compileTmdl(augmented, catalogBase);
+    await compileBrokerAdapter({ baseModelDirectory: catalogBase, outputDirectory: adapter, broker: catalogBroker, semanticModel: augmented });
+
+    const catalog = await readFile(path.join(adapter, "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8");
+    expect(catalog).toContain("Value.NativeQuery");
+    expect(catalog).toContain("EntityType");
+    expect(catalog).toContain("Total Sales");
+    await expect(readFile(path.join(base, "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8")).rejects.toThrow();
   });
 });

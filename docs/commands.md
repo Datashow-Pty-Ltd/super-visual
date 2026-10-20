@@ -48,8 +48,12 @@ compatibility boundary, and writes import provenance.
 ## Create and compile
 
 ```text
-supervisual init <directory> [--template hello-world] [--name <id>]
-  [--title <title>] [--force]
+supervisual init <directory> [--template blank|hello-world] [--app <path>]
+  [--name <id>] [--title <title>]
+  [--workspace-id <id>] [--workspace-name <name>]
+  [--semantic-model-id <id>] [--semantic-model-name <name>]
+  [--report-name <name>] [--connection-id <id>]
+  [--connection-mode <mode>] [--force]
 supervisual check [project]
 supervisual compile [project] [--parameters-file <file>]
 supervisual build [project] [--package] [--parameters-file <file>]
@@ -58,9 +62,12 @@ supervisual verify [project]
 ```
 
 `compile` is an alias for `build`. The dedicated `package` command is equivalent
-to `build --package`. Initialization creates a unique visual GUID and refuses to
-write into a non-empty directory. `--force` permits an existing empty directory;
-it does not overwrite files. A source profile overrides only the generated
+to `build --package`. Initialization defaults to a clean full-page canvas,
+creates a unique visual GUID, and refuses to write into a non-empty directory.
+`--app` imports a compatible `reportApplication.tsx`, optional `report/` modules,
+and optional `report-design.less`. Fabric target options are written only to the
+ignored `.supervisual/target.json` binding. `--force` permits an existing empty
+directory; it does not overwrite files. A source profile overrides only the generated
 semantic model's `server` and `database`; it must use the versioned
 `fabric-sql-source` shape and should be stored under the ignored `.supervisual`
 directory.
@@ -69,23 +76,24 @@ directory.
 
 ```text
 supervisual dev [project]
-  --workspace-id <id>
+  [--workspace-id <id>]
   [--workspace-name <name>]
-  --semantic-model-id <id>
+  [--semantic-model-id <id>]
   [--host 127.0.0.1]
   [--port 5173]
   [--open]
   [--timeout <seconds>]
 
 supervisual preview test [project]
-  --workspace-id <id>
+  [--workspace-id <id>]
   [--workspace-name <name>]
-  --semantic-model-id <id>
+  [--semantic-model-id <id>]
   [--timeout <seconds>]
   [--browser-timeout <milliseconds>]
 ```
 
-Both commands are read-only with respect to Fabric. They require the deployed
+Both commands are read-only with respect to Fabric. IDs default to the binding
+saved by `init` or a completed `publish`. They require the deployed
 report-specific semantic adapter, including its generated `Widget Axis` table,
 not merely the reusable base model. Before serving, the CLI validates the local
 project, inspects the exact model, and checks every semantic and broker object.
@@ -104,6 +112,28 @@ requires at least one live broker row, rejects browser errors, and exercises a
 selection and clear cycle when a report page exposes a selectable widget.
 Install the matching browser once with `npx playwright install chromium` if the
 local Playwright browser is absent.
+
+## Publish with the saved binding
+
+```text
+supervisual publish [project]
+  [--workspace-id <id>] [--workspace-name <name>]
+  [--semantic-model-name <name>] [--report-name <name>]
+  [--connection-id <id>] [--connection-mode <mode>]
+  [--parameters-file <file>] [--acceptance-query-file <file>]
+  [--allow-updates] [--backup <directory>]
+  [--confirm <plan-id>] [--plan <file>]
+  [--receipt <file>] [--resume <file>] [--timeout <seconds>]
+```
+
+`publish` is the normal product workflow. Without `--confirm`, it packages and
+verifies the project, discovers the saved workspace, and writes an immutable
+deployment plan. In an interactive terminal it displays the target and actions,
+then asks the user to type the exact plan ID before applying. Pressing Enter
+cancels without changing Fabric. In JSON or another non-interactive environment,
+it returns the plan and the caller must make a second authorized call with
+`--confirm <plan-id>`. The lower-level `deploy` commands remain available for
+inspection, automation, restore, and troubleshooting.
 
 ## Validate certification evidence
 

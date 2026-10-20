@@ -1,181 +1,124 @@
 # Getting started
 
-Super Visual turns a governed React analytical page into an inspectable Power BI
-solution bundle. Node.js 22.12 or newer is required.
+Super Visual lets one React application occupy a complete Power BI report page.
+Power BI supplies governed semantic data; React controls the page layout and
+interactions.
 
-## Try the smallest example
+## Before you start
 
-From a clone of this repository:
+You need Node.js 22.12 or newer, Azure CLI authentication, a Fabric-capacity
+workspace, and permission to create or update semantic models and reports.
 
-```bash
-npm ci
-npx supervisual check examples/hello-world
-npx supervisual compile examples/hello-world
-npx supervisual verify examples/hello-world
-npx supervisual package examples/hello-world
+From a clone of this repository, run `npm ci` once.
+
+## Bring an existing React page
+
+A Super Visual application directory contains:
+
+```text
+my-react-app/
+├── reportApplication.tsx       # required; exports ReportApplication
+├── report-design.less          # optional
+└── report/                     # optional local .ts/.tsx modules
 ```
 
-`compile` writes semantic-model, report, and custom-visual source under the
-project's ignored `dist/` directory. `package` additionally creates a `.pbiviz`,
-embeds it in the PBIR report resources, refreshes the manifest, and verifies the
-result.
+The exported component receives `ReportApplicationProps`, reads only
+`model.datasets`, and reports its visible dataset IDs through
+`onVisibleDatasetsChange`. The [Hello World source](../examples/hello-world/source)
+is the smallest working example.
 
-## Create a project
-
-```bash
-npx supervisual init my-dashboard --template hello-world
-npx supervisual inspect my-dashboard
-npx supervisual check my-dashboard
-npx supervisual package my-dashboard
-```
-
-Initialization refuses to write over a non-empty directory. It creates a unique
-Power BI visual identity and validates the result before returning success.
-
-For a project created before versioned widget brokers, inspect and then apply
-the registered migration:
+Create the project and save its local Fabric binding:
 
 ```bash
-npx supervisual migrate ./older-dashboard --json
-npx supervisual migrate ./older-dashboard --write --json
-```
-
-The first command is a dry run. The second backs up the original contract under
-the ignored `.supervisual/migrations/` directory before atomically updating it.
-
-Edit `contracts/semantic-model.yaml` for the governed model,
-`contracts/widget-broker.json` for data binding, `contracts/page-set.yaml` for
-page intent, and the React and Less files under `source/` for presentation. The
-compiled application may read data only through `ReportApplicationProps`.
-
-Each `widgets[].id` in the broker is a logical semantic query with its own
-dimensions, measures, limits, and invalidation rules. React components refer to
-those IDs through `dataset` bindings in the page set. The runtime batches the
-required IDs through one Power BI DataView, partitions rows by `WidgetId`, and
-caches the resulting datasets; two components can therefore present the same
-dataset differently without querying it twice. Read
-[How one React page supports many widgets](./semantic-binding.md#how-one-react-page-supports-many-widgets)
-for the complete model.
-
-## Understand an existing input
-
-```bash
-npx supervisual discover ./candidate --json
-npx supervisual inspect ./my-dashboard --json
-npx supervisual templates --json
-npx supervisual adapters --json
-```
-
-JSON mode emits one value and uses a non-zero exit status for failed operations.
-The versioned Claude-style adapter is supported. Try the synthetic fixture:
-
-```bash
-npx supervisual init /tmp/claude-hello --template hello-world
-npx supervisual import claude-dashboard examples/claude-dashboard-bundle \
-  --project /tmp/claude-hello --inspect-only --json
-npx supervisual import claude-dashboard examples/claude-dashboard-bundle \
-  --project /tmp/claude-hello --json
-npx supervisual package /tmp/claude-hello
-npx supervisual verify /tmp/claude-hello
-```
-
-Read [Claude Dashboard migration](./claude-dashboard-migration.md) before using
-real source. The format is Super Visual's documented interchange contract, not
-an official Anthropic export schema.
-
-## Check a live semantic model
-
-Before deploying, inspect a model with immutable IDs and no mutation:
-
-```bash
-npx supervisual deploy workspaces --json
-
-npx supervisual semantic discover \
+npx supervisual init sales-report \
+  --app ./my-react-app \
   --workspace-id <workspace-guid> \
-  --workspace-name <expected-name> \
-  --semantic-model-id <model-guid> \
-  --json
-
-npx supervisual semantic check examples/hello-world \
-  --workspace-id <workspace-guid> \
-  --workspace-name <expected-name> \
-  --semantic-model-id <model-guid> \
-  --json
+  --workspace-name "<workspace-name>" \
+  --semantic-model-id <deployed-adapter-model-guid>
 ```
 
-The discovery result intentionally excludes DAX, Power Query, parameter values,
-and business rows. Compatibility checking proves that the project-required
-columns, measures, and hierarchies exist without changing the model.
+The default scaffold is a clean full-page canvas. Add
+`--template hello-world` for a searchable semantic-model catalog that acts as a
+live connectivity proof. Initialization
+creates a unique visual identity, validates the project, and stores the Fabric
+IDs in ignored `.supervisual/target.json`; it does not put tenant IDs in source
+control.
 
-## Run the React application with real semantic data
+## Develop with real semantic data
 
-After the report-specific semantic adapter has been published and refreshed,
-run the UI locally against that exact model:
+From the new project directory:
 
 ```bash
-npx supervisual dev examples/hello-world \
-  --workspace-id <workspace-guid> \
-  --workspace-name <expected-name> \
-  --semantic-model-id <adapter-model-guid> \
-  --open
+cd sales-report
+npx supervisual dev --open
 ```
 
-The CLI first performs semantic compatibility and generated-broker checks. It
-then serves the compiled React application on `127.0.0.1`, obtains Power BI
-credentials only in the local Node process from Azure CLI, and executes
-contract-derived read-only DAX. Selecting or clearing a supported UI control
-re-queries the semantic model with the same target used by the deployed visual.
-The project application itself remains network-free.
+The Node.js process reads the saved binding, validates the exact deployed
+report-specific adapter, and serves the React page on `127.0.0.1`. Credentials
+and DAX remain in the local Node process. The browser receives only governed
+broker rows, so the data and interactions match the deployed architecture
+instead of a fixture.
 
-Run the repeatable browser smoke test before packaging or deployment:
+Run the repeatable browser check when useful:
 
 ```bash
-npx supervisual preview test examples/hello-world \
-  --workspace-id <workspace-guid> \
-  --workspace-name <expected-name> \
-  --semantic-model-id <adapter-model-guid> \
-  --json
+npx supervisual preview test --json
 ```
 
-This is semantic and application acceptance, but it does not replace final
-Power BI acceptance. DataView construction, the visual sandbox, CSP, and
-`applyJsonFilter` are Power BI host behaviours and must still be checked in the
-deployed report.
+The model must contain this project's generated `Widget Axis` broker. A reusable
+base model alone is not enough. If this is the first deployment and no adapter
+exists yet, publish once to create it; Super Visual saves the returned model ID,
+and later `dev` commands need no IDs.
 
-## Deploy safely
-
-First compile and verify. Then create a read-only plan using immutable target
-identity:
+## Publish
 
 ```bash
-npx supervisual deploy plan my-dashboard \
-  --workspace-id <workspace-guid> \
-  --workspace-name <expected-name> \
-  --semantic-model-name <model-name> \
-  --report-name <report-name> \
+npx supervisual publish
+```
+
+This one command checks, compiles, packages, verifies, and plans the semantic
+adapter and report. It then displays the immutable workspace, item operations,
+and plan ID. Type that exact plan ID at the prompt to deploy, or press Enter to
+stop safely.
+
+Automation cannot use an interactive prompt. In `--json` mode the first call
+returns the plan, and a second authorized call applies it:
+
+```bash
+npx supervisual publish --json
+npx supervisual publish --confirm <authorized-plan-id> --json
+```
+
+Existing items are never overwritten implicitly. To update them, create the
+plan with `--allow-updates` and supply `--backup <directory>` for the confirmed
+apply. Add a Fabric connection and acceptance query when publication must also
+bind, refresh, and prove live data:
+
+```bash
+npx supervisual publish \
   --connection-id <connection-guid> \
-  --acceptance-query-file ./acceptance.dax
+  --parameters-file .supervisual/source-profile.json \
+  --acceptance-query-file deployment/acceptance.dax
 ```
 
-Review the operations, blockers, workspace identity, and plan ID. Applying is an
-external mutation and requires explicit human authorization for that exact ID:
+Only `status: accepted` proves connection binding, refresh, and a non-empty
+acceptance result. `published-unverified` means the files were published but the
+live data checks were not completed.
 
-```bash
-npx supervisual deploy apply my-dashboard \
-  --plan my-dashboard/.supervisual/deploy-plan.json \
-  --confirm <exact-plan-id> \
-  --backup ./fabric-backup
-```
+## Understand the model binding
 
-Updates are never inferred. The backup is mandatory when a plan contains update
-operations. Deployment is not successful until binding, refresh, and the live
-acceptance query pass.
+The three files under `contracts/` separate responsibilities:
 
-After the browser checks, copy `docs/certification/live-run.example.json`, replace
-every placeholder with redacted run evidence and real SHA-256 hashes, then run:
+- `semantic-model.yaml` declares the governed tables, columns, and measures.
+- `widget-broker.json` turns each UI data need into a named logical dataset.
+- `page-set.yaml` maps page components and interactions to those datasets.
 
-```bash
-npx supervisual certify validate ./live-run.json --json
-```
+React remains ordinary presentation code. Multiple charts can request different
+dataset IDs through the same provider, and multiple components can share one
+cached dataset. Read [Semantic binding](semantic-binding.md) for the complete
+multi-widget example.
 
-Only `status: certified` is a complete CLI-and-browser certification record.
+For lower-level discovery, migration, compilation, plan/apply, restore, and
+certification commands, see the [command reference](commands.md) and
+[deployment safety](deployment-safety.md). Generated `dist/` output is
+disposable and must not be edited or committed.

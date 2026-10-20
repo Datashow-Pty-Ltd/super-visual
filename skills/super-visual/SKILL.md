@@ -17,8 +17,11 @@ generated output or move report-specific behavior into reusable runtime code.
 - Older project: run `npx supervisual migrate <project> --json`, review the
   dry-run changes, then use `--write` only for a registered migration. Preserve
   the reported backup directory.
-- New project: list templates, then run `npx supervisual init <directory>
-  --template hello-world --json` unless the user chose another supported template.
+- New project: run `npx supervisual init <directory> --json` for the clean
+  full-page scaffold, or add `--template hello-world` for a searchable
+  semantic-model connectivity proof.
+  When the user provides compatible React source, pass its directory with
+  `--app`. Save only explicitly selected workspace and semantic-adapter IDs.
 - Imported dashboard: list adapters. For `claude-dashboard-bundle.v1`, run
   `npx supervisual import claude-dashboard <input> --project <project>
   --inspect-only --json` before importing. Do not improvise an importer for an
@@ -35,8 +38,9 @@ After changing project source or contracts:
 4. Run `npx supervisual verify <project> --json` before handoff or deployment.
 
 To test data and interactions locally, use `npx supervisual dev <project>
---workspace-id <id> --semantic-model-id <id> --json`, targeting the deployed
-report-specific semantic adapter. This is read-only in Fabric and may write only
+--json`, targeting the deployed report-specific semantic adapter saved in the
+project binding. Supply `--workspace-id` and `--semantic-model-id` when no saved
+binding exists. This is read-only in Fabric and may write only
 ignored preview output under `.supervisual/`. Keep the process running after its
 ready JSON until the user is finished. For a bounded check, run `npx
 supervisual preview test <project>` with the same immutable IDs. Do not treat an
@@ -79,6 +83,14 @@ before `deploy restore apply`. A restore is `restored-unverified` until the
 normal live status checks pass. Do not claim deployment success until status confirms exact
 report and connection binding, refresh, and the configured live acceptance
 query. `published-unverified` is not success.
+
+`supervisual publish` is the high-level package, verify, plan, and apply path.
+In an interactive human terminal it shows the exact workspace, operations, and
+plan ID and requires that ID at the confirmation prompt. In JSON or agent use,
+run it without `--confirm`, report the plan, and apply only after the human
+explicitly authorizes that exact plan ID and workspace. Pass that authorization
+as `--confirm <plan-id>`. All update, backup, receipt, drift, status, and
+acceptance rules above still apply.
 
 After live CLI status and browser acceptance are recorded, run `certify
 validate <record> --json`. Do not describe a run as certified unless the command

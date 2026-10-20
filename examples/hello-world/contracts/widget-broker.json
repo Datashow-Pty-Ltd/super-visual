@@ -1,6 +1,6 @@
 {
   "contractVersion": 1,
-  "summary": "One governed categorical dataset for the hello-world chart.",
+  "summary": "Generated searchable semantic-model catalog used as an end-to-end connectivity proof.",
   "adapterMode": "source-direct-import",
   "baseModelMutation": false,
   "dataView": {
@@ -10,16 +10,20 @@
   },
   "widgets": [
     {
-      "id": "sales",
-      "title": "Sales by category",
-      "reportWidgetIds": ["sales"],
-      "businessQuestionIds": ["sales-mix"],
-      "shape": "categorical",
-      "dimensions": [{ "key": "Sales[Category]", "label": "Sales[Category]" }],
-      "axis": "Sales[Category]",
-      "measures": ["[Total Sales]"],
-      "rowLimit": 10,
-      "rowSelection": "top-by-value",
+      "id": "model-catalog",
+      "title": "Semantic model entities",
+      "reportWidgetIds": ["model-catalog"],
+      "businessQuestionIds": ["semantic-connectivity"],
+      "shape": "hierarchy",
+      "dimensions": [
+        { "key": "Super Visual Model Catalog[Entity Type]", "label": "Super Visual Model Catalog[Entity Type]" },
+        { "key": "Super Visual Model Catalog[Parent]", "label": "Super Visual Model Catalog[Parent]" },
+        { "key": "Super Visual Model Catalog[Entity]", "label": "Super Visual Model Catalog[Entity]" }
+      ],
+      "axis": "Super Visual Model Catalog[Entity]",
+      "measures": ["[Entity Count]"],
+      "rowLimit": 250,
+      "rowSelection": "first-by-axis",
       "selectable": false,
       "invalidates": []
     }
@@ -29,5 +33,5 @@
     "cancelStaleRequests": true,
     "externalFilterInvalidation": "all-dependent-widgets"
   },
-  "risks": []
+  "risks": ["The catalog lists declared model metadata but does not expose expressions, parameter values, or business rows."]
 }
