@@ -7,33 +7,26 @@ sourceParameters:
   server: localhost
   database: SuperVisualDemo
 tables:
-  - name: Sales
-    role: fact
-    grain: One row per example category.
-    description: Minimal self-contained sales data used by the Super Visual hello-world project.
+  - name: Hello World
+    role: dimension
+    grain: One row containing the connectivity greeting.
+    description: Minimal source-backed table used to prove model refresh and catalog generation.
     source:
       referencedTables: []
       sql: |-
-        SELECT example.[Category], CAST(example.[Amount] AS decimal(19, 4)) AS [Amount]
-        FROM (VALUES (N'Bikes', 42000), (N'Clothing', 18000), (N'Accessories', 27000)) AS example([Category], [Amount])
+        SELECT N'Hello, semantic model.' AS [Message]
     columns:
-      - name: Category
-        sourceColumn: Category
+      - name: Message
+        sourceColumn: Message
         dataType: String
         hidden: false
         summarizeBy: none
-        description: Example product category.
-      - name: Amount
-        sourceColumn: Amount
-        dataType: Decimal
-        hidden: true
-        summarizeBy: none
-        description: Example sales amount.
+        description: Greeting returned by the source-backed connectivity table.
     measures:
-      - name: Total Sales
-        expression: "SUM('Sales'[Amount])"
-        formatString: "$#,##0"
-        displayFolder: Measures
-        description: Total example sales in the current category context.
+      - name: Row Count
+        expression: "COUNTROWS('Hello World')"
+        formatString: "0"
+        displayFolder: Connectivity
+        description: Count of rows returned by the connectivity table.
     hierarchies: []
 relationships: []

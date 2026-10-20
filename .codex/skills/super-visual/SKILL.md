@@ -18,7 +18,8 @@ generated output or move report-specific behavior into reusable runtime code.
   dry-run changes, then use `--write` only for a registered migration. Preserve
   the reported backup directory.
 - New project: run `npx supervisual init <directory> --json` for the clean
-  full-page scaffold, or add `--template hello-world` for the sample chart.
+  full-page scaffold, or add `--template hello-world` for a searchable
+  semantic-model connectivity proof.
   When the user provides compatible React source, pass its directory with
   `--app`. Save only explicitly selected workspace and semantic-adapter IDs.
 - Imported dashboard: list adapters. For `claude-dashboard-bundle.v1`, run

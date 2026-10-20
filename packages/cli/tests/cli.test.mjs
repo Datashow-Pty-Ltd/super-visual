@@ -180,13 +180,16 @@ describe("supervisual CLI", () => {
     const project = path.join(temporary, "hosted-hello");
     const profile = path.join(temporary, "source-profile.json");
     try {
-      await run(process.execPath, [cli, "init", project, "--json"], { cwd: root });
+      await run(process.execPath, [cli, "init", project, "--template", "hello-world", "--json"], { cwd: root });
       await writeFile(profile, `${JSON.stringify({ contractVersion: 1, kind: "fabric-sql-source", source: { server: "warehouse.example.fabric.microsoft.com", database: "SuperVisualSandbox" } }, null, 2)}\n`);
       const built = await run(process.execPath, [cli, "compile", project, "--parameters-file", profile, "--json"], { cwd: root });
       expect(JSON.parse(built.stdout)).toMatchObject({ ok: true, sourceProfileApplied: true });
       const expressions = await readFile(path.join(project, "dist", "SemanticAdapter.SemanticModel", "definition", "expressions.tmdl"), "utf8");
       expect(expressions).toContain("warehouse.example.fabric.microsoft.com");
       expect(expressions).toContain("SuperVisualSandbox");
+      const catalog = await readFile(path.join(project, "dist", "SemanticAdapter.SemanticModel", "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8");
+      expect(catalog).toContain("Entity Count");
+      await expect(readFile(path.join(project, "dist", "Base.SemanticModel", "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8")).rejects.toThrow();
       const manifest = JSON.parse(await readFile(path.join(project, "dist", "supervisual.manifest.json"), "utf8"));
       expect(manifest.provenance.semanticParameterOverrides).toEqual(["database", "server"]);
     } finally {

@@ -1,5 +1,5 @@
 EVALUATE
 ROW(
-    "Total Sales", [Total Sales],
-    "Category Count", COUNTROWS(VALUES('Sales'[Category]))
+    "Catalog Entity Count", [Entity Count],
+    "Connectivity Row Count", [Row Count]
 )

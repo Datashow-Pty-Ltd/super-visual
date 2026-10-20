@@ -38,7 +38,8 @@ npx supervisual init sales-report \
 ```
 
 The default scaffold is a clean full-page canvas. Add
-`--template hello-world` if you want the sample chart instead. Initialization
+`--template hello-world` for a searchable semantic-model catalog that acts as a
+live connectivity proof. Initialization
 creates a unique visual identity, validates the project, and stores the Fabric
 IDs in ignored `.supervisual/target.json`; it does not put tenant IDs in source
 control.

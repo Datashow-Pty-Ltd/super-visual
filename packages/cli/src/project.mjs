@@ -28,7 +28,7 @@ function displayTitle(value) {
 export function supportedTemplates() {
   return [
     { id: "blank", description: "A clean full-page React canvas with the minimum governed model binding.", status: "supported" },
-    { id: "hello-world", description: "One page, one dataset, one measure, and one accessible bar chart.", status: "supported" },
+    { id: "hello-world", description: "A searchable semantic-model catalog that proves the governed data connection.", status: "supported" },
   ];
 }
 
@@ -234,7 +234,7 @@ export async function initializeProject({ directory, template = "blank", name, t
   const visualSuffix = randomUUID().replaceAll("-", "").toUpperCase();
   const visualName = `${projectId.replace(/[^A-Za-z0-9]/g, "")}Visual`;
   const visualGuid = `superVisual${visualSuffix}`;
-  await cp(path.join(templatesRoot, template === "blank" ? "hello-world" : template), target, { recursive: true });
+  await cp(path.join(templatesRoot, template), target, { recursive: true });
   await replaceTemplateTokens(target, {
     PROJECT_ID: projectId,
     PROJECT_TITLE: projectTitle,

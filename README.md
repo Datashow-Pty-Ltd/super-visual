@@ -88,7 +88,8 @@ npx supervisual init sales-report \
 ```
 
 The default is a clean full-page canvas with the minimum model-binding contract.
-Choose `--template hello-world` for a working chart or start with the complete
+Choose `--template hello-world` for a searchable catalog that proves React is
+receiving live semantic-model metadata, or start with the complete
 [AdventureWorks example](examples/adventureworks). On a first deployment where
 no report-specific adapter exists yet, run `publish` to create it; the returned
 model ID is saved automatically for subsequent local previews.

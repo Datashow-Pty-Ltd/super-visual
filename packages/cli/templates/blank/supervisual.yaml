@@ -1,0 +1,24 @@
+contractVersion: 1
+application:
+  id: {{PROJECT_ID}}
+  title: {{PROJECT_TITLE}}
+  entry: contracts/report-source.json
+  style: contracts/report-source.json
+target:
+  platform: powerbi
+  visual:
+    name: {{VISUAL_NAME}}
+    displayName: {{PROJECT_TITLE}}
+    guid: {{VISUAL_GUID}}
+    version: 1.0.0.1
+    apiVersion: 5.11.1
+semantic:
+  model: contracts/semantic-model.yaml
+  broker: contracts/widget-broker.json
+  pageSet: contracts/page-set.yaml
+source:
+  bundle: contracts/report-source.json
+output:
+  directory: dist
+compliance:
+  policies: [core, powerbi]

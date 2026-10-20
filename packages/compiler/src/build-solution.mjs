@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { loadContract, resolveProjectPath } from "@datashow/super-visual-contracts";
-import { compileBrokerAdapter, compileTmdl } from "@datashow/super-visual-semantic";
+import { compileBrokerAdapter, compileTmdl, semanticModelWithCatalog } from "@datashow/super-visual-semantic";
 import { generateRuntimeManifests, validateCompilation } from "./index.mjs";
 import { generateReportWrapper } from "./report-wrapper.mjs";
 
@@ -102,11 +102,23 @@ export async function buildSolution(projectFile, options = {}) {
     diagnostics: [],
   }, null, 2)}\n`);
   const baseModel = path.join(output, "Base.SemanticModel");
+  const adapterBaseModel = path.join(output, ".SemanticAdapterBase.SemanticModel");
   const adapterModel = path.join(output, "SemanticAdapter.SemanticModel");
   const visual = path.join(output, "Visual");
   const report = path.join(output, "Report.Report");
   await compileTmdl(semanticModel, baseModel);
-  await compileBrokerAdapter({ baseModelDirectory: baseModel, outputDirectory: adapterModel, broker, semanticModel });
+  const brokerSemanticModel = semanticModelWithCatalog(semanticModel, broker);
+  const brokerBaseModel = brokerSemanticModel === semanticModel ? baseModel : adapterBaseModel;
+  if (brokerBaseModel === baseModel) {
+    await compileBrokerAdapter({ baseModelDirectory: baseModel, outputDirectory: adapterModel, broker, semanticModel: brokerSemanticModel });
+  } else {
+    await compileTmdl(brokerSemanticModel, brokerBaseModel);
+    try {
+      await compileBrokerAdapter({ baseModelDirectory: brokerBaseModel, outputDirectory: adapterModel, broker, semanticModel: brokerSemanticModel });
+    } finally {
+      await rm(brokerBaseModel, { recursive: true, force: true });
+    }
+  }
   await generateVisual(project, { broker, pageSet, reportSource }, visual);
   await generateReportWrapper({ outputDirectory: report, title: project.application.title, visualGuid: project.target.visual.guid });
   const manifest = {
