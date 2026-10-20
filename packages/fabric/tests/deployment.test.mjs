@@ -16,10 +16,10 @@ async function fixture() {
   return root;
 }
 
-function reportParts(definitionPbir = { datasetReference: {} }) {
+function reportParts(definitionPbir = { datasetReference: {} }, version = "2.0.0") {
   return [
     { path: "definition.pbir", payload: Buffer.from(JSON.stringify(definitionPbir)).toString("base64"), payloadType: "InlineBase64" },
-    { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "2.0.0" })).toString("base64"), payloadType: "InlineBase64" },
+    { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version })).toString("base64"), payloadType: "InlineBase64" },
   ];
 }
 
@@ -68,10 +68,12 @@ describe("safe Fabric deployment", () => {
   });
 
   test("rejects the schema-valid report format version that produces an empty exploration surface", () => {
-    expect(() => verifyDefinitionParts([
+    const parts = [
       { path: "definition.pbir", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" },
       { path: "definition/version.json", payload: Buffer.from(JSON.stringify({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" })).toString("base64"), payloadType: "InlineBase64" },
-    ], "PBIR")).toThrow(/report format version 2\.0\.0/);
+    ];
+    expect(() => verifyDefinitionParts(parts, "PBIR")).toThrow(/report format version 2\.0\.0/);
+    expect(() => verifyDefinitionParts(parts, "PBIR", { allowLegacyReportVersion: true })).not.toThrow();
   });
 
   test("plans then creates semantic model before its bound report", async () => {
@@ -193,6 +195,25 @@ describe("safe Fabric deployment", () => {
     expect(client.calls).toEqual(["update:SemanticModel", "update:Report"]);
     expect(restored).toMatchObject({ status: "restored-unverified", accepted: false, sourcePlanId: plan.planId });
     expect(client.definitions.get("model-existing").parts).toEqual([{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }]);
+  });
+
+  test("plans and applies a backup-first repair of a legacy remote PBIR report", async () => {
+    const root = await fixture();
+    const backup = await mkdtemp(path.join(os.tmpdir(), "supervisual-backup-"));
+    const client = new FakeClient([
+      { id: "model-existing", type: "SemanticModel", displayName: "Sales model" },
+      { id: "report-existing", type: "Report", displayName: "Sales report" },
+    ]);
+    client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }] });
+    client.definitions.set("report-existing", { format: "PBIR", parts: reportParts({ datasetReference: {} }, "1.0.0") });
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report", allowUpdates: true });
+    expect(plan.actions.find((action) => action.key === "report")).toMatchObject({ operation: "update", existingId: "report-existing" });
+    const result = await applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId, backupDirectory: backup });
+    expect(result.items.report).toMatchObject({ id: "report-existing", operation: "update" });
+    const backedUpVersion = JSON.parse(await readFile(path.join(backup, "Report-report-existing", "definition", "version.json"), "utf8"));
+    expect(backedUpVersion.version).toBe("1.0.0");
+    const deployedVersion = JSON.parse(decodePart(client.definitions.get("report-existing").parts.find((part) => part.path === "definition/version.json")).toString());
+    expect(deployedVersion.version).toBe("2.0.0");
   });
 
   test("rejects local solution content that changed after planning", async () => {
