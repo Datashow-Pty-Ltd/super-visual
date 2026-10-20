@@ -12,7 +12,7 @@
     "examples/*"
   ],
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "stage:1": "node scripts/verify-docs.mjs",
@@ -34,22 +34,25 @@
     "fabric:test": "vitest run packages/fabric/tests",
     "example:test": "node scripts/verify-adventureworks.mjs",
     "example:package": "node scripts/verify-adventureworks.mjs --package",
+    "hello:test": "node scripts/verify-hello-world.mjs",
+    "hello:package": "node scripts/verify-hello-world.mjs --package",
+    "onboarding:test": "npm run cli:test && npm run hello:test",
     "cli:test": "vitest run packages/cli/tests",
     "test": "npm run stage:8",
     "release:check": "node scripts/release-check.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "ajv": "8.17.1",
+    "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "fflate": "0.8.2",
+    "fflate": "0.8.3",
     "yaml": "2.9.1"
   },
   "devDependencies": {
-    "@types/node": "24.10.0",
+    "@types/node": "26.6.5",
     "powerbi-visuals-api": "5.11.1",
-    "typescript": "5.9.3",
-    "vitest": "4.0.8"
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
   },
   "license": "Apache-2.0",
   "repository": {

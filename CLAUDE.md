@@ -7,14 +7,17 @@ source assets, run `check`, then rebuild.
 ## Required workflow
 
 1. Run `npm ci` once when dependencies are absent.
-2. Run `npx supervisual check <project> --json` and resolve every diagnostic.
-3. Run `npx supervisual build <project> --json`. Add `--package` only when a
-   deployable `.pbiviz` and PBIR resource bundle are required.
-4. Run `npx supervisual verify <project> --json`. Do not deploy a bundle whose
+2. Run `npx supervisual discover <input> --json` for unknown input, or
+   `npx supervisual inspect <project> --json` for an existing project.
+3. Run `npx supervisual check <project> --json` and resolve every diagnostic.
+4. Run `npx supervisual compile <project> --json` while iterating. Run
+   `npx supervisual package <project> --json` when a deployable `.pbiviz` and
+   embedded PBIR resource bundle are required.
+5. Run `npx supervisual verify <project> --json`. Do not deploy a bundle whose
    manifest verification fails.
-5. Run `deploy plan` before every Fabric change. Report its workspace ID, exact
+6. Run `deploy plan` before every Fabric change. Report its workspace ID, exact
    item names, operations, blockers, and plan ID.
-6. Run `deploy apply` only when the human explicitly authorises that exact plan
+7. Run `deploy apply` only when the human explicitly authorises that exact plan
    ID. Never infer `--allow-updates`; updates replace full remote definitions.
 
 Use `--json` for automation. A non-zero exit status or `ok: false` is a failed

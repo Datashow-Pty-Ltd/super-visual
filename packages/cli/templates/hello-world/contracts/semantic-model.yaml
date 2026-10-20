@@ -1,0 +1,39 @@
+contractVersion: 1
+name: {{PROJECT_TITLE}}
+culture: en-AU
+compatibilityLevel: 1702
+storageMode: import
+sourceParameters:
+  server: localhost
+  database: SuperVisualDemo
+tables:
+  - name: Sales
+    role: fact
+    grain: One row per example category.
+    description: Minimal self-contained sales data used by the Super Visual hello-world project.
+    source:
+      referencedTables: []
+      sql: |-
+        SELECT example.[Category], CAST(example.[Amount] AS decimal(19, 4)) AS [Amount]
+        FROM (VALUES (N'Bikes', 42000), (N'Clothing', 18000), (N'Accessories', 27000)) AS example([Category], [Amount])
+    columns:
+      - name: Category
+        sourceColumn: Category
+        dataType: String
+        hidden: false
+        summarizeBy: none
+        description: Example product category.
+      - name: Amount
+        sourceColumn: Amount
+        dataType: Decimal
+        hidden: true
+        summarizeBy: none
+        description: Example sales amount.
+    measures:
+      - name: Total Sales
+        expression: "SUM('Sales'[Amount])"
+        formatString: "$#,##0"
+        displayFolder: Measures
+        description: Total example sales in the current category context.
+    hierarchies: []
+relationships: []

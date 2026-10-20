@@ -5,7 +5,7 @@
   "type": "module",
   "files": ["src"],
   "license": "Apache-2.0",
-  "engines": { "node": ">=20.19.0" },
+  "engines": { "node": ">=22.12.0" },
   "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/runtime-powerbi" },
   "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
   "publishConfig": { "access": "public" },

@@ -7,7 +7,7 @@ const run = promisify(execFile);
 const root = path.resolve(".");
 const required = [
   "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
-  "CLAUDE.md", "AGENTS.md", "skills/super-visual/SKILL.md", ".github/workflows/ci.yml", ".github/workflows/release.yml",
+  "CLAUDE.md", "AGENTS.md", ".claude/skills/super-visual/SKILL.md", ".github/workflows/ci.yml", ".github/workflows/release.yml",
 ];
 await Promise.all(required.map((file) => access(path.join(root, file))));
 
@@ -22,6 +22,7 @@ for (const { directory, manifest } of packages) {
   if (!packed?.files?.length) throw new Error(`${directory} produced an empty npm package`);
   if (directory === "compiler" && !packed.files.some((file) => file.path === "template/visual/src/visual.ts")) throw new Error("compiler package is missing its visual template");
   if (directory === "contracts" && !packed.files.some((file) => file.path.endsWith("supervisual-project.schema.json"))) throw new Error("contracts package is missing project schemas");
+  if (directory === "cli" && !packed.files.some((file) => file.path === "templates/hello-world/supervisual.yaml")) throw new Error("CLI package is missing the hello-world template");
 }
 
 const { stdout: tracked } = await run("git", ["ls-files"], { cwd: root });

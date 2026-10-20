@@ -4,17 +4,28 @@
   "description": "Compile governed React applications into inspectable Super Visual solution bundles.",
   "type": "module",
   "exports": "./src/index.mjs",
-  "files": ["src", "template"],
+  "files": [
+    "src",
+    "template"
+  ],
   "license": "Apache-2.0",
-  "engines": { "node": ">=20.19.0" },
-  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/compiler" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git",
+    "directory": "packages/compiler"
+  },
   "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@datashow/super-visual-compliance": "0.1.0-rc.0",
     "@datashow/super-visual-contracts": "0.1.0-rc.0",
     "@datashow/super-visual-semantic": "0.1.0-rc.0",
-    "fflate": "0.8.2",
+    "fflate": "0.8.3",
     "yaml": "2.9.1"
   }
 }

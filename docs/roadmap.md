@@ -19,3 +19,9 @@
 
 Each stage has an automated acceptance command under `npm run stage:<n>`. The
 full release-candidate gate is `npm run stage:9`.
+
+Stages 10–14 turn the extracted engine into a complete user-facing CLI,
+including initialization, a minimal example, Claude Dashboard intake, expanded
+Fabric discovery, installed agent skills, and fresh-clone release proof. Their
+requirements and acceptance criteria are tracked in the
+[CLI product roadmap](cli-product-roadmap.md).

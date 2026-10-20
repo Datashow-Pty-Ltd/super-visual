@@ -7,14 +7,25 @@
     ".": "./src/index.mjs",
     "./schemas/*": "./schemas/*"
   },
-  "files": ["src", "schemas"],
+  "files": [
+    "src",
+    "schemas"
+  ],
   "license": "Apache-2.0",
-  "engines": { "node": ">=20.19.0" },
-  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/contracts" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git",
+    "directory": "packages/contracts"
+  },
   "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
-    "ajv": "8.17.1",
+    "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "yaml": "2.9.1"
   }

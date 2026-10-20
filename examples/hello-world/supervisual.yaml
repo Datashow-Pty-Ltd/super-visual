@@ -1,0 +1,24 @@
+contractVersion: 1
+application:
+  id: hello-world
+  title: Super Visual Hello World
+  entry: contracts/report-source.json
+  style: contracts/report-source.json
+target:
+  platform: powerbi
+  visual:
+    name: helloworldVisual
+    displayName: Super Visual Hello World
+    guid: superVisual06D1DFF5BC5645B798CFB803F0573613
+    version: 1.0.0.1
+    apiVersion: 5.11.1
+semantic:
+  model: contracts/semantic-model.yaml
+  broker: contracts/widget-broker.json
+  pageSet: contracts/page-set.yaml
+source:
+  bundle: contracts/report-source.json
+output:
+  directory: dist
+compliance:
+  policies: [core, powerbi]

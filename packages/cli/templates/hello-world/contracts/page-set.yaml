@@ -1,0 +1,78 @@
+contractVersion: 1
+shell:
+  id: {{PROJECT_ID}}
+  title: {{PROJECT_TITLE}}
+  defaultPage: overview
+  designSystem:
+    id: hello-world
+    sha256: {{DESIGN_HASH}}
+  acceptedConcept: { id: {{PROJECT_ID}} }
+  governanceLabel: Power BI governed
+  locale: en-AU
+  currencyCode: AUD
+  filterContext: []
+  navigation:
+    - { page: overview, label: Overview }
+  theme:
+    background: '#F4F7F5'
+    surface: '#FFFFFF'
+    quietSurface: '#EAF0ED'
+    text: '#173C36'
+    mutedText: '#5E6D68'
+    metadata: '#71807A'
+    rule: '#D3DDD8'
+    grid: '#E3EAE6'
+    accent: '#167D6C'
+    attention: '#9B6B23'
+    positive: '#2E7D5B'
+    negative: '#B84A52'
+    context: ['#167D6C', '#6F6A9A']
+    dataColors: ['#167D6C', '#6F6A9A', '#9B6B23']
+    displayFont: Georgia, serif
+    bodyFont: Aptos, Segoe UI, sans-serif
+    contentWidth: 1200
+    layoutColumns: 12
+    layoutGap: 16
+    cardRadius: 8
+    cardPadding: [20, 20, 20, 20]
+    kpiTopAccent: 3
+    density: comfortable
+    typography: { findingMin: 40, findingMax: 56, sectionTitle: 22, kpiValue: 32, body: 15, chart: 12, table: 13, metadata: 11 }
+pages:
+  - id: overview
+    title: Hello World
+    eyebrow: Super Visual / minimal example
+    summary:
+      headline: Your first governed React dashboard.
+      body: One dataset and one chart prove the complete semantic-to-visual path.
+      emphasisBinding: { dataset: sales, field: value, aggregation: sum }
+    search: null
+    kpis:
+      - id: total-sales
+        conceptRegionId: total-sales
+        label: Total sales
+        binding: { dataset: sales, field: value, aggregation: sum }
+        reportWidgetIds: [sales]
+        businessQuestionIds: [sales-mix]
+        format: currency-compact
+        comparison: null
+    widgets:
+      - id: sales
+        conceptRegionId: sales
+        primitive: bar
+        title: Sales by category
+        subtitle: Governed data from the semantic model
+        dataset: sales
+        reportWidgetIds: [sales]
+        businessQuestionIds: [sales-mix]
+        layout: { columns: 12, minHeight: 320 }
+        settings: { orientation: horizontal, curve: null, showLegend: false, showLabels: true, sort: descending, limit: 10, emphasis: bars }
+interactions: []
+designRationale:
+  narrative: Demonstrate the smallest complete Super Visual project.
+  decisions:
+    - Keep the example to one page, one dataset, one measure, and one chart.
+  accessibility:
+    - Use semantic headings, a native list, visible values, and no colour-only meaning.
+  risks:
+    - A Fabric deployment still requires a reachable SQL endpoint and connection binding.

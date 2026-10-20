@@ -1,5 +1,5 @@
 import path from "node:path";
-import ts from "typescript";
+import { transformSync } from "esbuild";
 
 const DEFAULT_ALLOWED_IMPORTS = new Set([
   "react",
@@ -46,10 +46,12 @@ export function validateSourceBundle(bundle, options = {}) {
     seen.add(relative);
     const content = String(file?.content ?? "");
     if (/\.tsx?$/.test(relative)) {
-      const parsed = ts.createSourceFile(relative, content, ts.ScriptTarget.Latest, true, relative.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-      for (const diagnostic of parsed.parseDiagnostics ?? []) {
-        const position = parsed.getLineAndCharacterOfPosition(diagnostic.start ?? 0);
-        diagnostics.push({ code: "core/typescript-syntax", path: relative, line: position.line + 1, message: ts.flattenDiagnosticMessageText(diagnostic.messageText, " ") });
+      try {
+        transformSync(content, { loader: relative.endsWith(".tsx") ? "tsx" : "ts", sourcefile: relative, logLevel: "silent" });
+      } catch (error) {
+        for (const detail of error?.errors ?? [{ text: error instanceof Error ? error.message : String(error) }]) {
+          diagnostics.push({ code: "core/typescript-syntax", path: relative, ...(detail.location?.line ? { line: detail.location.line } : {}), message: detail.text });
+        }
       }
     }
     for (const rule of RULES) if (rule.pattern.test(content)) diagnostics.push({ code: rule.code, path: relative, message: `contains forbidden ${rule.message}` });

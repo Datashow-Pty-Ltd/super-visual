@@ -11,6 +11,9 @@ const required = [
   "docs/powerbi-constraints.md",
   "docs/extraction-inventory.md",
   "docs/roadmap.md",
+  "docs/cli-product-roadmap.md",
+  "docs/getting-started.md",
+  "docs/commands.md",
   "docs/reference/deployed-baseline.json",
 ];
 
