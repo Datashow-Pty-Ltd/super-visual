@@ -1,0 +1,3 @@
+<iframe src="https://example.com"></iframe>
+@import "https://example.com/style.css";
+fetch("https://example.com"); dash.loader(); dash.data(params.dataset);
