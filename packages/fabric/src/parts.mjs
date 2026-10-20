@@ -65,7 +65,7 @@ export function connectionStringValue(connectionString, key) {
 
 export const decodePart = (part) => Buffer.from(part.payload, "base64");
 
-export function verifyDefinitionParts(parts, format) {
+export function verifyDefinitionParts(parts, format, { allowLegacyReportVersion = false } = {}) {
   if (!Array.isArray(parts) || parts.length === 0) throw new Error(`${format} definition has no parts`);
   const paths = parts.map((part) => part.path);
   if (new Set(paths).size !== paths.length) throw new Error(`${format} definition contains duplicate paths`);
@@ -93,7 +93,9 @@ export function verifyDefinitionParts(parts, format) {
     }
     const schema = "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json";
     if (version?.$schema !== schema) throw new Error(`PBIR definition/version.json must declare ${schema}`);
-    if (version.version !== "2.0.0") throw new Error("PBIR definition/version.json must use report format version 2.0.0");
+    if (allowLegacyReportVersion) {
+      if (typeof version.version !== "string" || !/^[1-9][0-9]*\.(?:0|[1-9][0-9]*)\.0$/.test(version.version)) throw new Error("PBIR definition/version.json has an invalid version");
+    } else if (version.version !== "2.0.0") throw new Error("PBIR definition/version.json must use report format version 2.0.0");
     if (Object.keys(version).some((key) => !["$schema", "version"].includes(key))) throw new Error("PBIR definition/version.json contains unsupported properties");
   }
 }

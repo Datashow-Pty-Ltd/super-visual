@@ -16,3 +16,5 @@
   semantic-model binding verification while still rejecting the wrong model ID.
 - Corrected generated PBIR report-format metadata to `2.0.0`, preventing a
   Fabric import from succeeding while the report exploration surface stays empty.
+- Kept backup-first deployment able to inspect and repair legacy remote PBIR
+  metadata while requiring all newly applied forward definitions to be current.

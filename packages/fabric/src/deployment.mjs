@@ -54,7 +54,7 @@ export async function createDeploymentDiff({ client, workspaceId, workspaceName,
     let remoteDefinitionHash = null;
     if (descriptor.existing) {
       const remote = await client.getDefinition(workspaceId, descriptor.type, descriptor.existing.id, descriptor.format);
-      verifyDefinitionParts(remote.parts, descriptor.format);
+      verifyDefinitionParts(remote.parts, descriptor.format, { allowLegacyReportVersion: true });
       remoteDefinitionHash = definitionHash(remote.parts);
     }
     const change = !descriptor.existing ? "create" : remoteDefinitionHash === localDefinitionHash ? "unchanged" : "update";
@@ -81,7 +81,7 @@ export async function createDeploymentPlan({ client, workspaceId, workspaceName,
     action.remoteDefinitionHash = null;
     if (action.operation === "update") {
       const remote = await client.getDefinition(workspaceId, action.type, action.existingId, action.format);
-      verifyDefinitionParts(remote.parts, action.format);
+      verifyDefinitionParts(remote.parts, action.format, { allowLegacyReportVersion: true });
       action.remoteDefinitionHash = definitionHash(remote.parts);
     }
   }
@@ -92,7 +92,7 @@ export async function createDeploymentPlan({ client, workspaceId, workspaceName,
 async function backup(client, workspaceId, action, directory) {
   if (!action.existingId) return null;
   const remote = await client.getDefinition(workspaceId, action.type, action.existingId, action.format);
-  verifyDefinitionParts(remote.parts, action.format);
+  verifyDefinitionParts(remote.parts, action.format, { allowLegacyReportVersion: true });
   const root = path.join(directory, `${action.type}-${action.existingId}`);
   for (const part of remote.parts) {
     const target = path.resolve(root, part.path);
@@ -133,7 +133,7 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
       if (definitionHash(remote.parts) !== definitionHash(expectedParts)) throw new Error(`${action.type} ${action.displayName} does not match the completed resume step`);
     } else if (action.operation === "update") {
       const remote = await client.getDefinition(plan.workspace.id, action.type, action.existingId, action.format);
-      verifyDefinitionParts(remote.parts, action.format);
+      verifyDefinitionParts(remote.parts, action.format, { allowLegacyReportVersion: true });
       if (definitionHash(remote.parts) !== action.remoteDefinitionHash) throw new Error(`${action.type} ${action.displayName} remote definition changed after planning; create a new plan`);
     }
   }
@@ -221,11 +221,11 @@ export async function createRestorePlan({ client, backupDirectory, workspaceId, 
     const current = currentItems.find((candidate) => String(candidate.id) === String(item.itemId));
     if (!current || current.displayName !== item.displayName) throw new Error(`${item.type} ${item.itemId} no longer has the backed-up identity`);
     const backupParts = await encodeDefinition(backupItemRoot(root, item));
-    verifyDefinitionParts(backupParts, item.format);
+    verifyDefinitionParts(backupParts, item.format, { allowLegacyReportVersion: true });
     const backupHash = definitionHash(backupParts);
     if (backupHash !== item.definitionHash) throw new Error(`${item.type} ${item.displayName} backup content failed integrity verification`);
     const currentDefinition = await client.getDefinition(workspaceId, item.type, item.itemId, item.format);
-    verifyDefinitionParts(currentDefinition.parts, item.format);
+    verifyDefinitionParts(currentDefinition.parts, item.format, { allowLegacyReportVersion: true });
     actions.push({ key: item.key, type: item.type, format: item.format, displayName: item.displayName, itemId: item.itemId, directory: item.directory, backupDefinitionHash: backupHash, currentDefinitionHash: definitionHash(currentDefinition.parts), operation: "restore" });
   }
   const core = { contractVersion: 1, kind: "supervisual-fabric-restore", workspace: manifest.workspace, backupDirectory: root, sourcePlanId: manifest.sourcePlanId, actions };
@@ -243,11 +243,11 @@ export async function applyRestorePlan({ client, plan, confirmPlanId }) {
     const current = currentItems.find((candidate) => String(candidate.id) === String(action.itemId));
     if (!current || current.displayName !== action.displayName) throw new Error(`${action.type} ${action.itemId} changed identity after restore planning`);
     const currentDefinition = await client.getDefinition(plan.workspace.id, action.type, action.itemId, action.format);
-    verifyDefinitionParts(currentDefinition.parts, action.format);
+    verifyDefinitionParts(currentDefinition.parts, action.format, { allowLegacyReportVersion: true });
     if (definitionHash(currentDefinition.parts) !== action.currentDefinitionHash) throw new Error(`${action.type} ${action.displayName} changed after restore planning; create a new restore plan`);
     const root = path.resolve(plan.backupDirectory);
     const parts = await encodeDefinition(backupItemRoot(root, action));
-    verifyDefinitionParts(parts, action.format);
+    verifyDefinitionParts(parts, action.format, { allowLegacyReportVersion: true });
     if (definitionHash(parts) !== action.backupDefinitionHash) throw new Error(`${action.type} ${action.displayName} backup changed after restore planning; create a new restore plan`);
     prepared.push({ action, parts });
   }
@@ -255,7 +255,7 @@ export async function applyRestorePlan({ client, plan, confirmPlanId }) {
   for (const { action, parts } of prepared) {
     await client.updateItem(plan.workspace.id, action.type, action.itemId, action.format, parts);
     const restored = await client.getDefinition(plan.workspace.id, action.type, action.itemId, action.format);
-    verifyDefinitionParts(restored.parts, action.format);
+    verifyDefinitionParts(restored.parts, action.format, { allowLegacyReportVersion: true });
     if (definitionHash(restored.parts) !== action.backupDefinitionHash) throw new Error(`${action.type} ${action.displayName} restore verification failed`);
     items[action.key] = { id: action.itemId, displayName: action.displayName, operation: "restore" };
   }
