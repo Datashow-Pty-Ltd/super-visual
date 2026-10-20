@@ -25,6 +25,33 @@ function oneByName(items, displayName, type) {
   return matches[0];
 }
 
+function tmdlStringExpression(text, name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = text.match(new RegExp(`^expression\\s+(?:'${escapedName}'|${escapedName})\\s*=\\s*\"((?:\"\"|[^\"])*)\"`, "mi"));
+  return match ? match[1].replaceAll('""', '"') : null;
+}
+
+async function expectedLocalConnection(solutionDirectory) {
+  const expressionsPath = path.join(solutionDirectory, "SemanticAdapter.SemanticModel", "definition", "expressions.tmdl");
+  const expressions = await readFile(expressionsPath, "utf8");
+  const server = tmdlStringExpression(expressions, "Server");
+  const database = tmdlStringExpression(expressions, "Database");
+  if (!server || !database) throw new Error("Post-deployment binding requires literal Server and Database parameters in the packaged semantic model");
+  return { type: "SQL", path: `${server};${database}` };
+}
+
+async function preflightPostDeploymentConnection({ client, solutionDirectory, postDeployment }) {
+  if (!postDeployment) return null;
+  const expected = await expectedLocalConnection(solutionDirectory);
+  const connections = await client.listConnections();
+  const connection = connections.find((item) => String(item.id) === String(postDeployment.connectionId));
+  if (!connection) throw new Error(`Fabric connection ${postDeployment.connectionId} is not accessible`);
+  if (connection.connectivityType !== postDeployment.connectivityType) throw new Error(`Fabric connection ${postDeployment.connectionId} uses ${connection.connectivityType}, not ${postDeployment.connectivityType}`);
+  const actual = connection.connectionDetails;
+  if (actual?.type !== expected.type || actual?.path !== expected.path) throw new Error(`Fabric connection ${postDeployment.connectionId} does not exactly match packaged semantic source ${expected.type} ${expected.path}`);
+  return { connectionId: connection.id, connectivityType: connection.connectivityType, connectionDetails: expected };
+}
+
 async function deploymentTarget({ client, workspaceId, workspaceName, semanticModelName, reportName }) {
   if (!workspaceId) throw new Error("A Fabric workspace ID is required; display-name-only deployment is not safe");
   const workspace = await client.getWorkspace(workspaceId);
@@ -85,8 +112,17 @@ export async function createDeploymentPlan({ client, workspaceId, workspaceName,
       action.remoteDefinitionHash = definitionHash(remote.parts);
     }
   }
-  const core = { contractVersion: 1, workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId }, solutionDirectory: path.resolve(solutionDirectory), allowUpdates, actions, postDeployment };
-  return { ...core, planId: planId(core), createdAt: new Date().toISOString(), blockers: actions.filter((action) => action.operation === "blocked").map((action) => `${action.type} ${action.displayName} already exists; create a plan with updates explicitly enabled`) };
+  const resolvedSolutionDirectory = path.resolve(solutionDirectory);
+  const core = { contractVersion: 1, workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId }, solutionDirectory: resolvedSolutionDirectory, allowUpdates, actions, postDeployment };
+  const blockers = actions.filter((action) => action.operation === "blocked").map((action) => `${action.type} ${action.displayName} already exists; create a plan with updates explicitly enabled`);
+  if (postDeployment) {
+    try {
+      await preflightPostDeploymentConnection({ client, solutionDirectory: resolvedSolutionDirectory, postDeployment });
+    } catch (error) {
+      blockers.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  return { ...core, planId: planId(core), createdAt: new Date().toISOString(), blockers };
 }
 
 async function backup(client, workspaceId, action, directory) {
@@ -137,6 +173,7 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
       if (definitionHash(remote.parts) !== action.remoteDefinitionHash) throw new Error(`${action.type} ${action.displayName} remote definition changed after planning; create a new plan`);
     }
   }
+  await preflightPostDeploymentConnection({ client, solutionDirectory: plan.solutionDirectory, postDeployment: plan.postDeployment });
   const updateActions = plan.actions.filter((action) => action.operation === "update" && !completed[action.key]);
   if (updateActions.length && !backupDirectory) throw new Error("Updates require a backup directory");
   const allUpdateActions = plan.actions.filter((action) => action.operation === "update");
