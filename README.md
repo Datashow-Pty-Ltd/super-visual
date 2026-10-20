@@ -1,23 +1,40 @@
 # Super Visual
 
-Super Visual is an open-source toolchain for compiling governed React
-dashboards into semantically bound, deployable Power BI applications.
+Super Visual compiles governed React dashboards into semantically bound,
+deployable Power BI applications.
 
-The project is currently being extracted from a working proof of concept. Its
-planned responsibilities include:
+The project packages five things as one verifiable solution:
 
-- compiling React report pages and their assets into a Power BI custom visual;
-- validating source, accessibility, packaging, and Power BI compliance rules;
-- binding report datasets and interactions to a semantic model contract;
-- producing the visual, semantic adapter, report wrapper, and deployment
-  manifest as one verifiable solution bundle; and
-- exposing deterministic CLI commands that can be used by people and coding
-  agents.
+- a React analytical application and its local assets;
+- the Power BI custom visual runtime;
+- a report-specific semantic adapter;
+- a PBIR report wrapper; and
+- a deployment and verification manifest.
 
-## Status
+The implementation is being extracted from the deployed AdventureWorks Super
+Visual proof. AdventureWorks remains the golden sample and behavioural
+reference while the compiler, runtime, contracts, policy checks, and deployment
+code become reusable packages.
 
-Early development. The public architecture and package boundaries will be
-defined before the existing proof-of-concept implementation is extracted.
+## Project status
+
+The repository is under active development toward `0.1.0`. See the
+[roadmap](docs/roadmap.md), [architecture](docs/architecture.md), and
+[extraction inventory](docs/extraction-inventory.md).
+
+## Intended workflow
+
+```bash
+npm install
+npm test
+
+npx supervisual check examples/adventureworks
+npx supervisual build examples/adventureworks
+npx supervisual deploy plan examples/adventureworks --environment fabric
+```
+
+Deployment is plan based and does not overwrite same-named Fabric items unless
+the caller explicitly enables updates.
 
 ## License
 

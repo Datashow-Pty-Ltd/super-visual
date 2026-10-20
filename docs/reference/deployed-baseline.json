@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "recordedOn": "2026-10-20",
+  "sourceRoot": "/Users/djodonnell/Documents/Development/llm-power-bi",
+  "visual": {
+    "version": "1.0.0.38",
+    "guid": "datashowSuperDashboard56E84DD9B92A42F7A70D88B941DB48DE",
+    "path": "custom-visuals/datashow-super-dashboard/dist/datashowSuperDashboard56E84DD9B92A42F7A70D88B941DB48DE.1.0.0.38.pbiviz",
+    "sha256": "ca4d18f8112fedbe6fbccc15e98de6ca28b66c5ce6a1c690dd5b41f5ff68a3e3"
+  },
+  "inputs": {
+    "reportAppSha256": "ce9441347fc8dc9e1e862e0cb65ef1dc7d6f503a77d81f4b99a89bf607bd0f48",
+    "semanticModelSha256": "8a3174886c2c3a9572da46576ea8e38d13107b86e9326a5d4c054a10a87eec91"
+  },
+  "outputs": {
+    "adapterModelSha256": "4b200c66621669f0ae1c9a7ba92383ef2ad27ab2113f97bf0401c21b99b89588",
+    "reportDefinitionSha256": "96f03355e1c7bbaf282ee71b2437a3289659cf6cfcd3c4cba28beaa6ce730e1b"
+  },
+  "evidence": {
+    "brokerResultsSha256": "dc379fa4e813c94e936ea168a17980b3c02fb7fcc3a286072ceeac8ed26a690a",
+    "nativeBrokerResultsSha256": "8234e45b64e4fc1bcbfe709340971ac146a1d75d32ee8e9ecf1baa9452851980"
+  },
+  "observedContract": {
+    "dataViewFields": [
+      "WidgetId",
+      "AxisKey",
+      "Label",
+      "Sort",
+      "SeriesKey",
+      "SeriesLabel",
+      "WidgetValue",
+      "BrokerContext"
+    ],
+    "scheduler": "batched-invalidated-widget-ids",
+    "baseModelMutation": false,
+    "reportVisualCount": 1
+  }
+}
