@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://llm-power-bi.local/contracts/widget-broker.schema.json",
+  "title": "Report-specific widget broker contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "adapterMode", "baseModelMutation", "dataView", "widgets", "cachePolicy", "risks"],
+  "properties": {
+    "summary": { "type": "string", "minLength": 1 },
+    "adapterMode": { "type": "string", "const": "source-direct-import" },
+    "baseModelMutation": { "type": "boolean", "const": false },
+    "dataView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapping", "fields", "discriminator"],
+      "properties": {
+        "mapping": { "type": "string", "const": "table" },
+        "discriminator": { "type": "string", "const": "WidgetId" },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["WidgetId", "AxisKey", "Label", "Sort", "SeriesKey", "SeriesLabel", "WidgetValue", "BrokerContext"] },
+          "minItems": 8,
+          "maxItems": 8
+        }
+      }
+    },
+    "widgets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "reportWidgetIds", "businessQuestionIds", "shape", "dimensions", "axis", "measures", "rowLimit", "rowSelection", "selectable", "invalidates"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+          "title": { "type": "string", "minLength": 1 },
+          "reportWidgetIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" }
+          },
+          "businessQuestionIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" }
+          },
+          "shape": { "type": "string", "enum": ["categorical", "series", "hierarchy", "flow"] },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["key", "label"],
+              "properties": {
+                "key": { "type": "string", "pattern": "^.+\\[[^\\]]+\\]$" },
+                "label": { "type": "string", "pattern": "^.+\\[[^\\]]+\\]$" }
+              }
+            },
+            "minItems": 1,
+            "maxItems": 6
+          },
+          "axis": { "type": "string", "pattern": "^.+\\[[^\\]]+\\]$" },
+          "measures": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "items": { "type": "string", "pattern": "^(?:\\[[^\\],]+\\]|[^\\[\\],]+\\[[^\\],]+\\])$" }
+          },
+          "rowLimit": { "type": "integer", "minimum": 1, "maximum": 250 },
+          "rowSelection": { "enum": ["top-by-value", "bottom-by-value", "first-by-axis", "last-by-axis"] },
+          "selectable": { "type": "boolean" },
+          "invalidates": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" } }
+        }
+      }
+    },
+    "cachePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retainSourceWidget", "cancelStaleRequests", "externalFilterInvalidation"],
+      "properties": {
+        "retainSourceWidget": { "type": "boolean", "const": true },
+        "cancelStaleRequests": { "type": "boolean", "const": true },
+        "externalFilterInvalidation": { "type": "string", "const": "all-dependent-widgets" }
+      }
+    },
+    "risks": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}

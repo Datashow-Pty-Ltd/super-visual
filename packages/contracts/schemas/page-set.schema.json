@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://llm-power-bi.local/contracts/page-set.v2.schema.json",
+  "title": "Declarative analytical application page set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "shell", "pages", "interactions", "designRationale"],
+  "properties": {
+    "contractVersion": { "type": "integer", "const": 1 },
+    "shell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "defaultPage", "designSystem", "acceptedConcept", "governanceLabel", "locale", "currencyCode", "filterContext", "navigation", "theme"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "defaultPage": { "type": "string", "minLength": 1 },
+        "designSystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "sha256"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        "acceptedConcept": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" }
+          }
+        },
+        "governanceLabel": { "type": "string", "minLength": 1 },
+        "locale": { "type": "string", "minLength": 2 },
+        "currencyCode": { "type": "string", "pattern": "^$|^[A-Z]{3}$" },
+        "filterContext": { "type": "array", "items": { "$ref": "#/$defs/filterContext" } },
+        "navigation": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page", "label"],
+            "properties": {
+              "page": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "theme": { "$ref": "#/$defs/theme" }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "eyebrow", "summary", "search", "kpis", "widgets"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+          "title": { "type": "string", "minLength": 1 },
+          "eyebrow": { "type": "string", "minLength": 1 },
+          "summary": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["headline", "body", "emphasisBinding"],
+            "properties": {
+              "headline": { "type": "string", "minLength": 1 },
+              "body": { "type": "string", "minLength": 1 },
+              "emphasisBinding": { "anyOf": [{ "$ref": "#/$defs/binding" }, { "type": "null" }] }
+            }
+          },
+          "search": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["placeholder", "dataset", "filterTarget"],
+                "properties": {
+                  "placeholder": { "type": "string", "minLength": 1 },
+                  "dataset": { "$ref": "#/$defs/dataset" },
+                  "filterTarget": { "type": "string", "minLength": 1 }
+                }
+              },
+              { "type": "null" }
+            ]
+          },
+          "kpis": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "conceptRegionId", "label", "binding", "reportWidgetIds", "businessQuestionIds", "format", "comparison"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "conceptRegionId": { "$ref": "#/$defs/dataset" },
+                "label": { "type": "string", "minLength": 1 },
+                "binding": { "$ref": "#/$defs/binding" },
+                "reportWidgetIds": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/dataset" }
+                },
+                "businessQuestionIds": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/dataset" }
+                },
+                "format": { "type": "string", "enum": ["currency-compact", "number", "percent", "text"] },
+                "comparison": { "type": ["string", "null"] }
+              }
+            }
+          },
+          "widgets": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "conceptRegionId", "primitive", "title", "subtitle", "dataset", "reportWidgetIds", "businessQuestionIds", "layout", "settings"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "conceptRegionId": { "$ref": "#/$defs/dataset" },
+                "primitive": { "type": "string", "enum": ["line", "bar", "pie", "tree", "ranked-table", "small-multiples", "ticker", "sankey", "kpi-ledger"] },
+                "title": { "type": "string", "minLength": 1 },
+                "subtitle": { "type": ["string", "null"] },
+                "dataset": { "$ref": "#/$defs/dataset" },
+                "reportWidgetIds": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/dataset" }
+                },
+                "businessQuestionIds": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/dataset" }
+                },
+                "layout": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["columns", "minHeight"],
+                  "properties": {
+                    "columns": { "type": "integer", "minimum": 3, "maximum": 12 },
+                    "minHeight": { "type": "integer", "minimum": 180, "maximum": 900 }
+                  }
+                },
+                "settings": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["orientation", "curve", "showLegend", "showLabels", "sort", "limit", "emphasis"],
+                  "properties": {
+                    "orientation": { "type": ["string", "null"], "enum": ["horizontal", "vertical", null] },
+                    "curve": { "type": ["string", "null"], "enum": ["linear", "monotoneX", "step", null] },
+                    "showLegend": { "type": ["boolean", "null"] },
+                    "showLabels": { "type": ["boolean", "null"] },
+                    "sort": { "type": ["string", "null"], "enum": ["ascending", "descending", "none", null] },
+                    "limit": { "type": ["integer", "null"], "minimum": 1, "maximum": 100 },
+                    "emphasis": { "type": ["string", "null"], "enum": ["area", "line", "bars", "nodes", null] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "interactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "action", "target", "invalidates"],
+        "properties": {
+          "source": { "type": "string", "minLength": 1 },
+          "action": { "type": "string", "const": "filter" },
+          "target": { "$ref": "#/$defs/dataset" },
+          "invalidates": { "type": "array", "items": { "$ref": "#/$defs/dataset" } }
+        }
+      }
+    },
+    "designRationale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["narrative", "decisions", "accessibility", "risks"],
+      "properties": {
+        "narrative": { "type": "string", "minLength": 1 },
+        "decisions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "accessibility": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "risks": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  },
+  "$defs": {
+    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "surface", "quietSurface", "text", "mutedText", "metadata", "rule", "accent", "attention", "positive", "negative", "context", "dataColors", "displayFont", "bodyFont", "contentWidth", "layoutColumns", "layoutGap", "cardRadius", "cardPadding", "kpiTopAccent", "grid", "density", "typography"],
+      "properties": {
+        "background": { "$ref": "#/$defs/color" },
+        "surface": { "$ref": "#/$defs/color" },
+        "quietSurface": { "$ref": "#/$defs/color" },
+        "text": { "$ref": "#/$defs/color" },
+        "mutedText": { "$ref": "#/$defs/color" },
+        "metadata": { "$ref": "#/$defs/color" },
+        "rule": { "$ref": "#/$defs/color" },
+        "grid": { "$ref": "#/$defs/color" },
+        "accent": { "$ref": "#/$defs/color" },
+        "attention": { "$ref": "#/$defs/color" },
+        "positive": { "$ref": "#/$defs/color" },
+        "negative": { "$ref": "#/$defs/color" },
+        "context": { "type": "array", "minItems": 2, "maxItems": 4, "items": { "$ref": "#/$defs/color" } },
+        "dataColors": { "type": "array", "minItems": 3, "maxItems": 8, "items": { "$ref": "#/$defs/color" } },
+        "displayFont": { "type": "string", "minLength": 1 },
+        "bodyFont": { "type": "string", "minLength": 1 },
+        "contentWidth": {
+          "type": ["integer", "string"],
+          "description": "A pixel width or valid CSS width expression."
+        },
+        "layoutColumns": { "type": "integer", "minimum": 1, "maximum": 24 },
+        "layoutGap": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "cardRadius": { "type": "number", "minimum": 0, "maximum": 32 },
+        "cardPadding": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "integer", "minimum": 0, "maximum": 64 } },
+        "kpiTopAccent": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "density": { "type": "string", "enum": ["compact", "comfortable"] },
+        "typography": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["findingMin", "findingMax", "sectionTitle", "kpiValue", "body", "chart", "table", "metadata"],
+          "properties": {
+            "findingMin": { "type": "integer", "minimum": 32, "maximum": 56 },
+            "findingMax": { "type": "integer", "minimum": 44, "maximum": 80 },
+            "sectionTitle": { "type": "integer", "minimum": 18, "maximum": 28 },
+            "kpiValue": { "type": "integer", "minimum": 26, "maximum": 44 },
+            "body": { "type": "integer", "minimum": 13, "maximum": 18 },
+            "chart": { "type": "integer", "minimum": 11, "maximum": 16 },
+            "table": { "type": "integer", "minimum": 12, "maximum": 16 },
+            "metadata": { "type": "integer", "minimum": 10, "maximum": 14 }
+          }
+        }
+      }
+    },
+    "dataset": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+    "filterContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "label", "mode", "required", "visible", "defaultValue", "reason"],
+      "properties": {
+        "target": { "type": "string", "pattern": "^.+\\[[^\\]]+\\]$" },
+        "label": { "type": "string", "minLength": 1 },
+        "mode": { "type": "string", "const": "single-select" },
+        "required": { "type": "boolean" },
+        "visible": { "type": "boolean" },
+        "defaultValue": { "type": ["string", "number", "boolean", "null"] },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset", "field", "aggregation"],
+      "properties": {
+        "dataset": { "$ref": "#/$defs/dataset" },
+        "field": { "type": "string", "minLength": 1 },
+        "aggregation": { "anyOf": [{ "type": "string", "enum": ["sum", "average", "count", "distinct-count", "derived"] }, { "type": "null" }] }
+      }
+    }
+  }
+}

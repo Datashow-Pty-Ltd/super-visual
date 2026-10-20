@@ -4,13 +4,34 @@
   "private": true,
   "description": "Compile governed React dashboards into semantically bound Power BI applications.",
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
   "engines": {
     "node": ">=20.19.0"
   },
   "scripts": {
     "stage:1": "node scripts/verify-docs.mjs",
     "stage:2": "npm run stage:1 && node scripts/verify-reference.mjs --source-root ../llm-power-bi",
-    "reference:verify": "node scripts/verify-reference.mjs"
+    "stage:3": "npm run stage:1 && npm run contracts:test && npm run compliance:test && npm run runtime:test && npm run compiler:test",
+    "reference:verify": "node scripts/verify-reference.mjs",
+    "contracts:test": "vitest run packages/contracts/tests",
+    "compliance:test": "vitest run packages/compliance/tests",
+    "runtime:test": "vitest run packages/runtime-powerbi/tests",
+    "compiler:test": "vitest run packages/compiler/tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "powerbi-visuals-api": "5.11.1",
+    "typescript": "5.9.3",
+    "vitest": "4.0.8"
   },
   "license": "Apache-2.0",
   "repository": {

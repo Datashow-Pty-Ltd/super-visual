@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supervisual.dev/contracts/project.schema.json",
+  "title": "Super Visual project",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "application", "target", "semantic", "source", "output"],
+  "properties": {
+    "contractVersion": { "type": "integer", "const": 1 },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "entry", "style"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "entry": { "$ref": "#/$defs/safePath" },
+        "style": { "$ref": "#/$defs/safePath" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "visual"],
+      "properties": {
+        "platform": { "const": "powerbi" },
+        "visual": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "displayName", "guid", "version", "apiVersion"],
+          "properties": {
+            "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]+$" },
+            "displayName": { "type": "string", "minLength": 1 },
+            "guid": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]+$" },
+            "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$" },
+            "apiVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+          }
+        }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "broker", "pageSet"],
+      "properties": {
+        "model": { "$ref": "#/$defs/safePath" },
+        "broker": { "$ref": "#/$defs/safePath" },
+        "pageSet": { "$ref": "#/$defs/safePath" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle"],
+      "properties": { "bundle": { "$ref": "#/$defs/safePath" } }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory"],
+      "properties": { "directory": { "$ref": "#/$defs/safePath" } }
+    },
+    "compliance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": { "enum": ["core", "powerbi", "powerbi-certified"] },
+          "uniqueItems": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "^(?:/|[A-Za-z]:|.*(?:^|/)\\.\\.(?:/|$))" }
+    }
+  }
+}

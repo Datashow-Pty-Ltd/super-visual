@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://llm-power-bi.local/contracts/report-source-bundle.v2.schema.json",
+  "title": "High-fidelity React report source bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "designSystem", "acceptedConcept", "entry", "files", "routes", "bindings", "designRationale"],
+  "properties": {
+    "contractVersion": { "type": "integer", "const": 1 },
+    "designSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "acceptedConcept": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" }
+      }
+    },
+    "entry": { "type": "string", "const": "src/reportApplication.tsx" },
+    "files": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "content"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^(src/reportApplication\\.tsx|src/report/[A-Za-z0-9._/-]+\\.(tsx|ts)|style/report-design\\.less)$" },
+          "content": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "datasets", "businessQuestionIds"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+          "title": { "type": "string", "minLength": 1 },
+          "datasets": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" } },
+          "businessQuestionIds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dataset", "component", "reportWidgetIds", "businessQuestionIds"],
+        "properties": {
+          "dataset": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+          "component": { "type": "string", "minLength": 1 },
+          "reportWidgetIds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "businessQuestionIds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "designRationale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "pageCompositions", "dataVisualisation", "responsiveBehaviour", "accessibility", "risks"],
+      "properties": {
+        "direction": { "type": "string", "minLength": 1 },
+        "pageCompositions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "dataVisualisation": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "responsiveBehaviour": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "accessibility": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "risks": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}
