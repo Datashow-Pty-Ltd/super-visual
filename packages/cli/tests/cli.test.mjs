@@ -24,6 +24,7 @@ describe("supervisual CLI", () => {
     expect(version.stdout.trim()).toBe("0.1.0-rc.0");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
+    expect(deployHelp.stdout).toContain("workspaces");
     expect(deployHelp.stdout).toContain("diff");
     expect(deployHelp.stdout).toContain("restore");
     expect(deployHelp.stdout).toContain("status");

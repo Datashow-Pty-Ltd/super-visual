@@ -106,6 +106,9 @@ query returns row-count and non-null evidence, not the row values.
 ## Deploy to Fabric
 
 ```text
+supervisual deploy workspaces
+  [--timeout <seconds>]
+
 supervisual deploy discover
   --workspace-id <id>
   [--workspace-name <name>]
@@ -161,7 +164,9 @@ supervisual deploy restore apply
   [--timeout <seconds>]
 ```
 
-`discover`, `status`, and `diff` are read-only; an explicitly supplied acceptance
+`workspaces`, `discover`, `status`, and `diff` are read-only. `workspaces`
+returns only accessible workspace display names, immutable IDs, and capacity
+assignment so the operator can select an exact target without guessing. An explicitly supplied acceptance
 query is executed but never triggers refresh. `diff` classifies the semantic
 model and report as `create`, `update`, or `unchanged`, normalizing an existing
 report's semantic-model binding before hashing. Planning captures local definition

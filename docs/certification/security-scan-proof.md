@@ -29,7 +29,8 @@ Three alerts were dismissed after review because they describe required product
 behavior, with their mitigations recorded in GitHub:
 
 - Fabric deployment sends validated definitions only to the pinned HTTPS
-  `api.fabric.microsoft.com` origin; cross-origin URLs and redirects are rejected.
+  `api.fabric.microsoft.com` origin or the HTTPS regional Fabric operation
+  hosts under `*.analysis.windows.net`; other hosts and redirects are rejected.
 - DAX acceptance sends the operator-selected query only to the pinned HTTPS
   `api.powerbi.com` origin and returns aggregate evidence rather than row data.
 - Backup writes an explicitly selected remote Fabric definition only after
