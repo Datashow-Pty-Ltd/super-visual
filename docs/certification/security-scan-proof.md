@@ -2,21 +2,21 @@
 
 This is a point-in-time assurance record, not a warranty or an independent
 certification. The code-hardening checkpoint is commit
-`5f2438819c8d63589b0db9f631224963f6ba3874` in
+`558d6c59b105f5656ad561ea2bf9a804df46f5a7` in
 `Datashow-Pty-Ltd/super-visual`.
 
 ## Automated evidence
 
 | Control | Result | Public evidence |
 |---|---|---|
-| Cross-platform CI, packaging, supply chain, and fuzzing | Passed on Linux, macOS, and Windows; Node 22 and 24; Hello World, AdventureWorks, and Claude fixture packaged; 30,000 fuzz cases completed | [CI run 39396147822](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39396147822) |
-| CodeQL security-extended | Workflow passed with zero open CodeQL tool alerts | [CodeQL run 39396147733](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39396147733) |
-| OpenSSF Scorecard | Workflow passed and SARIF published | [Scorecard run 39396147684](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39396147684) |
+| Cross-platform CI, packaging, supply chain, and fuzzing | Passed on Linux, macOS, and Windows; Node 22 and 24; Hello World, AdventureWorks, and Claude fixture packaged; 50,000 fuzz cases completed | [CI run 39398627850](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39398627850) |
+| CodeQL security-extended | Workflow passed with zero open CodeQL tool alerts | [CodeQL run 39398627782](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39398627782) |
+| OpenSSF Scorecard | Workflow passed and SARIF published | [Scorecard run 39398627787](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39398627787) |
 | npm dependency audit | Zero known vulnerabilities at moderate-or-higher severity | CI `supply-chain` job and local `npm run security:audit` |
 | Dependency alerts | Zero open Dependabot security alerts | GitHub Security at the recorded time |
 | Secret alerts | Zero open secret-scanning alerts; push protection enabled | GitHub Security at the recorded time |
 | Release inventory | CycloneDX SBOM generation and eight npm package dry runs passed | CI `supply-chain` and `npm run release:check` |
-| Parser fuzzing | Jazzer.js continuously exercises source-policy, TMDL inventory, and public contract-schema boundaries | CI `fuzz` job and `npm run security:fuzz` |
+| Parser and state-machine fuzzing | Jazzer.js continuously exercises source policy, Claude Dashboard intake, TMDL inventory, Fabric definition envelopes, and public contract schemas; one discovered malformed-scheme/path case was fixed and retained as a regression seed | CI `fuzz` job and `npm run security:fuzz` |
 | Agent operation | Claude and Codex passed explicit, implicit, negative, and deployment-authorization evals | [`agent-skill-proof.md`](agent-skill-proof.md) |
 
 ## CodeQL disposition
@@ -57,8 +57,9 @@ The remaining OpenSSF Scorecard advisories are transparent roadmap items:
   self-certification;
 - establish review by a second qualified maintainer;
 - accumulate maintained-project history; and
-- extend continuous fuzzing from the current contract, source-policy, and TMDL
-  targets into full dashboard-import and Fabric-definition state machines.
+- seek an OpenSSF-recognized JavaScript fuzzing integration if ecosystem
+  support becomes available; the current custom Jazzer.js CI control is not
+  credited by Scorecard's Fuzzing check.
 
 The first stable release should additionally commission the scoped independent
 review described in [`security-assurance.md`](../security-assurance.md).
