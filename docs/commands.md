@@ -65,6 +65,46 @@ semantic model's `server` and `database`; it must use the versioned
 `fabric-sql-source` shape and should be stored under the ignored `.supervisual`
 directory.
 
+## Preview against a semantic model
+
+```text
+supervisual dev [project]
+  --workspace-id <id>
+  [--workspace-name <name>]
+  --semantic-model-id <id>
+  [--host 127.0.0.1]
+  [--port 5173]
+  [--open]
+  [--timeout <seconds>]
+
+supervisual preview test [project]
+  --workspace-id <id>
+  [--workspace-name <name>]
+  --semantic-model-id <id>
+  [--timeout <seconds>]
+  [--browser-timeout <milliseconds>]
+```
+
+Both commands are read-only with respect to Fabric. They require the deployed
+report-specific semantic adapter, including its generated `Widget Axis` table,
+not merely the reusable base model. Before serving, the CLI validates the local
+project, inspects the exact model, and checks every semantic and broker object.
+
+`dev` compiles disposable preview files under `.supervisual/semantic-preview/`,
+binds only to a loopback address, and emits its ready URL. The browser never
+receives a Fabric bearer token or a general DAX endpoint. It sends only
+allow-listed widget selections and adapter parameters to a nonce-protected local
+gateway; the CLI constructs and executes the broker DAX. React receives the
+same eight broker fields and uses the same row materialiser as the Power BI
+visual. In `--json` mode, the ready object is written before the process waits
+for Ctrl-C.
+
+`preview test` starts an ephemeral server and a headless Chromium session. It
+requires at least one live broker row, rejects browser errors, and exercises a
+selection and clear cycle when a report page exposes a selectable widget.
+Install the matching browser once with `npx playwright install chromium` if the
+local Playwright browser is absent.
+
 ## Validate certification evidence
 
 ```text

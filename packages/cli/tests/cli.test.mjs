@@ -18,6 +18,8 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("package");
     expect(help.stdout).toContain("import");
     expect(help.stdout).toContain("semantic");
+    expect(help.stdout).toContain("dev");
+    expect(help.stdout).toContain("preview");
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
@@ -31,6 +33,8 @@ describe("supervisual CLI", () => {
     const semanticHelp = await run(process.execPath, [cli, "semantic", "--help"], { cwd: root });
     expect(semanticHelp.stdout).toContain("discover");
     expect(semanticHelp.stdout).toContain("check");
+    const previewHelp = await run(process.execPath, [cli, "preview", "--help"], { cwd: root });
+    expect(previewHelp.stdout).toContain("test");
   });
 
   test("discovers and inspects a Claude-style bundle", async () => {

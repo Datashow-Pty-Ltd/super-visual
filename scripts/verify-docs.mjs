@@ -13,6 +13,8 @@ const required = [
   "docs/roadmap.md",
   "docs/cli-product-roadmap.md",
   "docs/getting-started.md",
+  "docs/recipes/hello-world.md",
+  "docs/recipes/adventureworks.md",
   "docs/commands.md",
   "docs/claude-dashboard-migration.md",
   "docs/adapter-compatibility.md",

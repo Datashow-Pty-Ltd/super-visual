@@ -31,6 +31,12 @@ export class Visual implements IVisual {
   private context = "";
   private warnings: string[] = [];
   private sequence = 0;
+  private readonly handleSelect = (widget: DatasetKey, point: MetricPoint): void => this.select(widget, point);
+  private readonly handleClear = (widget: DatasetKey): void => this.clear(widget);
+  private readonly handleVisibleDatasets = (datasets: DatasetKey[]): void => this.request(datasets);
+  private readonly handleClaudeParams = (changes: ClaudeParams): void => this.applyClaudeParams(changes);
+  private readonly handleClaudeRefresh = (dataset: string): void => this.refreshClaudeDataset(dataset);
+  private readonly handleClaudeLink = (name: string): void => { void name; };
 
   constructor(options: VisualConstructorOptions | undefined) {
     if (!options) throw new Error("Power BI did not provide visual constructor options");
@@ -122,12 +128,12 @@ export class Visual implements IVisual {
   private render(): void {
     this.root.render(createElement(ReportApplication, {
       model: this.model(), selections: this.selections,
-      onSelect: (widget: DatasetKey, point: MetricPoint) => this.select(widget, point),
-      onClear: (widget: DatasetKey) => this.clear(widget),
-      onVisibleDatasetsChange: (datasets: DatasetKey[]) => this.request(datasets),
-      onClaudeParamsChange: (changes: ClaudeParams) => this.applyClaudeParams(changes),
-      onClaudeRefresh: (dataset: string) => this.refreshClaudeDataset(dataset),
-      onClaudeLinkChange: (name: string) => { void name; },
+      onSelect: this.handleSelect,
+      onClear: this.handleClear,
+      onVisibleDatasetsChange: this.handleVisibleDatasets,
+      onClaudeParamsChange: this.handleClaudeParams,
+      onClaudeRefresh: this.handleClaudeRefresh,
+      onClaudeLinkChange: this.handleClaudeLink,
     }));
   }
 }

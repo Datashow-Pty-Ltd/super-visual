@@ -15,17 +15,22 @@ source assets, run `check`, then rebuild.
    For a supported Claude-style bundle, run the import command with
    `--inspect-only` before allowing it to update a project.
 3. Run `npx supervisual check <project> --json` and resolve every diagnostic.
-4. Run `npx supervisual compile <project> --json` while iterating. Run
+4. When validating data or interactions locally, run `npx supervisual dev
+   <project> --workspace-id <id> --semantic-model-id <id> --json` against the
+   exact deployed semantic adapter, or use `preview test` for a bounded browser
+   check. These commands are read-only in Fabric; do not use fixture data as
+   semantic acceptance.
+5. Run `npx supervisual compile <project> --json` while iterating. Run
    `npx supervisual package <project> --json` when a deployable `.pbiviz` and
    embedded PBIR resource bundle are required.
-5. Run `npx supervisual verify <project> --json`. Do not deploy a bundle whose
+6. Run `npx supervisual verify <project> --json`. Do not deploy a bundle whose
    manifest verification fails.
-6. Run `deploy workspaces` when the immutable target ID is unknown, then run
+7. Run `deploy workspaces` when the immutable target ID is unknown, then run
    `deploy discover` before planning and `deploy plan` before every Fabric change. Report its workspace ID, exact
    item names, operations, blockers, and plan ID.
-7. Run `deploy apply` only when the human explicitly authorises that exact plan
+8. Run `deploy apply` only when the human explicitly authorises that exact plan
    ID. Never infer `--allow-updates`; updates replace full remote definitions.
-8. Run `deploy status` with the returned item IDs. Treat
+9. Run `deploy status` with the returned item IDs. Treat
    `published-unverified` or `observed` as incomplete, not success.
 
 Use `--json` for automation. A non-zero exit status or `ok: false` is a failed

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type powerbi from "powerbi-visuals-api";
 import { buildBasicFilter, filterValues } from "../src/filter.js";
 import { buildBrokerAdapter, completeRequestedDatasets } from "../src/dataView.js";
+import { materializeBrokerRows } from "../src/brokerRows.js";
 
 function host(): powerbi.extensibility.visual.IVisualHost {
   return { colorPalette: { reset: vi.fn(), getColor: () => ({ value: "#123456" }) } } as unknown as powerbi.extensibility.visual.IVisualHost;
@@ -23,5 +24,14 @@ describe("Power BI broker runtime", () => {
     expect(result).toMatchObject({ receivedWidgets: ["sample"], receivedRowCount: 1, context: "sample=all", warnings: [] });
     expect(completed.sample?.points[0]).toMatchObject({ label: "Alpha", value: 10 });
     expect(completed.empty?.points).toEqual([]);
+  });
+
+  it("materializes semantic preview rows through the same broker path", () => {
+    const result = materializeBrokerRows([{
+      WidgetId: "sample", AxisKey: "a", Label: "Alpha", Sort: 1,
+      SeriesKey: "sales", SeriesLabel: "Sales", WidgetValue: "10", BrokerContext: "sample=all",
+    }], () => "#123456");
+    expect(result).toMatchObject({ receivedWidgets: ["sample"], receivedRowCount: 1, context: "sample=all", warnings: [] });
+    expect(result.datasets.sample?.points[0]).toMatchObject({ label: "Alpha", value: 10, color: "#123456" });
   });
 });
