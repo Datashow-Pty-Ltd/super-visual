@@ -14,7 +14,9 @@ const jazzer = path.join(root, "node_modules", "@jazzer.js", "core", "dist", "cl
 const artifactRoot = path.join(root, ".artifacts", "fuzz");
 const targets = [
   { name: "source-policy", file: "fuzz/source-policy.fuzz.mjs", includes: ["packages/compliance/src/"] },
+  { name: "claude-dashboard", file: "fuzz/claude-dashboard.fuzz.mjs", includes: ["packages/adapter-claude-dashboard/src/"] },
   { name: "tmdl-inspection", file: "fuzz/tmdl-inspection.fuzz.mjs", includes: ["packages/fabric/src/"] },
+  { name: "fabric-definition", file: "fuzz/fabric-definition.fuzz.mjs", includes: ["packages/fabric/src/"] },
   { name: "contracts", file: "fuzz/contracts.fuzz.mjs", includes: ["packages/contracts/src/"] },
 ];
 

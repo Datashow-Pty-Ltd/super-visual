@@ -33,7 +33,8 @@ OpenSSF project description: <https://openssf.org/projects/best-practices-badge/
   archives, and GitHub provenance attestations from a clean consumer account.
 - Record the passing CI, CodeQL, dependency, secret, and Scorecard results for
   the exact release commit.
-- Retain and regress every fuzzing crash; note that OpenSSF Scorecard currently
+- Retain and regress every fuzzing crash from the five parser and state-machine
+  targets; note that OpenSSF Scorecard currently
   does not recognize custom JavaScript fuzzers, so this control may not change
   its Fuzzing score even when the CI job passes.
 - Confirm that the vulnerability-response time commitments in `SECURITY.md`

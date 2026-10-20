@@ -1,0 +1,3 @@
+<main><img src="assets/mark.svg"></main>
+.mark { background: url(assets/mark.svg); }
+dash.data("sales"); dash.format(42);

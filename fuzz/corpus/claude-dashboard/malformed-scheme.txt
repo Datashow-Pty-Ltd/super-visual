@@ -1,0 +1,3 @@
+<iframe src="httus:../../jaz_zer"></iframe>
+@import "https://example.com/style.css";
+fetch("https://example.com"); dash.loader(); dash.data(params.dataset);

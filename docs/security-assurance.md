@@ -21,8 +21,9 @@ The public repository uses these controls:
 - Dependabot vulnerability alerts, security updates, and weekly npm and GitHub
   Actions update checks.
 - Cross-platform tests on Linux, macOS, and Windows, plus Node.js 22 and 24.
-- Coverage-guided Jazzer.js fuzzing in CI for source-policy parsing, TMDL
-  inspection, and every public JSON contract schema, with retained crash inputs.
+- Coverage-guided Jazzer.js fuzzing in CI for source-policy parsing, Claude
+  Dashboard intake policy, TMDL inspection, Fabric definition envelopes, and
+  every public JSON contract schema, with retained crash inputs.
 - Full commit-SHA pinning for third-party GitHub Actions.
 - GitHub artifact attestations and SHA-256 checksums for tagged release assets.
 - Private vulnerability reporting through GitHub Security Advisories.

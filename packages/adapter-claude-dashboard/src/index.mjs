@@ -14,16 +14,98 @@ const MAX_TOTAL_ASSET_BYTES = 8 * 1024 * 1024;
 
 function sha256(value) { return createHash("sha256").update(value).digest("hex"); }
 function normalPath(value) { return String(value).split(path.sep).join("/"); }
+function cssUrlReferences(css) {
+  const references = [];
+  const lower = css.toLowerCase();
+  let cursor = 0;
+  while (cursor < css.length) {
+    const start = lower.indexOf("url(", cursor);
+    if (start === -1) break;
+    cursor = start + 4;
+    while (cursor < css.length && /\s/.test(css[cursor])) cursor += 1;
+    const quote = css[cursor] === '"' || css[cursor] === "'" ? css[cursor++] : null;
+    const valueStart = cursor;
+    while (cursor < css.length && (quote ? css[cursor] !== quote : css[cursor] !== ")" && !/\s|["']/.test(css[cursor]))) cursor += 1;
+    const value = css.slice(valueStart, cursor);
+    if (quote) {
+      if (css[cursor] !== quote) continue;
+      cursor += 1;
+    }
+    while (cursor < css.length && /\s/.test(css[cursor])) cursor += 1;
+    if (css[cursor] !== ")") continue;
+    cursor += 1;
+    if (value) references.push(value);
+  }
+  return references;
+}
 function sourceReferences(html, css) {
   const references = [];
   for (const match of html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)) references.push(match[1]);
-  for (const match of css.matchAll(/url\(\s*["']?([^)'"\s]+)["']?\s*\)/gi)) references.push(match[1]);
+  references.push(...cssUrlReferences(css));
   return [...new Set(references.filter((value) => value && !value.startsWith("#")))];
 }
-function isRemote(reference) { return /^(?:https?:|\/\/|data:|blob:|javascript:)/i.test(reference); }
+function isExternalReference(reference) { return /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/i.test(reference); }
+function safeLocalAssetPath(reference) {
+  const raw = String(reference).split(/[?#]/)[0];
+  if (!raw || raw.includes("\\") || raw.includes("\0") || raw.startsWith("/") || /^[A-Za-z]:/.test(raw)) return null;
+  let decoded;
+  try { decoded = decodeURIComponent(raw); } catch { return null; }
+  if (!decoded || decoded.includes("\\") || decoded.includes("\0") || decoded.startsWith("/") || isExternalReference(decoded)) return null;
+  const segments = decoded.split("/");
+  if (segments.some((segment) => !segment || segment === "." || segment === "..")) return null;
+  return raw;
+}
 function dashApis(script) { return [...new Set([...script.matchAll(/\bdash\.([A-Za-z_$][\w$]*)/g)].map((match) => match[1]))].sort(); }
 function dataReads(script) { return [...new Set([...script.matchAll(/\bdash\.data\(\s*["']([^"']+)["']\s*\)/g)].map((match) => match[1]))].sort(); }
 function sourceDiagnostic(code, file, message) { return { code, path: file, message }; }
+
+export function inspectClaudeDashboardSourcePolicy({ manifest, sources, syntaxDiagnostics = [], manifestName = MANIFEST_NAME }) {
+  const { html, css, script } = sources;
+  const diagnostics = [];
+  if (/<\s*(?:script|iframe|object|embed)\b/i.test(html)) diagnostics.push(sourceDiagnostic("claude/unsafe-html", manifest.entry.html, "embedded executable content is not supported"));
+  if (/\son[a-z]+\s*=/i.test(html)) diagnostics.push(sourceDiagnostic("claude/inline-handler", manifest.entry.html, "inline event handlers are not supported"));
+  if (/@import\b|expression\s*\(/i.test(css)) diagnostics.push(sourceDiagnostic("claude/unsafe-css", manifest.entry.css, "CSS imports and expressions are not supported"));
+  const forbiddenScript = [
+    ["claude/no-network", /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\b/, "runtime network access"],
+    ["claude/no-dynamic-code", /\b(?:eval|Function)\s*\(/, "dynamic code execution"],
+    ["claude/no-storage", /\b(?:localStorage|sessionStorage|indexedDB)\b/, "browser storage"],
+    ["claude/no-module", /(^|\n)\s*(?:import|export)\b/, "module syntax in a mount-function body"],
+    ["claude/no-navigation", /\b(?:window\.open|location\s*=|location\.(?:assign|replace))\b/, "top-level browser navigation"],
+  ];
+  for (const [code, pattern, message] of forbiddenScript) if (pattern.test(script)) diagnostics.push(sourceDiagnostic(code, manifest.entry.script, `contains forbidden ${message}`));
+  diagnostics.push(...syntaxDiagnostics);
+  const apis = dashApis(script);
+  for (const api of apis) if (!SUPPORTED_DASH_APIS.has(api)) diagnostics.push(sourceDiagnostic("claude/unsupported-api", manifest.entry.script, `dash.${api} is not supported by adapter v1`));
+  if (/\bdash\.loader\b/.test(script)) diagnostics.push(sourceDiagnostic("claude/unsupported-loader", manifest.entry.script, "dash.loader requires an external tool runtime and cannot run in a Power BI custom visual"));
+  const literalReads = dataReads(script);
+  const declared = new Set(manifest.datasets.map((dataset) => dataset.id));
+  for (const id of literalReads) if (!declared.has(id)) diagnostics.push(sourceDiagnostic("claude/unknown-dataset", manifest.entry.script, `dash.data reads undeclared dataset ${id}`));
+  const dataCalls = [...script.matchAll(/\bdash\.data\s*\(/g)].length;
+  if (dataCalls !== [...script.matchAll(/\bdash\.data\(\s*["'][^"']+["']\s*\)/g)].length) diagnostics.push(sourceDiagnostic("claude/dynamic-dataset", manifest.entry.script, "dash.data identifiers must be string literals for static binding"));
+  for (const route of manifest.routes) for (const id of route.datasets) if (!declared.has(id)) diagnostics.push(sourceDiagnostic("claude/unknown-route-dataset", manifestName, `route ${route.id} references undeclared dataset ${id}`));
+  const references = sourceReferences(html, css);
+  for (const reference of references) if (isExternalReference(reference)) diagnostics.push(sourceDiagnostic("claude/external-asset", manifestName, `external or inline asset reference is not permitted: ${reference}`));
+  const declaredAssets = new Set();
+  for (const asset of manifest.assets ?? []) {
+    const safe = safeLocalAssetPath(asset);
+    if (!safe) diagnostics.push(sourceDiagnostic("claude/unsafe-asset-path", manifestName, `asset path is not permitted: ${asset}`));
+    else declaredAssets.add(safe);
+  }
+  const localReferences = [];
+  const referencedAssets = new Set();
+  for (const reference of references.filter((value) => !isExternalReference(value))) {
+    const safe = safeLocalAssetPath(reference);
+    if (!safe) {
+      diagnostics.push(sourceDiagnostic("claude/unsafe-asset-path", manifestName, `asset reference is not permitted: ${reference}`));
+      continue;
+    }
+    localReferences.push(reference);
+    referencedAssets.add(safe);
+    if (!declaredAssets.has(safe)) diagnostics.push(sourceDiagnostic("claude/undeclared-asset", manifestName, `asset must be declared in assets: ${safe}`));
+  }
+  for (const asset of declaredAssets) if (!referencedAssets.has(asset)) diagnostics.push(sourceDiagnostic("claude/unused-asset", manifestName, `declared asset is not referenced: ${asset}`));
+  return { diagnostics, dashApis: apis, dataReads: literalReads, assetReferences: localReferences };
+}
 
 export async function inspectClaudeDashboard(input) {
   const resolved = path.resolve(input);
@@ -37,39 +119,11 @@ export async function inspectClaudeDashboard(input) {
     if (content.length > MAX_SOURCE_BYTES) throw new Error(`Claude Dashboard source exceeds ${MAX_SOURCE_BYTES} bytes: ${relative}`);
     return content.toString("utf8");
   }));
-  const diagnostics = [];
-  if (/<\s*(?:script|iframe|object|embed)\b/i.test(html)) diagnostics.push(sourceDiagnostic("claude/unsafe-html", manifest.entry.html, "embedded executable content is not supported"));
-  if (/\son[a-z]+\s*=/i.test(html)) diagnostics.push(sourceDiagnostic("claude/inline-handler", manifest.entry.html, "inline event handlers are not supported"));
-  if (/@import\b|expression\s*\(/i.test(css)) diagnostics.push(sourceDiagnostic("claude/unsafe-css", manifest.entry.css, "CSS imports and expressions are not supported"));
-  const forbiddenScript = [
-    ["claude/no-network", /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\b/, "runtime network access"],
-    ["claude/no-dynamic-code", /\b(?:eval|Function)\s*\(/, "dynamic code execution"],
-    ["claude/no-storage", /\b(?:localStorage|sessionStorage|indexedDB)\b/, "browser storage"],
-    ["claude/no-module", /(^|\n)\s*(?:import|export)\b/, "module syntax in a mount-function body"],
-    ["claude/no-navigation", /\b(?:window\.open|location\s*=|location\.(?:assign|replace))\b/, "top-level browser navigation"],
-  ];
-  for (const [code, pattern, message] of forbiddenScript) if (pattern.test(script)) diagnostics.push(sourceDiagnostic(code, manifest.entry.script, `contains forbidden ${message}`));
+  const syntaxDiagnostics = [];
   try { transformSync(`function __supervisual_mount({ root, dash, d3 }) {\n${script}\n}`, { loader: "js", sourcefile: manifest.entry.script, logLevel: "silent" }); }
-  catch (error) { for (const detail of error?.errors ?? [{ text: String(error) }]) diagnostics.push({ ...sourceDiagnostic("claude/javascript-syntax", manifest.entry.script, detail.text), ...(detail.location?.line ? { line: Math.max(1, detail.location.line - 1) } : {}) }); }
-  const apis = dashApis(script);
-  for (const api of apis) if (!SUPPORTED_DASH_APIS.has(api)) diagnostics.push(sourceDiagnostic("claude/unsupported-api", manifest.entry.script, `dash.${api} is not supported by adapter v1`));
-  if (/\bdash\.loader\b/.test(script)) diagnostics.push(sourceDiagnostic("claude/unsupported-loader", manifest.entry.script, "dash.loader requires an external tool runtime and cannot run in a Power BI custom visual"));
-  const literalReads = dataReads(script);
-  const declared = new Set(manifest.datasets.map((dataset) => dataset.id));
-  for (const id of literalReads) if (!declared.has(id)) diagnostics.push(sourceDiagnostic("claude/unknown-dataset", manifest.entry.script, `dash.data reads undeclared dataset ${id}`));
-  const dataCalls = [...script.matchAll(/\bdash\.data\s*\(/g)].length;
-  if (dataCalls !== [...script.matchAll(/\bdash\.data\(\s*["'][^"']+["']\s*\)/g)].length) diagnostics.push(sourceDiagnostic("claude/dynamic-dataset", manifest.entry.script, "dash.data identifiers must be string literals for static binding"));
-  for (const route of manifest.routes) for (const id of route.datasets) if (!declared.has(id)) diagnostics.push(sourceDiagnostic("claude/unknown-route-dataset", MANIFEST_NAME, `route ${route.id} references undeclared dataset ${id}`));
-  const references = sourceReferences(html, css);
-  for (const reference of references) if (isRemote(reference)) diagnostics.push(sourceDiagnostic("claude/external-asset", MANIFEST_NAME, `external or inline asset reference is not permitted: ${reference}`));
-  const declaredAssets = new Set((manifest.assets ?? []).map(normalPath));
-  const localReferences = references.filter((reference) => !isRemote(reference));
-  for (const reference of localReferences) {
-    const normalized = normalPath(path.posix.normalize(reference.split(/[?#]/)[0]));
-    if (!declaredAssets.has(normalized)) diagnostics.push(sourceDiagnostic("claude/undeclared-asset", MANIFEST_NAME, `asset must be declared in assets: ${normalized}`));
-  }
-  for (const asset of declaredAssets) if (!localReferences.some((reference) => normalPath(path.posix.normalize(reference.split(/[?#]/)[0])) === asset)) diagnostics.push(sourceDiagnostic("claude/unused-asset", MANIFEST_NAME, `declared asset is not referenced: ${asset}`));
-  return { ok: diagnostics.length === 0, input: root, manifestPath, manifest, sources: { html, css, script }, dashApis: apis, dataReads: literalReads, assetReferences: localReferences, diagnostics };
+  catch (error) { for (const detail of error?.errors ?? [{ text: String(error) }]) syntaxDiagnostics.push({ ...sourceDiagnostic("claude/javascript-syntax", manifest.entry.script, detail.text), ...(detail.location?.line ? { line: Math.max(1, detail.location.line - 1) } : {}) }); }
+  const policy = inspectClaudeDashboardSourcePolicy({ manifest, sources: { html, css, script }, syntaxDiagnostics });
+  return { ok: policy.diagnostics.length === 0, input: root, manifestPath, manifest, sources: { html, css, script }, ...policy };
 }
 
 async function vendorAssets(inspection) {
