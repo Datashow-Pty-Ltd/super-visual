@@ -36,3 +36,10 @@ status. Agents must use the same commands and schemas as human operators.
 Contract versions are integers. Additive optional fields retain the version.
 Removing a field, changing its meaning, or making an optional field required
 increments the version and requires a migration.
+
+All source contracts now declare `contractVersion: 1`. Run
+`supervisual migrate <project> --json` before opening an older project. The
+command is non-mutating by default. `--write` applies only registered migrations,
+backs up every changed source first, uses atomic replacement, and refuses newer
+or unknown versions rather than guessing. The currently registered migration is
+the legacy unversioned widget-broker contract to v1.

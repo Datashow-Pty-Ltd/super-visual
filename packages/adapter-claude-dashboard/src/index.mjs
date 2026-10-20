@@ -33,9 +33,9 @@ export async function inspectClaudeDashboard(input) {
   const manifest = await loadContract("claude-dashboard-bundle", manifestPath);
   const [html, css, script] = await Promise.all([manifest.entry.html, manifest.entry.css, manifest.entry.script].map(async (relative) => {
     const file = resolveProjectPath(root, relative);
-    const details = await stat(file);
-    if (details.size > MAX_SOURCE_BYTES) throw new Error(`Claude Dashboard source exceeds ${MAX_SOURCE_BYTES} bytes: ${relative}`);
-    return readFile(file, "utf8");
+    const content = await readFile(file);
+    if (content.length > MAX_SOURCE_BYTES) throw new Error(`Claude Dashboard source exceeds ${MAX_SOURCE_BYTES} bytes: ${relative}`);
+    return content.toString("utf8");
   }));
   const diagnostics = [];
   if (/<\s*(?:script|iframe|object|embed)\b/i.test(html)) diagnostics.push(sourceDiagnostic("claude/unsafe-html", manifest.entry.html, "embedded executable content is not supported"));

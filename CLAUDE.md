@@ -9,6 +9,9 @@ source assets, run `check`, then rebuild.
 1. Run `npm ci` once when dependencies are absent.
 2. Run `npx supervisual discover <input> --json` for unknown input, or
    `npx supervisual inspect <project> --json` for an existing project.
+   If inspection reports an older contract, run `npx supervisual migrate
+   <project> --json`, review the dry run, and use `--write` only for a registered
+   migration.
    For a supported Claude-style bundle, run the import command with
    `--inspect-only` before allowing it to update a project.
 3. Run `npx supervisual check <project> --json` and resolve every diagnostic.

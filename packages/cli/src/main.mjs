@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import { Command, CommanderError } from "commander";
 import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
-import { evaluateLiveCertification, loadContract } from "@datashow/super-visual-contracts";
+import { evaluateLiveCertification, loadContract, migrateProjectContracts } from "@datashow/super-visual-contracts";
 import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
 import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
@@ -100,6 +100,17 @@ function createProgram() {
   addJsonOption(program.command("inspect [project]"))
     .description("summarize a project, its bindings, policies, and generated output")
     .action(async (project = ".", options, command) => output(await inspectProject(projectFile(project)), jsonEnabled(command)));
+
+  addJsonOption(program.command("migrate [project]"))
+    .description("inspect contract versions and optionally apply recoverable source migrations")
+    .option("--write", "apply available migrations; the default is a dry run")
+    .option("--backup <directory>", "backup destination used with --write")
+    .action(async (project = ".", options, command) => {
+      if (options.backup && !options.write) throw new Error("--backup requires --write");
+      const result = await migrateProjectContracts(projectFile(project), { write: Boolean(options.write), backupDirectory: options.backup ? path.resolve(options.backup) : undefined });
+      output(result, jsonEnabled(command));
+      return result;
+    });
 
   addJsonOption(program.command("templates"))
     .description("list project templates available to init")

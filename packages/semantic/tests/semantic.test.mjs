@@ -16,6 +16,7 @@ const semantic = {
 };
 
 const broker = {
+  contractVersion: 1,
   adapterMode: "source-direct-import", baseModelMutation: false,
   dataView: { mapping: "table", discriminator: "WidgetId", fields: ["WidgetId", "AxisKey", "Label", "Sort", "SeriesKey", "SeriesLabel", "WidgetValue", "BrokerContext"] },
   widgets: [{ id: "product", title: "Sales by product", shape: "categorical", dimensions: [{ key: "Sales[Product]", label: "Sales[Product]" }], axis: "Sales[Product]", measures: ["[Total Sales]"], rowLimit: 10, rowSelection: "top-by-value", selectable: true, invalidates: [] }],

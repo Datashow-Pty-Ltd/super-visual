@@ -7,10 +7,15 @@ const daxString = (value) => `"${value.replaceAll('"', '""')}"`;
 const daxReference = (table, object) => `${tmdlIdentifier(table)}[${object.replaceAll("]", "]]" )}]`;
 
 function parseObjectReference(semantic, reference, kind) {
-  const qualified = reference.match(/^(.+)\[([^\]]+)\]$/);
+  const separator = typeof reference === "string" && reference.endsWith("]")
+    ? reference.lastIndexOf("[", reference.length - 2)
+    : -1;
+  const qualified = separator > 0 && separator < reference.length - 2
+    ? { table: reference.slice(0, separator), object: reference.slice(separator + 1, -1) }
+    : null;
   if (qualified) {
-    const table = semantic.tables.find((candidate) => candidate.name === qualified[1]);
-    const object = (kind === "column" ? table?.columns : table?.measures)?.find((candidate) => candidate.name === qualified[2]);
+    const table = semantic.tables.find((candidate) => candidate.name === qualified.table);
+    const object = (kind === "column" ? table?.columns : table?.measures)?.find((candidate) => candidate.name === qualified.object);
     if (!table || !object) throw new Error(`Unknown semantic ${kind} ${reference}`);
     return { table, object, reference: daxReference(table.name, object.name) };
   }
@@ -47,7 +52,11 @@ function sortExpression(semantic, axis) {
   return "0";
 }
 
-const measureLabel = (reference) => reference.match(/\[([^\]]+)\]$/)?.[1] ?? reference;
+const measureLabel = (reference) => {
+  if (typeof reference !== "string" || !reference.endsWith("]")) return reference;
+  const separator = reference.lastIndexOf("[", reference.length - 2);
+  return separator >= 0 ? reference.slice(separator + 1, -1) : reference;
+};
 const pathExpression = (dimensions, formatter) => dimensions.map(formatter).join(' & "␟" & ');
 
 function widgetRows(semantic, widget, index) {

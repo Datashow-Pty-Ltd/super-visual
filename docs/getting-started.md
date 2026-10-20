@@ -32,6 +32,17 @@ npx supervisual package my-dashboard
 Initialization refuses to write over a non-empty directory. It creates a unique
 Power BI visual identity and validates the result before returning success.
 
+For a project created before versioned widget brokers, inspect and then apply
+the registered migration:
+
+```bash
+npx supervisual migrate ./older-dashboard --json
+npx supervisual migrate ./older-dashboard --write --json
+```
+
+The first command is a dry run. The second backs up the original contract under
+the ignored `.supervisual/migrations/` directory before atomically updating it.
+
 Edit `contracts/semantic-model.yaml` for the governed model,
 `contracts/widget-broker.json` for data binding, `contracts/page-set.yaml` for
 page intent, and the React and Less files under `source/` for presentation. The

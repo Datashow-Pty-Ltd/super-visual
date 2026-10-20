@@ -98,6 +98,7 @@ async function backup(client, workspaceId, action, directory) {
     const target = path.resolve(root, part.path);
     if (!target.startsWith(`${path.resolve(root)}${path.sep}`)) throw new Error(`Unsafe backup part ${part.path}`);
     await mkdir(path.dirname(target), { recursive: true });
+    // The remote payload is an expected backup artifact; verifyDefinitionParts and the rooted path check above bound the write.
     await writeFile(target, decodePart(part));
   }
   return { key: action.key, type: action.type, format: action.format, displayName: action.displayName, itemId: action.existingId, directory: path.relative(path.resolve(directory), root), definitionHash: definitionHash(remote.parts) };

@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
@@ -38,6 +39,71 @@ export async function loadContract(name, filePath) {
     throw new Error(`${name} contract is invalid:\n${result.errors.map((error) => `- ${error.path} ${error.message}`).join("\n")}`);
   }
   return value;
+}
+
+async function readStructured(filePath) {
+  const source = await readFile(filePath, "utf8");
+  return { source, value: filePath.endsWith(".json") ? JSON.parse(source) : YAML.parse(source) };
+}
+
+async function writeStructuredAtomic(filePath, value) {
+  const temporary = `${filePath}.supervisual-migrate.tmp`;
+  const source = filePath.endsWith(".json")
+    ? `${JSON.stringify(value, null, 2)}\n`
+    : YAML.stringify(value);
+  await writeFile(temporary, source, { flag: "wx" });
+  await rename(temporary, filePath);
+}
+
+/**
+ * Inspect or migrate source contracts without touching disposable generated output.
+ * The initial migration adds the v1 marker to legacy unversioned widget brokers.
+ */
+export async function migrateProjectContracts(projectFile, { write = false, backupDirectory } = {}) {
+  const absoluteProject = path.resolve(projectFile);
+  const root = path.dirname(absoluteProject);
+  const projectDocument = await readStructured(absoluteProject);
+  const projectValidation = validateContract("supervisual-project", projectDocument.value);
+  if (!projectValidation.ok) {
+    throw new Error(`supervisual-project contract is invalid and cannot be migrated safely:\n${projectValidation.errors.map((error) => `- ${error.path} ${error.message}`).join("\n")}`);
+  }
+  const descriptors = [
+    { contract: "supervisual-project", file: absoluteProject, allowLegacyBroker: false },
+    { contract: "semantic-model", file: resolveProjectPath(root, projectDocument.value.semantic.model), allowLegacyBroker: false },
+    { contract: "widget-broker", file: resolveProjectPath(root, projectDocument.value.semantic.broker), allowLegacyBroker: true },
+    { contract: "page-set", file: resolveProjectPath(root, projectDocument.value.semantic.pageSet), allowLegacyBroker: false },
+    { contract: "report-source-bundle", file: resolveProjectPath(root, projectDocument.value.source.bundle), allowLegacyBroker: false },
+  ];
+  const documents = [];
+  const migrations = [];
+  for (const descriptor of descriptors) {
+    const document = descriptor.file === absoluteProject ? projectDocument : await readStructured(descriptor.file);
+    const version = document.value?.contractVersion;
+    const relativePath = path.relative(root, descriptor.file).split(path.sep).join("/") || path.basename(descriptor.file);
+    if (version === 1) {
+      documents.push({ contract: descriptor.contract, path: relativePath, version: 1, status: "current" });
+      continue;
+    }
+    if (descriptor.allowLegacyBroker && version === undefined) {
+      const migration = { contract: descriptor.contract, path: relativePath, from: "legacy-unversioned", to: 1, changes: ["add /contractVersion = 1"] };
+      documents.push({ contract: descriptor.contract, path: relativePath, version: null, status: "migration-available" });
+      migrations.push({ ...migration, descriptor, document, migrated: { contractVersion: 1, ...document.value } });
+      continue;
+    }
+    throw new Error(`${descriptor.contract} ${relativePath} uses unsupported contractVersion ${JSON.stringify(version)}; this CLI only supports version 1`);
+  }
+  if (!migrations.length) return { ok: true, status: "current", dryRun: !write, currentVersion: 1, documents, migrations: [] };
+  const publicMigrations = migrations.map(({ contract, path: migrationPath, from, to, changes }) => ({ contract, path: migrationPath, from, to, changes }));
+  if (!write) return { ok: true, status: "planned", dryRun: true, currentVersion: 1, documents, migrations: publicMigrations };
+  const migrationId = createHash("sha256").update(JSON.stringify(migrations.map((item) => ({ path: item.path, source: item.document.source })))).digest("hex").slice(0, 16);
+  const backupRoot = path.resolve(backupDirectory ?? path.join(root, ".supervisual", "migrations", migrationId));
+  for (const migration of migrations) {
+    const backupFile = resolveProjectPath(backupRoot, migration.path);
+    await mkdir(path.dirname(backupFile), { recursive: true });
+    await writeFile(backupFile, migration.document.source, { flag: "wx" });
+  }
+  for (const migration of migrations) await writeStructuredAtomic(migration.descriptor.file, migration.migrated);
+  return { ok: true, status: "migrated", dryRun: false, currentVersion: 1, documents, migrations: publicMigrations, backupDirectory: backupRoot };
 }
 
 export function evaluateLiveCertification(record) {

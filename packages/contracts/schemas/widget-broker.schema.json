@@ -4,8 +4,9 @@
   "title": "Report-specific widget broker contract",
   "type": "object",
   "additionalProperties": false,
-  "required": ["summary", "adapterMode", "baseModelMutation", "dataView", "widgets", "cachePolicy", "risks"],
+  "required": ["contractVersion", "summary", "adapterMode", "baseModelMutation", "dataView", "widgets", "cachePolicy", "risks"],
   "properties": {
+    "contractVersion": { "type": "integer", "const": 1 },
     "summary": { "type": "string", "minLength": 1 },
     "adapterMode": { "type": "string", "const": "source-direct-import" },
     "baseModelMutation": { "type": "boolean", "const": false },

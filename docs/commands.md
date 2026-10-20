@@ -17,6 +17,19 @@ a Super Visual project and reports pages, datasets, semantic tables, policies,
 and generated-output integrity. `templates` and `adapters` report supported and
 installed capabilities.
 
+## Migrate source contracts
+
+```text
+supervisual migrate [project] [--write] [--backup <directory>]
+```
+
+Migration is a dry run unless `--write` is supplied. It inventories every
+source contract, refuses unknown future versions, and reports the exact changes.
+The first supported migration upgrades a legacy unversioned widget broker to
+contract v1. A write is atomic and copies the original source into a recoverable
+backup directory under `.supervisual/migrations/` (or `--backup`) before editing.
+Generated `dist/` output is never migrated.
+
 ## Import a Claude-style dashboard
 
 ```text

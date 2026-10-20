@@ -14,6 +14,7 @@ describe("supervisual CLI", () => {
     const help = await run(process.execPath, [cli, "--help"], { cwd: root });
     expect(help.stdout).toContain("discover");
     expect(help.stdout).toContain("init");
+    expect(help.stdout).toContain("migrate");
     expect(help.stdout).toContain("package");
     expect(help.stdout).toContain("import");
     expect(help.stdout).toContain("semantic");
@@ -100,6 +101,30 @@ describe("supervisual CLI", () => {
       expect(JSON.parse(built.stdout).fileCount).toBeGreaterThan(35);
       const verified = await run(process.execPath, [cli, "verify", project, "--json"], { cwd: root });
       expect(JSON.parse(verified.stdout).ok).toBe(true);
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("plans and applies a recoverable legacy broker migration", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-migrate-"));
+    const project = path.join(temporary, "legacy-dashboard");
+    try {
+      await run(process.execPath, [cli, "init", project, "--json"], { cwd: root });
+      const brokerPath = path.join(project, "contracts", "widget-broker.json");
+      const legacy = JSON.parse(await readFile(brokerPath, "utf8"));
+      delete legacy.contractVersion;
+      await writeFile(brokerPath, `${JSON.stringify(legacy, null, 2)}\n`);
+      const planned = await run(process.execPath, [cli, "migrate", project, "--json"], { cwd: root });
+      expect(JSON.parse(planned.stdout)).toMatchObject({ ok: true, status: "planned", dryRun: true, migrations: [{ contract: "widget-broker", from: "legacy-unversioned", to: 1 }] });
+      expect(JSON.parse(await readFile(brokerPath, "utf8")).contractVersion).toBeUndefined();
+      const applied = await run(process.execPath, [cli, "migrate", project, "--write", "--json"], { cwd: root });
+      const migrated = JSON.parse(applied.stdout);
+      expect(migrated).toMatchObject({ ok: true, status: "migrated", dryRun: false });
+      expect(JSON.parse(await readFile(brokerPath, "utf8")).contractVersion).toBe(1);
+      expect(JSON.parse(await readFile(path.join(migrated.backupDirectory, "contracts", "widget-broker.json"), "utf8")).contractVersion).toBeUndefined();
+      const current = await run(process.execPath, [cli, "migrate", project, "--json"], { cwd: root });
+      expect(JSON.parse(current.stdout)).toMatchObject({ ok: true, status: "current", migrations: [] });
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }

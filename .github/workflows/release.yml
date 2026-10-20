@@ -4,14 +4,15 @@ on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
+permissions: read-all
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -28,10 +29,18 @@ jobs:
         run: |
           mkdir -p release
           git archive --format=tar.gz --output=release/super-visual-source.tar.gz HEAD
+          npm pack --workspace @datashow/super-visual-adapter-claude-dashboard --pack-destination release
+          npm pack --workspace @datashow/super-visual-cli --pack-destination release
+          npm pack --workspace @datashow/super-visual-compiler --pack-destination release
+          npm pack --workspace @datashow/super-visual-compliance --pack-destination release
+          npm pack --workspace @datashow/super-visual-contracts --pack-destination release
+          npm pack --workspace @datashow/super-visual-fabric --pack-destination release
+          npm pack --workspace @datashow/super-visual-runtime-powerbi --pack-destination release
+          npm pack --workspace @datashow/super-visual-semantic --pack-destination release
           cp examples/adventureworks/dist/Artifacts/*.pbiviz release/adventureworks.pbiviz
           cp examples/hello-world/dist/Artifacts/*.pbiviz release/hello-world.pbiviz
           cd release
-          sha256sum *.pbiviz *.json *.tar.gz > SHA256SUMS
+          sha256sum *.pbiviz *.json *.tar.gz *.tgz > SHA256SUMS
       - name: Attest release artifacts
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

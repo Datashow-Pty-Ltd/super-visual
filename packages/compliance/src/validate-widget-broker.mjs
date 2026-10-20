@@ -1,6 +1,8 @@
 function parseColumnReference(reference) {
-  const match = typeof reference === "string" ? reference.match(/^(.+)\[([^\]]+)\]$/) : null;
-  return match ? { table: match[1], column: match[2] } : null;
+  if (typeof reference !== "string" || !reference.endsWith("]")) return null;
+  const separator = reference.lastIndexOf("[", reference.length - 2);
+  if (separator <= 0 || separator === reference.length - 2) return null;
+  return { table: reference.slice(0, separator), column: reference.slice(separator + 1, -1) };
 }
 
 function columnExists(semanticModel, reference) {
@@ -17,10 +19,12 @@ function measureExists(semanticModel, reference) {
     const table = semanticModel.tables?.find((candidate) => candidate.name === qualified.table);
     return Boolean(table?.measures?.some((measure) => measure.name === qualified.column));
   }
-  const unqualified = reference.match(/^\[([^\]]+)\]$/);
+  const unqualified = reference.startsWith("[") && reference.endsWith("]") && reference.indexOf("[", 1) === -1
+    ? reference.slice(1, -1)
+    : null;
   if (!unqualified) return false;
   return semanticModel.tables?.flatMap((table) => table.measures ?? [])
-    .filter((measure) => measure.name === unqualified[1]).length === 1;
+    .filter((measure) => measure.name === unqualified).length === 1;
 }
 
 function declaredHierarchyMatches(semanticModel, dimensions) {

@@ -24,7 +24,9 @@ const RULES = [
 ];
 
 function imports(content) {
-  return [...content.matchAll(/\b(?:import|export)\s*(?:[\s\S]*?\s*from\s*)?["']([^"']+)["']/g)].map((match) => match[1]);
+  const fromClauses = [...content.matchAll(/\bfrom[ \t]*["']([^"'\r\n]+)["']/g)].map((match) => match[1]);
+  const sideEffects = [...content.matchAll(/\b(?:import|export)[ \t]*["']([^"'\r\n]+)["']/g)].map((match) => match[1]);
+  return [...new Set([...fromClauses, ...sideEffects])];
 }
 
 export function validateSourceBundle(bundle, options = {}) {
