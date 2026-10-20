@@ -159,11 +159,16 @@ changes the workspace.
 
 async function applicationFiles(input) {
   const resolved = path.resolve(input);
-  const metadata = await stat(resolved);
-  const root = metadata.isDirectory() ? resolved : path.dirname(resolved);
-  let entryPath = metadata.isDirectory() ? null : resolved;
-  let entryContent = metadata.isDirectory() ? null : await readFile(resolved, "utf8");
-  if (metadata.isDirectory()) {
+  let root = path.dirname(resolved);
+  let entryPath = resolved;
+  let entryContent;
+  try {
+    entryContent = await readFile(resolved, "utf8");
+  } catch (error) {
+    if (error?.code !== "EISDIR") throw error;
+    root = resolved;
+    entryPath = null;
+    entryContent = null;
     for (const candidate of [path.join(root, "reportApplication.tsx"), path.join(root, "src", "reportApplication.tsx")]) {
       const content = await readOptional(candidate);
       if (content !== null) { entryPath = candidate; entryContent = content; break; }
