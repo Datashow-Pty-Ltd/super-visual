@@ -6,6 +6,13 @@ function moduleText(comment, name, value) {
   return `${comment}\nexport const ${name} = ${JSON.stringify(value, null, 2)} as const;\n`;
 }
 
+function qualifiedReference(value) {
+  if (typeof value !== "string" || !value.endsWith("]")) return null;
+  const separator = value.lastIndexOf("[", value.length - 2);
+  if (separator <= 0 || separator === value.length - 2) return null;
+  return { table: value.slice(0, separator), object: value.slice(separator + 1, -1) };
+}
+
 export function validateCompilation({ semanticModel, broker, pageSet, reportSource }) {
   return [
     ...validateWidgetBrokerContract(broker, semanticModel),
@@ -33,16 +40,16 @@ export async function generateRuntimeManifests({ broker, pageSet, reportSource }
   const manifest = Object.fromEntries(widgets.map((widget) => [widget.id, { id: widget.id, order: ["top-by-value", "bottom-by-value"].includes(widget.rowSelection) ? "value" : "axis", selectable: widget.selectable }]));
   await writeFile(path.join(sourceRoot, "widgetManifest.ts"), `import type { DatasetKey } from "./model";\nexport const WIDGET_MANIFEST: Record<DatasetKey, { id: DatasetKey; order: "axis" | "value"; selectable: boolean }> = ${JSON.stringify(manifest, null, 2)};\n`);
   const targets = Object.fromEntries(widgets.map((widget) => {
-    const match = widget.axis.match(/^(.+)\[([^\]]+)\]$/);
-    if (!match) throw new Error(`Broker axis must use Table[Column] notation: ${widget.axis}`);
-    return [widget.id, { table: match[1], column: match[2] }];
+    const reference = qualifiedReference(widget.axis);
+    if (!reference) throw new Error(`Broker axis must use Table[Column] notation: ${widget.axis}`);
+    return [widget.id, { table: reference.table, column: reference.object }];
   }));
   await writeFile(path.join(sourceRoot, "filterTargets.ts"), `import type { DatasetKey } from "./model";\nimport type { FilterTarget } from "./filter";\nexport const FILTER_TARGETS: Record<DatasetKey, FilterTarget> = ${JSON.stringify(targets, null, 2)};\n`);
   const claudeParameters = reportSource.adapter?.kind === "claude-dashboard" ? reportSource.adapter.parameters : [];
   const claudeTargets = Object.fromEntries(claudeParameters.map((parameter) => {
-    const match = parameter.target.match(/^(.+)\[([^\]]+)\]$/);
-    if (!match) throw new Error(`Claude parameter target must use Table[Column] notation: ${parameter.target}`);
-    return [parameter.name, { table: match[1], column: match[2] }];
+    const reference = qualifiedReference(parameter.target);
+    if (!reference) throw new Error(`Claude parameter target must use Table[Column] notation: ${parameter.target}`);
+    return [parameter.name, { table: reference.table, column: reference.object }];
   }));
   const claudeValueMaps = Object.fromEntries(claudeParameters.filter((parameter) => parameter.values).map((parameter) => [parameter.name, parameter.values]));
   await writeFile(path.join(sourceRoot, "claudeParamTargets.ts"), `import type { FilterTarget, FilterValue } from "./filter";\nexport const CLAUDE_PARAM_FILTER_TARGETS: Record<string, FilterTarget> = ${JSON.stringify(claudeTargets, null, 2)};\nconst CLAUDE_PARAM_VALUE_MAPS: Record<string, Record<string, FilterValue>> = ${JSON.stringify(claudeValueMaps, null, 2)};\nexport function claudeFilterValues(name: string, value: unknown): FilterValue[] {\n  const values = Array.isArray(value) ? value : [value];\n  const mapped = CLAUDE_PARAM_VALUE_MAPS[name] ?? {};\n  return values.flatMap((candidate) => {\n    if (candidate === null || candidate === undefined || candidate === \"\") return [];\n    const resolved = mapped[String(candidate)] ?? candidate;\n    return typeof resolved === \"string\" || typeof resolved === \"number\" || typeof resolved === \"boolean\" ? [resolved] : [];\n  });\n}\n`);

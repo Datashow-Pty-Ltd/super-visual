@@ -14,6 +14,9 @@ generated output or move report-specific behavior into reusable runtime code.
 - Unknown input: run `npx supervisual discover <input> --json`.
 - Existing project: run `npx supervisual inspect <project> --json` before making
   structural changes.
+- Older project: run `npx supervisual migrate <project> --json`, review the
+  dry-run changes, then use `--write` only for a registered migration. Preserve
+  the reported backup directory.
 - New project: list templates, then run `npx supervisual init <directory>
   --template hello-world --json` unless the user chose another supported template.
 - Imported dashboard: list adapters. For `claude-dashboard-bundle.v1`, run

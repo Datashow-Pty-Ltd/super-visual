@@ -71,6 +71,9 @@ response process are all verifiable from the repository. Silver and Gold can be
 considered after coverage targets, governance, review independence, and signed
 release requirements are consistently met.
 
+The evidence map and honest pre-submission checklist are maintained in
+[`docs/certification/openssf-best-practices-readiness.md`](certification/openssf-best-practices-readiness.md).
+
 For a stable 1.0 release, the meaningful independent assurance is a scoped
 third-party security review covering:
 

@@ -9,8 +9,41 @@ function identifier(value) {
 }
 
 function declaration(line, kind) {
-  const match = line.trim().match(new RegExp(`^${kind}\\s+('(?:[^']|'')*'|.*?)(?:\\s*=|$)`));
-  return match ? identifier(match[1]) : null;
+  const trimmed = line.trim();
+  const prefix = `${kind} `;
+  if (!trimmed.startsWith(prefix)) return null;
+  const value = trimmed.slice(prefix.length);
+  if (value.startsWith("'")) {
+    for (let index = 1; index < value.length; index += 1) {
+      if (value[index] !== "'") continue;
+      if (value[index + 1] === "'") {
+        index += 1;
+        continue;
+      }
+      return identifier(value.slice(0, index + 1));
+    }
+    return null;
+  }
+  const assignment = value.indexOf(" =");
+  const name = (assignment < 0 ? value : value.slice(0, assignment)).trim();
+  return name || null;
+}
+
+function propertyValue(line, name) {
+  const trimmed = line.trim();
+  const prefix = `${name}:`;
+  return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length).trim() || null : null;
+}
+
+function qualifiedReference(reference, kind) {
+  if (typeof reference !== "string" || !reference.endsWith("]")) return null;
+  const separator = reference.lastIndexOf("[", reference.length - 2);
+  if (separator <= 0 || separator === reference.length - 2) return null;
+  const rawTable = reference.slice(0, separator);
+  const table = rawTable.startsWith("'") && rawTable.endsWith("'")
+    ? rawTable.slice(1, -1).replaceAll("''", "'")
+    : rawTable;
+  return { kind, table, name: reference.slice(separator + 1, -1), reference };
 }
 
 function decodedText(part) {
@@ -47,8 +80,8 @@ export function inspectTmdlParts(parts) {
           table.hierarchies.push({ name: hierarchy });
           currentColumn = null;
         } else if (currentColumn) {
-          const dataType = line.trim().match(/^dataType:\s*(.+)$/)?.[1];
-          if (dataType) currentColumn.dataType = dataType.trim();
+          const dataType = propertyValue(line, "dataType");
+          if (dataType) currentColumn.dataType = dataType;
         }
       }
       tables.push(table);
@@ -64,11 +97,12 @@ export function inspectTmdlParts(parts) {
           continue;
         }
         if (!current) continue;
-        const property = line.trim().match(/^(fromColumn|toColumn|crossFilteringBehavior):\s*(.+)$/);
-        if (!property) continue;
-        if (property[1] === "fromColumn") current.from = property[2].trim();
-        if (property[1] === "toColumn") current.to = property[2].trim();
-        if (property[1] === "crossFilteringBehavior") current.crossFilteringBehavior = property[2].trim();
+        const from = propertyValue(line, "fromColumn");
+        const to = propertyValue(line, "toColumn");
+        const behavior = propertyValue(line, "crossFilteringBehavior");
+        if (from) current.from = from;
+        if (to) current.to = to;
+        if (behavior) current.crossFilteringBehavior = behavior;
       }
       continue;
     }
@@ -80,11 +114,13 @@ export function inspectTmdlParts(parts) {
       continue;
     }
     if (part.path.endsWith("database.tmdl")) {
-      compatibilityLevel = Number(text.match(/compatibilityLevel:\s*(\d+)/)?.[1] ?? NaN) || null;
+      const line = text.split(/\r?\n/).find((candidate) => propertyValue(candidate, "compatibilityLevel"));
+      compatibilityLevel = Number(line ? propertyValue(line, "compatibilityLevel") : NaN) || null;
       continue;
     }
     if (part.path.endsWith("model.tmdl")) {
-      culture = text.match(/^\s*culture:\s*(.+)$/m)?.[1]?.trim() ?? null;
+      const line = text.split(/\r?\n/).find((candidate) => propertyValue(candidate, "culture"));
+      culture = line ? propertyValue(line, "culture") : null;
     }
   }
 
@@ -102,10 +138,12 @@ function requirementKey(requirement) {
 }
 
 function parseReference(reference, kind) {
-  const qualified = reference.match(/^'?(.+?)'?\[([^\]]+)\]$/);
-  if (qualified) return { kind, table: qualified[1].replaceAll("''", "'"), name: qualified[2], reference };
-  const unqualified = reference.match(/^\[([^\]]+)\]$/);
-  if (unqualified) return { kind, table: null, name: unqualified[1], reference };
+  const qualified = qualifiedReference(reference, kind);
+  if (qualified) return qualified;
+  const unqualified = typeof reference === "string" && reference.startsWith("[") && reference.endsWith("]") && reference.indexOf("[", 1) === -1
+    ? reference.slice(1, -1)
+    : null;
+  if (unqualified) return { kind, table: null, name: unqualified, reference };
   return { kind, table: null, name: reference, reference };
 }
 

@@ -62,7 +62,9 @@ Claude and Codex and is checked for drift in CI.
 Security evidence, scan coverage, release attestations, and the distinction
 between automated assurance and independent certification are documented in the
 [security assurance guide](docs/security-assurance.md). See [SECURITY.md](SECURITY.md)
-for private vulnerability reporting.
+for private vulnerability reporting and the
+[OpenSSF Best Practices readiness checklist](docs/certification/openssf-best-practices-readiness.md)
+for the certification path.
 
 ## License
 

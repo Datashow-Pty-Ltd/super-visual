@@ -1,4 +1,5 @@
 {
+  "contractVersion": 1,
   "summary": "Template widgets bound only to executable semantic objects.",
   "adapterMode": "source-direct-import",
   "baseModelMutation": false,

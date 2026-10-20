@@ -1,4 +1,5 @@
 {
+  "contractVersion": 1,
   "summary": "One governed categorical dataset for the hello-world chart.",
   "adapterMode": "source-direct-import",
   "baseModelMutation": false,
