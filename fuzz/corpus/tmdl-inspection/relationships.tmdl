@@ -1,0 +1,3 @@
+relationship rel_1
+	fromColumn: 'Sales'[Date Key]
+	toColumn: 'Date'[Date Key]

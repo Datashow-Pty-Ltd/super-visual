@@ -16,6 +16,7 @@ certification. The code-hardening checkpoint is commit
 | Dependency alerts | Zero open Dependabot security alerts | GitHub Security at the recorded time |
 | Secret alerts | Zero open secret-scanning alerts; push protection enabled | GitHub Security at the recorded time |
 | Release inventory | CycloneDX SBOM generation and eight npm package dry runs passed | CI `supply-chain` and `npm run release:check` |
+| Parser fuzzing | Jazzer.js continuously exercises source-policy, TMDL inventory, and public contract-schema boundaries | CI `fuzz` job and `npm run security:fuzz` |
 | Agent operation | Claude and Codex passed explicit, implicit, negative, and deployment-authorization evals | [`agent-skill-proof.md`](agent-skill-proof.md) |
 
 ## CodeQL disposition
@@ -56,8 +57,8 @@ The remaining OpenSSF Scorecard advisories are transparent roadmap items:
   self-certification;
 - establish review by a second qualified maintainer;
 - accumulate maintained-project history; and
-- add continuous fuzzing for the contract, dashboard-import, TMDL, and
-  Fabric-definition parsing boundaries.
+- extend continuous fuzzing from the current contract, source-policy, and TMDL
+  targets into full dashboard-import and Fabric-definition state machines.
 
 The first stable release should additionally commission the scoped independent
 review described in [`security-assurance.md`](../security-assurance.md).

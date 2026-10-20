@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateSourceBundle } from "../src/index.mjs";
+import { validateSourceBundle, validateSourcePolicyText } from "../src/index.mjs";
 
 const valid = {
   contractVersion: 1,
@@ -22,5 +22,12 @@ describe("source compliance", () => {
     const bundle = structuredClone(valid);
     bundle.files[0].content += "\nfetch('https://example.com');";
     expect(validateSourceBundle(bundle)).toEqual(expect.arrayContaining([expect.objectContaining({ code: "core/no-network" })]));
+  });
+
+  it("exposes the policy scanner independently for untrusted text", () => {
+    expect(validateSourcePolicyText("fetch('https://example.com')", { file: "src/reportApplication.tsx" }))
+      .toEqual(expect.arrayContaining([expect.objectContaining({ code: "core/no-network" })]));
+    expect(validateSourcePolicyText("import React from 'react';", { file: "src/reportApplication.tsx" }))
+      .toEqual([]);
   });
 });

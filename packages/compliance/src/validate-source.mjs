@@ -29,6 +29,16 @@ function imports(content) {
   return [...new Set([...fromClauses, ...sideEffects])];
 }
 
+export function validateSourcePolicyText(content, { file = "fuzz.tsx", allowedImports = DEFAULT_ALLOWED_IMPORTS } = {}) {
+  const diagnostics = [];
+  const allowlist = allowedImports instanceof Set ? allowedImports : new Set(allowedImports);
+  for (const rule of RULES) if (rule.pattern.test(content)) diagnostics.push({ code: rule.code, path: file, message: `contains forbidden ${rule.message}` });
+  for (const specifier of imports(content)) {
+    if (!specifier.startsWith(".") && !allowlist.has(specifier)) diagnostics.push({ code: "core/import-allowlist", path: file, message: `imports unapproved package ${specifier}` });
+  }
+  return diagnostics;
+}
+
 export function validateSourceBundle(bundle, options = {}) {
   const diagnostics = [];
   const allowedImports = new Set(options.allowedImports ?? DEFAULT_ALLOWED_IMPORTS);
@@ -56,10 +66,7 @@ export function validateSourceBundle(bundle, options = {}) {
         }
       }
     }
-    for (const rule of RULES) if (rule.pattern.test(content)) diagnostics.push({ code: rule.code, path: relative, message: `contains forbidden ${rule.message}` });
-    for (const specifier of imports(content)) {
-      if (!specifier.startsWith(".") && !allowedImports.has(specifier)) diagnostics.push({ code: "core/import-allowlist", path: relative, message: `imports unapproved package ${specifier}` });
-    }
+    diagnostics.push(...validateSourcePolicyText(content, { file: relative, allowedImports }));
   }
   const entry = (bundle?.files ?? []).find((file) => file.path === bundle.entry)?.content ?? "";
   if (!/export\s+(?:function|const)\s+ReportApplication\b/.test(entry)) diagnostics.push({ code: "contract/export", path: bundle?.entry ?? "", message: "entry must export ReportApplication" });

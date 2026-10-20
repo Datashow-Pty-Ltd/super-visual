@@ -44,6 +44,8 @@
     "agents:eval:test": "vitest run evals/agent-skills/tests",
     "security:audit": "npm audit --audit-level=moderate",
     "security:sbom": "node scripts/generate-sbom.mjs",
+    "security:fuzz": "node scripts/run-security-fuzz.mjs",
+    "security:fuzz:ci": "node scripts/run-security-fuzz.mjs --runs 10000",
     "onboarding:test": "npm run cli:test && npm run hello:test",
     "cli:test": "vitest run packages/cli/tests",
     "test": "npm run stage:8 && npm run claude:test && npm run skills:check && npm run agents:eval:test",
@@ -57,6 +59,7 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@jazzer.js/core": "4.0.0",
     "@types/d3": "7.4.3",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
