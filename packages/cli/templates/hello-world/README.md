@@ -3,18 +3,17 @@
 This is the smallest complete Super Visual project: one semantic table, one
 measure, one broker dataset, one page, and one accessible React chart.
 
-Install dependencies, then run these commands from this project directory:
+This project is ready for the three-command workflow. If `init` was given a
+workspace and deployed semantic adapter, run:
 
 ```bash
-npm install
-npm run check
-npm run compile
-npm run package
-npm run verify
+npx supervisual dev --open
+npx supervisual publish
 ```
 
-After deploying and refreshing the generated semantic adapter, test the local
-React application with real semantic data:
+`publish` performs the checks, packaging, verification, and planning, then asks
+for confirmation of the exact plan ID. For a project without a saved binding,
+pass the IDs once:
 
 ```bash
 npx supervisual dev . --workspace-id <workspace-guid> \
