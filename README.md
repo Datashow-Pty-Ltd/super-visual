@@ -18,7 +18,7 @@ code become reusable packages.
 
 ## Project status
 
-The repository is under active development toward `0.1.0`. See the
+The complete nine-stage extraction is available as `0.1.0-rc.0`. See the
 [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [semantic binding](docs/semantic-binding.md), and
 [solution bundle](docs/solution-bundle.md). Deployment follows the

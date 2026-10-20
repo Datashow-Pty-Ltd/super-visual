@@ -10,6 +10,8 @@ npx supervisual build <project> [--package] --json
 npx supervisual verify <project> --json
 npx supervisual deploy plan <project> --workspace-id <id> \
   --workspace-name <name> --semantic-model-name <name> --report-name <name> \
+  [--connection-id <id> --connection-mode <mode>] \
+  [--acceptance-query-file <file>] \
   [--allow-updates] [--output <file>] --json
 npx supervisual deploy apply <project> --plan <file> --confirm <plan-id> \
   [--backup <directory>] --json

@@ -72,7 +72,9 @@ export async function main(argv = process.argv.slice(2)) {
     const loaded = await loadProject(projectFile(input));
     const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout ?? 900) });
     const solutionDirectory = path.resolve(loaded.root, loaded.project.output.directory);
-    const plan = await createDeploymentPlan({ client, workspaceId: required(options, "workspace-id"), workspaceName: options["workspace-name"], solutionDirectory, semanticModelName: required(options, "semantic-model-name"), reportName: required(options, "report-name"), allowUpdates: Boolean(options["allow-updates"]) });
+    const acceptanceDax = options["acceptance-query-file"] ? await readFile(path.resolve(options["acceptance-query-file"]), "utf8") : null;
+    const postDeployment = options["connection-id"] ? { connectionId: options["connection-id"], connectivityType: options["connection-mode"] ?? "ShareableCloud", timeoutSeconds: Number(options.timeout ?? 900), acceptanceDax } : null;
+    const plan = await createDeploymentPlan({ client, workspaceId: required(options, "workspace-id"), workspaceName: options["workspace-name"], solutionDirectory, semanticModelName: required(options, "semantic-model-name"), reportName: required(options, "report-name"), allowUpdates: Boolean(options["allow-updates"]), postDeployment });
     const planPath = path.resolve(options.output === true || !options.output ? path.join(loaded.root, ".supervisual", "deploy-plan.json") : options.output);
     await mkdir(path.dirname(planPath), { recursive: true }); await writeFile(planPath, `${JSON.stringify(plan, null, 2)}\n`);
     output({ ...plan, planPath }, options.json); if (plan.blockers.length) process.exitCode = 2; return plan;

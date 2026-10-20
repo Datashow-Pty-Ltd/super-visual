@@ -39,7 +39,10 @@ npx supervisual deploy plan examples/adventureworks \
   --workspace-id <workspace-guid> \
   --workspace-name "<expected workspace name>" \
   --semantic-model-name "AdventureWorks Super Visual" \
-  --report-name "AdventureWorks Product Ledger"
+  --report-name "AdventureWorks Product Ledger" \
+  --connection-id <fabric-connection-guid> \
+  --connection-mode ShareableCloud \
+  --acceptance-query-file examples/adventureworks/acceptance.dax
 ```
 
 If either name already exists, the plan is blocked. Use different names or
@@ -58,8 +61,8 @@ npx supervisual deploy apply examples/adventureworks \
   --backup .supervisual/backups
 ```
 
-After publication, bind the semantic model to the reviewed Fabric connection,
-refresh it, and verify that the report loads all four routes. Check category
-selection, route navigation, the product hierarchy, customer flow, and the
-territory view. A release is not complete until refresh succeeds and those
+Apply binds the exact reviewed connection, waits for refresh, and executes the
+acceptance DAX stored in the plan. Then verify that the report loads all four
+routes. Check category selection, route navigation, the product hierarchy,
+customer flow, and the territory view. A release is not complete until those
 interactions are exercised against live AdventureWorks data.

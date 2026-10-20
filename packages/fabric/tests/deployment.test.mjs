@@ -43,4 +43,13 @@ describe("safe Fabric deployment", () => {
     expect(plan.blockers).toHaveLength(1);
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow("blocked");
   });
+
+  test("rejects an item that appeared after a create plan", async () => {
+    const root = await fixture();
+    const client = new FakeClient();
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    client.items.push({ id: "late-model", type: "SemanticModel", displayName: "Sales model" });
+    await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow("appeared after planning");
+    expect(client.calls).toEqual([]);
+  });
 });

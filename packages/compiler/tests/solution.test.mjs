@@ -30,6 +30,7 @@ describe("solution compiler", () => {
     const result = await buildSolution(path.join(root, "supervisual.yaml"));
     const manifest = JSON.parse(await readFile(path.join(result.outputDirectory, "supervisual.manifest.json"), "utf8"));
     expect(Object.keys(manifest.files).length).toBeGreaterThan(20);
+    expect(JSON.parse(await readFile(path.join(result.outputDirectory, "compliance.report.json"), "utf8")).ok).toBe(true);
     expect(await readFile(path.join(result.outputDirectory, "SemanticAdapter.SemanticModel", "definition", "tables", "Widget Axis.tmdl"), "utf8")).toContain("REMOVEFILTERS('Sales'[Product])");
     expect(await readFile(path.join(result.outputDirectory, "Visual", "src", "reportApplication.tsx"), "utf8")).toContain("model.datasets");
     expect(await readFile(path.join(result.outputDirectory, "Report.Report", "definition.pbir"), "utf8")).toContain("SemanticAdapter.SemanticModel");

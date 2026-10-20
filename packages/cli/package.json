@@ -1,10 +1,15 @@
 {
   "name": "@datashow/super-visual-cli",
   "version": "0.1.0-rc.0",
+  "description": "CLI for validating, compiling, packaging, verifying, and deploying Super Visual projects.",
   "type": "module",
   "bin": { "supervisual": "bin/supervisual.mjs" },
   "files": ["bin", "src"],
   "license": "Apache-2.0",
+  "engines": { "node": ">=20.19.0" },
+  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/cli" },
+  "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
+  "publishConfig": { "access": "public" },
   "dependencies": {
     "@datashow/super-visual-compiler": "0.1.0-rc.0",
     "@datashow/super-visual-fabric": "0.1.0-rc.0"

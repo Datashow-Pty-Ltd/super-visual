@@ -23,6 +23,7 @@
     "stage:6": "npm run stage:5 && npm run fabric:test",
     "stage:7": "npm run stage:6 && npm run example:test",
     "stage:8": "npm run stage:7 && npm run cli:test",
+    "stage:9": "npm run stage:8 && npm run release:check",
     "reference:verify": "node scripts/verify-reference.mjs",
     "contracts:test": "vitest run packages/contracts/tests",
     "compliance:test": "vitest run packages/compliance/tests",
@@ -34,6 +35,8 @@
     "example:test": "node scripts/verify-adventureworks.mjs",
     "example:package": "node scripts/verify-adventureworks.mjs --package",
     "cli:test": "vitest run packages/cli/tests",
+    "test": "npm run stage:8",
+    "release:check": "node scripts/release-check.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

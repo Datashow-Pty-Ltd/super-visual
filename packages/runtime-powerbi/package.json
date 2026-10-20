@@ -1,9 +1,14 @@
 {
   "name": "@datashow/super-visual-runtime-powerbi",
   "version": "0.1.0-rc.0",
+  "description": "Reusable long-table broker runtime for compiled Super Visual Power BI visuals.",
   "type": "module",
   "files": ["src"],
   "license": "Apache-2.0",
+  "engines": { "node": ">=20.19.0" },
+  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/runtime-powerbi" },
+  "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
+  "publishConfig": { "access": "public" },
   "peerDependencies": {
     "powerbi-visuals-api": "^5.11.1",
     "react": "^19.0.0",

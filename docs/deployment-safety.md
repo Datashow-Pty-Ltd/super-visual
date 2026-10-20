@@ -17,7 +17,8 @@ existing remote definition to the requested backup directory first. Each
 published definition is downloaded again and structurally verified before the
 next action begins.
 
-Connection binding, credential selection, refresh, and business-specific DAX
-acceptance checks are environment operations. They belong in the project
-deployment guide and must pass before a release is declared healthy; the core
-publisher never guesses a connection or silently replaces an item.
+Connection binding, refresh, and business-specific DAX acceptance are optional
+post-deployment actions recorded in the reviewed plan. Binding requires an
+explicit connection ID and exact source path/type match. The publisher never
+guesses a connection or silently replaces an item. A release is not declared
+healthy until the requested refresh and acceptance query pass.

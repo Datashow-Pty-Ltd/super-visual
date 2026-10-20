@@ -1,10 +1,15 @@
 {
   "name": "@datashow/super-visual-compliance",
   "version": "0.1.0-rc.0",
+  "description": "Compliance and binding checks for Super Visual application source and contracts.",
   "type": "module",
   "exports": "./src/index.mjs",
   "files": ["src"],
   "license": "Apache-2.0",
+  "engines": { "node": ">=20.19.0" },
+  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/compliance" },
+  "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
+  "publishConfig": { "access": "public" },
   "dependencies": {
     "typescript": "5.9.3"
   }

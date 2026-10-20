@@ -1,0 +1,9 @@
+EVALUATE
+ROW(
+  "Total Sales", [Total Sales],
+  "Gross Profit", [Gross Profit],
+  "Gross Margin", [Gross Margin (%)],
+  "Orders", [# Orders],
+  "Internet Sales", [Internet Sales],
+  "Reseller Sales", [Reseller Sales]
+)

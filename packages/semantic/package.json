@@ -1,8 +1,15 @@
 {
   "name": "@datashow/super-visual-semantic",
   "version": "0.1.0-rc.0",
+  "description": "Governed TMDL and report-specific widget broker adapter compiler for Super Visual.",
   "type": "module",
   "exports": "./src/index.mjs",
+  "files": ["src"],
+  "license": "Apache-2.0",
+  "engines": { "node": ">=20.19.0" },
+  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/semantic" },
+  "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
+  "publishConfig": { "access": "public" },
   "dependencies": {
     "@datashow/super-visual-compliance": "0.1.0-rc.0"
   }

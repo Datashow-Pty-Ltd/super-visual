@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { bindReportToSemanticModel, decodePart, encodeDefinition, verifyDefinitionParts } from "./parts.mjs";
+import { bindSemanticModelConnection, executeAcceptanceQuery, refreshSemanticModel } from "./operations.mjs";
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
@@ -19,7 +20,7 @@ function oneByName(items, displayName, type) {
   return matches[0];
 }
 
-export async function createDeploymentPlan({ client, workspaceId, workspaceName, solutionDirectory, semanticModelName, reportName, allowUpdates = false }) {
+export async function createDeploymentPlan({ client, workspaceId, workspaceName, solutionDirectory, semanticModelName, reportName, allowUpdates = false, postDeployment = null }) {
   if (!workspaceId) throw new Error("A Fabric workspace ID is required; display-name-only deployment is not safe");
   const workspace = await client.getWorkspace(workspaceId);
   if (!workspace || workspace.id !== workspaceId) throw new Error(`Fabric workspace ${workspaceId} was not found`);
@@ -32,7 +33,7 @@ export async function createDeploymentPlan({ client, workspaceId, workspaceName,
     { key: "semanticModel", type: "SemanticModel", format: "TMDL", displayName: semanticModelName, operation: semantic ? (allowUpdates ? "update" : "blocked") : "create", existingId: semantic?.id ?? null, directory: "SemanticAdapter.SemanticModel" },
     { key: "report", type: "Report", format: "PBIR", displayName: reportName, operation: report ? (allowUpdates ? "update" : "blocked") : "create", existingId: report?.id ?? null, directory: "Report.Report" },
   ];
-  const core = { contractVersion: 1, workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId }, solutionDirectory: path.resolve(solutionDirectory), allowUpdates, actions };
+  const core = { contractVersion: 1, workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId }, solutionDirectory: path.resolve(solutionDirectory), allowUpdates, actions, postDeployment };
   return { ...core, planId: planId(core), createdAt: new Date().toISOString(), blockers: actions.filter((action) => action.operation === "blocked").map((action) => `${action.type} ${action.displayName} already exists; create a plan with updates explicitly enabled`) };
 }
 
@@ -55,13 +56,19 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
   if (confirmPlanId !== plan.planId) throw new Error(`Deployment requires exact plan confirmation ${plan.planId}`);
   const workspace = await client.getWorkspace(plan.workspace.id);
   if (!workspace || workspace.displayName !== plan.workspace.displayName || workspace.capacityId !== plan.workspace.capacityId) throw new Error("Workspace identity or capacity changed after planning; create a new plan");
+  const currentByType = new Map();
+  for (const type of ["SemanticModel", "Report"]) currentByType.set(type, await client.listItems(plan.workspace.id, type));
+  for (const action of plan.actions) {
+    const current = oneByName(currentByType.get(action.type), action.displayName, action.type);
+    if (action.operation === "create" && current) throw new Error(`${action.type} ${action.displayName} appeared after planning; create a new plan`);
+    if (action.operation === "update" && current?.id !== action.existingId) throw new Error(`${action.type} ${action.displayName} changed identity after planning; create a new plan`);
+  }
+  const updateActions = plan.actions.filter((action) => action.operation === "update");
+  if (updateActions.length && !backupDirectory) throw new Error("Updates require a backup directory");
+  for (const action of updateActions) await backup(client, plan.workspace.id, action, backupDirectory);
   const results = {};
   let semanticModelId;
   for (const action of plan.actions) {
-    if (action.operation === "update") {
-      if (!backupDirectory) throw new Error("Updates require a backup directory");
-      await backup(client, plan.workspace.id, action, backupDirectory);
-    }
     const transform = action.type === "Report" ? bindReportToSemanticModel(semanticModelId) : undefined;
     const parts = await encodeDefinition(path.join(plan.solutionDirectory, action.directory), transform);
     verifyDefinitionParts(parts, action.format);
@@ -80,5 +87,12 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
     }
     results[action.key] = { id: itemId, displayName: action.displayName, operation: action.operation };
   }
-  return { planId: plan.planId, workspace: plan.workspace, items: results };
+  let verification = null;
+  if (plan.postDeployment) {
+    const binding = await bindSemanticModelConnection({ client, workspaceId: plan.workspace.id, semanticModelId, connectionId: plan.postDeployment.connectionId, connectivityType: plan.postDeployment.connectivityType });
+    const refresh = await refreshSemanticModel({ client, workspaceId: plan.workspace.id, semanticModelId, timeoutSeconds: plan.postDeployment.timeoutSeconds ?? 900 });
+    const acceptance = plan.postDeployment.acceptanceDax ? await executeAcceptanceQuery({ client, workspaceId: plan.workspace.id, semanticModelId, query: plan.postDeployment.acceptanceDax }) : null;
+    verification = { binding, refresh: { status: refresh.status }, acceptance };
+  }
+  return { planId: plan.planId, workspace: plan.workspace, items: results, verification };
 }

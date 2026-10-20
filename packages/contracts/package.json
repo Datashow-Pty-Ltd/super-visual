@@ -1,6 +1,7 @@
 {
   "name": "@datashow/super-visual-contracts",
   "version": "0.1.0-rc.0",
+  "description": "Versioned schemas and loaders for Super Visual project contracts.",
   "type": "module",
   "exports": {
     ".": "./src/index.mjs",
@@ -8,6 +9,10 @@
   },
   "files": ["src", "schemas"],
   "license": "Apache-2.0",
+  "engines": { "node": ">=20.19.0" },
+  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/contracts" },
+  "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
+  "publishConfig": { "access": "public" },
   "dependencies": {
     "ajv": "8.17.1",
     "ajv-formats": "3.0.1",
