@@ -3,6 +3,13 @@ import { discoverFabric, discoverFabricWorkspaces, readDeploymentStatus } from "
 
 function encoded(value) { return Buffer.from(JSON.stringify(value)).toString("base64"); }
 
+function reportParts() {
+  return [
+    { path: "definition.pbir", payloadType: "InlineBase64", payload: encoded({ datasetReference: { byConnection: { connectionString: "Data Source=\"powerbi://api.powerbi.com/v1.0/myorg/Release\";initial catalog=\"Sales; governed\";semanticmodelid=model-1" } } }) },
+    { path: "definition/version.json", payloadType: "InlineBase64", payload: encoded({ $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json", version: "1.0.0" }) },
+  ];
+}
+
 class DiscoveryClient {
   async listWorkspaces() { return [{ id: "workspace-2", displayName: "Sandbox" }, { id: "workspace-1", displayName: "Release", capacityId: "capacity-1", description: "must-not-leak" }]; }
   async getWorkspace(id) { return { id, displayName: "Release", capacityId: "capacity-1" }; }
@@ -10,7 +17,7 @@ class DiscoveryClient {
   async listConnections() { return [{ id: "connection-1", displayName: "Warehouse", connectivityType: "ShareableCloud", connectionDetails: { type: "SQL", path: "server;database", credentialDetails: "must-not-leak" } }]; }
   async getSemanticConnections() { return [{ id: "connection-1", connectivityType: "ShareableCloud", connectionDetails: { type: "SQL", path: "server;database" } }]; }
   async getRefreshHistory() { return [{ status: "Completed", startTime: "2026-10-20T00:00:00Z" }]; }
-  async getDefinition() { return { format: "PBIR", parts: [{ path: "definition.pbir", payloadType: "InlineBase64", payload: encoded({ datasetReference: { byConnection: { connectionString: "Data Source=\"powerbi://api.powerbi.com/v1.0/myorg/Release\";initial catalog=\"Sales; governed\";semanticmodelid=model-1" } } }) }] }; }
+  async getDefinition() { return { format: "PBIR", parts: reportParts() }; }
   async executeDax() { return [{ Sales: 100 }]; }
 }
 

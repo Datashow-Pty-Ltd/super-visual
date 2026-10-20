@@ -34,5 +34,9 @@ describe("solution compiler", () => {
     expect(await readFile(path.join(result.outputDirectory, "SemanticAdapter.SemanticModel", "definition", "tables", "Widget Axis.tmdl"), "utf8")).toContain("REMOVEFILTERS('Sales'[Product])");
     expect(await readFile(path.join(result.outputDirectory, "Visual", "src", "reportApplication.tsx"), "utf8")).toContain("model.datasets");
     expect(await readFile(path.join(result.outputDirectory, "Report.Report", "definition.pbir"), "utf8")).toContain("SemanticAdapter.SemanticModel");
+    expect(JSON.parse(await readFile(path.join(result.outputDirectory, "Report.Report", "definition", "version.json"), "utf8"))).toEqual({
+      $schema: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json",
+      version: "1.0.0",
+    });
   });
 });
