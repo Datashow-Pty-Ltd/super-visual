@@ -1,5 +1,10 @@
 # AdventureWorks deployment
 
+For the complete source-database-through-report walkthrough, use the runnable
+[AdventureWorks recipe](../../docs/recipes/adventureworks.md). The helper command
+is `npm run adventureworks:deploy -- --help`. This file documents the lower-level
+Super Visual package and deployment contract.
+
 ## Prerequisites
 
 - Node.js 22.12 or newer.

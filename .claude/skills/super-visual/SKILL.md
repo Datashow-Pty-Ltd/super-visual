@@ -1,6 +1,6 @@
 ---
 name: super-visual
-description: Discover, initialize, inspect, validate, compile, package, verify, or safely deploy Super Visual React-to-Power-BI projects. Use for projects containing supervisual.yaml and for evaluating dashboard source for supported Super Visual adapters; do not use for ordinary React applications or unrelated Power BI reports.
+description: Discover, initialize, inspect, validate, semantically preview, compile, package, verify, or safely deploy Super Visual React-to-Power-BI projects. Use for projects containing supervisual.yaml and for evaluating dashboard source for supported Super Visual adapters; do not use for ordinary React applications or unrelated Power BI reports.
 ---
 
 # Super Visual
@@ -34,6 +34,15 @@ After changing project source or contracts:
    and embedded PBIR resource are required.
 4. Run `npx supervisual verify <project> --json` before handoff or deployment.
 
+To test data and interactions locally, use `npx supervisual dev <project>
+--workspace-id <id> --semantic-model-id <id> --json`, targeting the deployed
+report-specific semantic adapter. This is read-only in Fabric and may write only
+ignored preview output under `.supervisual/`. Keep the process running after its
+ready JSON until the user is finished. For a bounded check, run `npx
+supervisual preview test <project>` with the same immutable IDs. Do not treat an
+offline fixture as semantic acceptance, and do not substitute the reusable base
+model: the target must contain the generated `Widget Axis` broker.
+
 For a permitted Claude-style bundle, import only after inspection succeeds and
 the target widget broker contains every declared dataset. The adapter must
 vendor assets and write provenance; do not copy an authenticated Claude payload
@@ -43,6 +52,9 @@ Application code may consume only `ReportApplicationProps` and the broker data
 model. It must not access the network, execute dynamic code, use browser storage,
 inject unsafe HTML, import Power BI host APIs, or import preview fixtures. Bind
 data through the semantic and widget-broker contracts.
+
+The semantic preview browser may receive only broker rows through the CLI's
+loopback gateway, never bearer tokens or arbitrary DAX.
 
 ## Fabric safety boundary
 

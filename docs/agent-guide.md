@@ -8,6 +8,10 @@ single JSON object when that flag is present.
 npx supervisual check <project> --json
 npx supervisual build <project> [--package] --json
 npx supervisual verify <project> --json
+npx supervisual dev <project> --workspace-id <id> \
+  --semantic-model-id <id> --json
+npx supervisual preview test <project> --workspace-id <id> \
+  --semantic-model-id <id> --json
 npx supervisual certify validate <record> --json
 npx supervisual semantic discover --workspace-id <id> \
   --semantic-model-id <id> --json
@@ -32,7 +36,11 @@ npx supervisual deploy restore apply --plan <file> --confirm <plan-id> --json
 ```
 
 `check` is side-effect free. `build` replaces only the project's configured
-output directory. `verify` and both `semantic` commands are read-only. Semantic
+output directory. `verify`, `dev`, `preview test`, and both `semantic` commands
+are read-only with respect to Fabric. `dev` writes only ignored generated files
+under `.supervisual/semantic-preview/` and remains active after emitting its
+ready JSON until interrupted. It must target the exact deployed semantic
+adapter, not the base model. Semantic
 inspection returns metadata, not source expressions or business data. `deploy
 plan` makes read-only Fabric calls and writes a local plan. `deploy apply` is the only command that changes
 Fabric; it refuses stale workspace identity, blocked actions, missing update
@@ -44,5 +52,7 @@ Restore has the same authorization boundary and returns `restored-unverified`
 until the normal status checks pass.
 
 Fabric authentication uses the current Azure CLI identity. Agents should never
-print, store, or pass the acquired bearer token. Run `az login` interactively
+print, store, or pass the acquired bearer token. The preview browser receives
+only broker rows through the CLI's loopback gateway, never the token or
+arbitrary DAX. Run `az login` interactively
 outside the agent workflow when authentication is absent.

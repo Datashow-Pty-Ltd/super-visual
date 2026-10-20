@@ -48,6 +48,15 @@ Edit `contracts/semantic-model.yaml` for the governed model,
 page intent, and the React and Less files under `source/` for presentation. The
 compiled application may read data only through `ReportApplicationProps`.
 
+Each `widgets[].id` in the broker is a logical semantic query with its own
+dimensions, measures, limits, and invalidation rules. React components refer to
+those IDs through `dataset` bindings in the page set. The runtime batches the
+required IDs through one Power BI DataView, partitions rows by `WidgetId`, and
+caches the resulting datasets; two components can therefore present the same
+dataset differently without querying it twice. Read
+[How one React page supports many widgets](./semantic-binding.md#how-one-react-page-supports-many-widgets)
+for the complete model.
+
 ## Understand an existing input
 
 ```bash
@@ -97,6 +106,41 @@ npx supervisual semantic check examples/hello-world \
 The discovery result intentionally excludes DAX, Power Query, parameter values,
 and business rows. Compatibility checking proves that the project-required
 columns, measures, and hierarchies exist without changing the model.
+
+## Run the React application with real semantic data
+
+After the report-specific semantic adapter has been published and refreshed,
+run the UI locally against that exact model:
+
+```bash
+npx supervisual dev examples/hello-world \
+  --workspace-id <workspace-guid> \
+  --workspace-name <expected-name> \
+  --semantic-model-id <adapter-model-guid> \
+  --open
+```
+
+The CLI first performs semantic compatibility and generated-broker checks. It
+then serves the compiled React application on `127.0.0.1`, obtains Power BI
+credentials only in the local Node process from Azure CLI, and executes
+contract-derived read-only DAX. Selecting or clearing a supported UI control
+re-queries the semantic model with the same target used by the deployed visual.
+The project application itself remains network-free.
+
+Run the repeatable browser smoke test before packaging or deployment:
+
+```bash
+npx supervisual preview test examples/hello-world \
+  --workspace-id <workspace-guid> \
+  --workspace-name <expected-name> \
+  --semantic-model-id <adapter-model-guid> \
+  --json
+```
+
+This is semantic and application acceptance, but it does not replace final
+Power BI acceptance. DataView construction, the visual sandbox, CSP, and
+`applyJsonFilter` are Power BI host behaviours and must still be checked in the
+deployed report.
 
 ## Deploy safely
 

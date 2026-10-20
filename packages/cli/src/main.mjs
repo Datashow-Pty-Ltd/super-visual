@@ -10,6 +10,7 @@ import { evaluateLiveCertification, loadContract, migrateProjectContracts } from
 import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, discoverFabricWorkspaces, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
 import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
+import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
 const VERSION = "0.1.0-rc.0";
@@ -78,6 +79,15 @@ async function writeJsonAtomic(file, value) {
   const temporary = `${file}.tmp`;
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`);
   await rename(temporary, file);
+}
+
+async function waitForPreviewShutdown(preview) {
+  await new Promise((resolve) => {
+    const stop = () => resolve();
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+  });
+  await preview.close();
 }
 
 function createProgram() {
@@ -179,6 +189,54 @@ function createProgram() {
       const result = await verifySolutionManifest(path.resolve(loaded.root, loaded.project.output.directory));
       output(result, jsonEnabled(command));
       if (!result.ok) process.exitCode = 1;
+      return result;
+    });
+
+  addJsonOption(program.command("dev [project]"))
+    .description("serve the local React application against a live semantic model")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .requiredOption("--semantic-model-id <id>", "exact semantic model ID containing the generated broker")
+    .option("--host <host>", "loopback host", "127.0.0.1")
+    .option("--port <port>", "local preview port", "5173")
+    .option("--open", "open the preview in the default browser")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (project = ".", options, command) => {
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const preview = await startSemanticPreview({
+        client,
+        projectFile: projectFile(project),
+        workspaceId: options.workspaceId,
+        workspaceName: options.workspaceName,
+        semanticModelId: options.semanticModelId,
+        host: options.host,
+        port: Number(options.port),
+        open: Boolean(options.open),
+      });
+      const { close, ...result } = preview;
+      output(result, jsonEnabled(command));
+      await waitForPreviewShutdown({ close });
+    });
+
+  const preview = program.command("preview").description("exercise the local React host against a live semantic model");
+  addJsonOption(preview.command("test [project]"))
+    .description("run a headless semantic-data and interaction smoke test")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .requiredOption("--semantic-model-id <id>", "exact semantic model ID containing the generated broker")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .option("--browser-timeout <milliseconds>", "browser acceptance timeout", "60000")
+    .action(async (project = ".", options, command) => {
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const result = await runSemanticPreviewTest({
+        client,
+        projectFile: projectFile(project),
+        workspaceId: options.workspaceId,
+        workspaceName: options.workspaceName,
+        semanticModelId: options.semanticModelId,
+        timeoutMs: Number(options.browserTimeout),
+      });
+      output(result, jsonEnabled(command));
       return result;
     });
 
