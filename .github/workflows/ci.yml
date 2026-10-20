@@ -33,7 +33,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run example:package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: adventureworks-super-visual
           path: examples/adventureworks/dist/Artifacts/*.pbiviz
@@ -49,7 +49,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run hello:package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: hello-world-super-visual
           path: examples/hello-world/dist/Artifacts/*.pbiviz
