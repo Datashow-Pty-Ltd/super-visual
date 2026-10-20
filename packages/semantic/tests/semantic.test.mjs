@@ -37,7 +37,10 @@ describe("semantic compiler", () => {
     await compileTmdl(semantic, base);
     const before = await readFile(path.join(base, "definition", "model.tmdl"), "utf8");
     await compileBrokerAdapter({ baseModelDirectory: base, outputDirectory: adapter, broker, semanticModel: semantic });
-    expect(await readFile(path.join(adapter, "definition", "tables", "Widget Axis.tmdl"), "utf8")).toContain("REMOVEFILTERS('Sales'[Product])");
+    const widgetAxis = await readFile(path.join(adapter, "definition", "tables", "Widget Axis.tmdl"), "utf8");
+    expect(widgetAxis).toContain("REMOVEFILTERS('Sales'[Product])");
+    expect(widgetAxis).toContain("RETURN _widgetRows1");
+    expect(widgetAxis).not.toContain("RETURN UNION(_widgetRows1)");
     expect(await readFile(path.join(adapter, "definition", "model.tmdl"), "utf8")).toContain("ref table 'Widget Axis'");
     expect(await readFile(path.join(base, "definition", "model.tmdl"), "utf8")).toBe(before);
   });
