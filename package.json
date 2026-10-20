@@ -36,9 +36,11 @@
     "example:package": "node scripts/verify-adventureworks.mjs --package",
     "hello:test": "node scripts/verify-hello-world.mjs",
     "hello:package": "node scripts/verify-hello-world.mjs --package",
+    "claude:test": "vitest run packages/adapter-claude-dashboard/tests && node scripts/verify-claude-import.mjs",
+    "claude:package": "node scripts/verify-claude-import.mjs --package",
     "onboarding:test": "npm run cli:test && npm run hello:test",
     "cli:test": "vitest run packages/cli/tests",
-    "test": "npm run stage:8",
+    "test": "npm run stage:8 && npm run claude:test",
     "release:check": "node scripts/release-check.mjs",
     "typecheck": "tsc --noEmit"
   },
@@ -49,7 +51,10 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@types/d3": "7.4.3",
     "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "powerbi-visuals-api": "5.11.1",
     "typescript": "7.0.2",
     "vitest": "5.0.5"

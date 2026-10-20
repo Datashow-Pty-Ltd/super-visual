@@ -20,6 +20,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run hello:test
+      - run: npm run claude:test
       - run: npm run example:test
 
   package-adventureworks:
@@ -53,3 +54,14 @@ jobs:
           name: hello-world-super-visual
           path: examples/hello-world/dist/Artifacts/*.pbiviz
           if-no-files-found: error
+
+  package-claude-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run claude:package

@@ -8,6 +8,10 @@ single JSON object when that flag is present.
 npx supervisual check <project> --json
 npx supervisual build <project> [--package] --json
 npx supervisual verify <project> --json
+npx supervisual deploy discover --workspace-id <id> [--connections] --json
+npx supervisual deploy status --workspace-id <id> \
+  [--semantic-model-id <id> --report-id <id> --connection-id <id>] \
+  [--acceptance-query-file <file>] --json
 npx supervisual deploy plan <project> --workspace-id <id> \
   --workspace-name <name> --semantic-model-name <name> --report-name <name> \
   [--connection-id <id> --connection-mode <mode>] \
@@ -21,7 +25,8 @@ npx supervisual deploy apply <project> --plan <file> --confirm <plan-id> \
 output directory. `verify` is read-only. `deploy plan` makes read-only Fabric
 calls and writes a local plan. `deploy apply` is the only command that changes
 Fabric; it refuses stale workspace identity, blocked actions, missing update
-backups, or a mismatched confirmation ID.
+backups, changed local/remote definition hashes, or a mismatched confirmation
+ID. `deploy apply` returning `published-unverified` is not a successful release.
 
 Fabric authentication uses the current Azure CLI identity. Agents should never
 print, store, or pass the acquired bearer token. Run `az login` interactively

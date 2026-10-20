@@ -4,8 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { Command, CommanderError } from "commander";
+import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
-import { applyDeploymentPlan, createDeploymentPlan } from "@datashow/super-visual-fabric";
+import { applyDeploymentPlan, createDeploymentPlan, discoverFabric, readDeploymentStatus } from "@datashow/super-visual-fabric";
 import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
 
@@ -88,6 +89,25 @@ function createProgram() {
     .description("list source adapters and their compatibility status")
     .action((options, command) => output({ ok: true, adapters: supportedAdapters() }, jsonEnabled(command)));
 
+  const importCommand = program.command("import").description("import a supported dashboard source into a Super Visual project");
+  addJsonOption(importCommand.command("claude-dashboard <input>"))
+    .description("statically inspect and import a Super Visual Claude-style dashboard bundle")
+    .option("--project <directory>", "existing Super Visual project to update")
+    .option("--inspect-only", "validate and report detected APIs without modifying the project")
+    .action(async (input, options, command) => {
+      if (options.inspectOnly) {
+        const inspected = await inspectClaudeDashboard(input);
+        const result = { ok: inspected.ok, input: inspected.input, manifestPath: inspected.manifestPath, adapter: "claude-dashboard", dashApis: inspected.dashApis, dataReads: inspected.dataReads, assets: inspected.assetReferences, diagnostics: inspected.diagnostics };
+        output(result, jsonEnabled(command));
+        if (!result.ok) process.exitCode = 1;
+        return result;
+      }
+      if (!options.project) throw new Error("--project is required unless --inspect-only is used");
+      const result = await importClaudeDashboard({ input, projectFile: projectFile(options.project) });
+      output(result, jsonEnabled(command));
+      return result;
+    });
+
   addJsonOption(program.command("init <directory>"))
     .description("create a new Super Visual project")
     .option("--template <name>", "project template", "hello-world")
@@ -130,6 +150,32 @@ function createProgram() {
     });
 
   const deploy = program.command("deploy").description("plan and apply guarded Microsoft Fabric deployments");
+  addJsonOption(deploy.command("discover"))
+    .description("read workspace identity, items, and optionally accessible connections")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .option("--connections", "include accessible Fabric connections")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (options, command) => {
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      output(await discoverFabric({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, includeConnections: Boolean(options.connections) }), jsonEnabled(command));
+    });
+
+  addJsonOption(deploy.command("status"))
+    .description("read deployed binding, refresh, and optional live acceptance status")
+    .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
+    .option("--workspace-name <name>", "expected workspace display name")
+    .option("--semantic-model-id <id>", "exact deployed semantic model ID")
+    .option("--report-id <id>", "exact deployed report ID")
+    .option("--connection-id <id>", "expected bound Fabric connection ID")
+    .option("--acceptance-query-file <file>", "DAX acceptance query to execute read-only")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (options, command) => {
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : null;
+      const result = await readDeploymentStatus({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId, reportId: options.reportId, connectionId: options.connectionId, acceptanceDax });
+      output(result, jsonEnabled(command));
+    });
   addJsonOption(deploy.command("plan [project]"))
     .description("inspect Fabric and write an immutable deployment plan")
     .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")
@@ -169,7 +215,8 @@ function createProgram() {
       const plan = JSON.parse(await readFile(planPath, "utf8"));
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const result = await applyDeploymentPlan({ client, plan, confirmPlanId: options.confirm, backupDirectory: options.backup ? path.resolve(options.backup) : undefined });
-      output({ ok: true, ...result }, jsonEnabled(command));
+      output({ ok: result.accepted, ...result }, jsonEnabled(command));
+      if (!result.accepted) process.exitCode = 3;
       return result;
     });
 

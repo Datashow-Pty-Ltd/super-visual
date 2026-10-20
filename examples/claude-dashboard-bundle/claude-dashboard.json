@@ -1,0 +1,30 @@
+{
+  "contractVersion": 1,
+  "format": "claude-dashboard-bundle",
+  "name": "claude-hello-world",
+  "title": "Claude-style Hello World",
+  "entry": {
+    "html": "dashboard.html",
+    "css": "dashboard.css",
+    "script": "dashboard.js"
+  },
+  "datasets": [
+    {
+      "id": "sales",
+      "dimensions": [
+        { "column": "category", "dimensionIndex": 0, "use": "label", "valueType": "string" }
+      ],
+      "measures": [
+        { "column": "total_sales", "seriesKey": "[Total Sales]" }
+      ]
+    }
+  ],
+  "routes": [
+    { "id": "overview", "title": "Overview", "datasets": ["sales"] }
+  ],
+  "defaultParams": { "category": null },
+  "parameters": [
+    { "name": "category", "target": "Sales[Category]" }
+  ],
+  "assets": ["assets/mark.svg"]
+}

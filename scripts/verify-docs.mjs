@@ -14,6 +14,9 @@ const required = [
   "docs/cli-product-roadmap.md",
   "docs/getting-started.md",
   "docs/commands.md",
+  "docs/claude-dashboard-migration.md",
+  "docs/adapter-compatibility.md",
+  "docs/troubleshooting.md",
   "docs/reference/deployed-baseline.json",
 ];
 

@@ -47,8 +47,21 @@ npx supervisual adapters --json
 ```
 
 JSON mode emits one value and uses a non-zero exit status for failed operations.
-Claude Dashboard discovery currently identifies likely source but reports it as
-unsupported until the versioned importer is complete.
+The versioned Claude-style adapter is supported. Try the synthetic fixture:
+
+```bash
+npx supervisual init /tmp/claude-hello --template hello-world
+npx supervisual import claude-dashboard examples/claude-dashboard-bundle \
+  --project /tmp/claude-hello --inspect-only --json
+npx supervisual import claude-dashboard examples/claude-dashboard-bundle \
+  --project /tmp/claude-hello --json
+npx supervisual package /tmp/claude-hello
+npx supervisual verify /tmp/claude-hello
+```
+
+Read [Claude Dashboard migration](./claude-dashboard-migration.md) before using
+real source. The format is Super Visual's documented interchange contract, not
+an official Anthropic export schema.
 
 ## Deploy safely
 

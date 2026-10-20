@@ -1,0 +1,11 @@
+.claude-dashboard-surface .claude-hello { min-height: 100%; box-sizing: border-box; padding: 32px; color: #173c36; background: #f4f7f5; font-family: Aptos, "Segoe UI", sans-serif; }
+.claude-dashboard-surface .claude-hello header { display: flex; gap: 14px; align-items: center; }
+.claude-dashboard-surface .claude-hello header p { margin: 0 0 4px; color: #167d6c; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.claude-dashboard-surface .claude-hello h1 { margin: 0; font: 600 clamp(30px, 5vw, 52px)/1 Georgia, serif; }
+.claude-dashboard-surface .claude-hello .status { color: #5e6d68; }
+.claude-dashboard-surface .claude-hello .bars { display: grid; gap: 12px; margin: 28px 0; padding: 0; list-style: none; }
+.claude-dashboard-surface .claude-hello .bar-row { display: grid; grid-template-columns: minmax(100px, 1fr) 3fr minmax(70px, auto); gap: 12px; align-items: center; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.claude-dashboard-surface .claude-hello .track { height: 15px; overflow: hidden; border-radius: 8px; background: #dce8e3; }
+.claude-dashboard-surface .claude-hello .bar { display: block; height: 100%; border-radius: inherit; background: #167d6c; }
+.claude-dashboard-surface .claude-hello .clear { padding: 8px 12px; border: 1px solid #167d6c; border-radius: 4px; color: #135f53; background: white; cursor: pointer; }
+@media (max-width: 640px) { .claude-dashboard-surface .claude-hello { padding: 18px; } .claude-dashboard-surface .claude-hello .bar-row { grid-template-columns: 1fr auto; } .claude-dashboard-surface .claude-hello .track { grid-column: 1 / -1; } }

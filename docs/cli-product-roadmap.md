@@ -36,7 +36,7 @@ Acceptance: CLI tests initialize a project in a clean temporary directory and
 run `check`, `compile`, and `verify`; the committed Hello World project passes
 the same path and packages to `.pbiviz`.
 
-### 11. Claude Dashboard intake
+### 11. Claude Dashboard intake — complete
 
 - Define `claude-dashboard-bundle.v1` with declared HTML, CSS, script, assets,
   datasets, parameters, routes, and source provenance.
@@ -51,7 +51,7 @@ Acceptance: a redistributable fixture imports deterministically and passes
 `import -> check -> compile -> package -> verify`; unsafe fixtures fail with
 stable diagnostic codes.
 
-### 12. Fabric discovery and lifecycle
+### 12. Fabric discovery and lifecycle — complete
 
 - Add read-only workspace, item, connection, and deployment-status discovery.
 - Keep plan IDs immutable and require exact human authorization for apply.
@@ -60,7 +60,7 @@ stable diagnostic codes.
 Acceptance: mocked tests cover creation, blocked replacement, authorized update,
 backup, stale-plan rejection, refresh failure, and successful live acceptance.
 
-### 13. Agent and human experience
+### 13. Agent and human experience — complete
 
 - Install the project skill at `.claude/skills/super-visual/SKILL.md`.
 - Cover the complete discover, init/import, validate, compile, package, verify,

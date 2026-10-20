@@ -6,7 +6,7 @@ import addFormats from "ajv-formats";
 import YAML from "yaml";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const schemaNames = ["supervisual-project", "report-app", "page-set", "widget-broker", "report-source-bundle"];
+const schemaNames = ["supervisual-project", "report-app", "page-set", "widget-broker", "report-source-bundle", "claude-dashboard-bundle"];
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 

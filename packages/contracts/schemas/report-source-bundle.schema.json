@@ -69,6 +69,44 @@
         }
       }
     },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "contractVersion", "source", "dashApis", "assets", "parameters"],
+      "properties": {
+        "kind": { "type": "string", "const": "claude-dashboard" },
+        "contractVersion": { "type": "integer", "const": 1 },
+        "source": { "type": "string", "const": "supervisual-claude-dashboard-bundle.v1" },
+        "dashApis": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9.]*$" } },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256", "mediaType", "bytes"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "mediaType": { "type": "string", "minLength": 3 },
+              "bytes": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "target"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "target": { "type": "string", "pattern": "^.+\\[[^\\]]+\\]$" },
+              "values": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } }
+            }
+          }
+        }
+      }
+    },
     "designRationale": {
       "type": "object",
       "additionalProperties": false,

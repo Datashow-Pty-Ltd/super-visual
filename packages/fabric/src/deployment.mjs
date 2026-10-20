@@ -14,6 +14,11 @@ function planId(value) {
   return createHash("sha256").update(JSON.stringify(stable(value))).digest("hex").slice(0, 20);
 }
 
+function definitionHash(parts) {
+  const canonical = [...parts].sort((left, right) => left.path.localeCompare(right.path)).map(({ path: partPath, payloadType, payload }) => ({ path: partPath, payloadType, payload }));
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+
 function oneByName(items, displayName, type) {
   const matches = items.filter((item) => item.displayName === displayName && (!item.type || item.type === type));
   if (matches.length > 1) throw new Error(`Found ${matches.length} ${type} items named ${displayName}; deployment names must be unambiguous`);
@@ -33,6 +38,17 @@ export async function createDeploymentPlan({ client, workspaceId, workspaceName,
     { key: "semanticModel", type: "SemanticModel", format: "TMDL", displayName: semanticModelName, operation: semantic ? (allowUpdates ? "update" : "blocked") : "create", existingId: semantic?.id ?? null, directory: "SemanticAdapter.SemanticModel" },
     { key: "report", type: "Report", format: "PBIR", displayName: reportName, operation: report ? (allowUpdates ? "update" : "blocked") : "create", existingId: report?.id ?? null, directory: "Report.Report" },
   ];
+  for (const action of actions) {
+    const localParts = await encodeDefinition(path.join(solutionDirectory, action.directory));
+    verifyDefinitionParts(localParts, action.format);
+    action.contentHash = definitionHash(localParts);
+    action.remoteDefinitionHash = null;
+    if (action.operation === "update") {
+      const remote = await client.getDefinition(workspaceId, action.type, action.existingId, action.format);
+      verifyDefinitionParts(remote.parts, action.format);
+      action.remoteDefinitionHash = definitionHash(remote.parts);
+    }
+  }
   const core = { contractVersion: 1, workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId }, solutionDirectory: path.resolve(solutionDirectory), allowUpdates, actions, postDeployment };
   return { ...core, planId: planId(core), createdAt: new Date().toISOString(), blockers: actions.filter((action) => action.operation === "blocked").map((action) => `${action.type} ${action.displayName} already exists; create a plan with updates explicitly enabled`) };
 }
@@ -62,6 +78,14 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
     const current = oneByName(currentByType.get(action.type), action.displayName, action.type);
     if (action.operation === "create" && current) throw new Error(`${action.type} ${action.displayName} appeared after planning; create a new plan`);
     if (action.operation === "update" && current?.id !== action.existingId) throw new Error(`${action.type} ${action.displayName} changed identity after planning; create a new plan`);
+    const localParts = await encodeDefinition(path.join(plan.solutionDirectory, action.directory));
+    verifyDefinitionParts(localParts, action.format);
+    if (definitionHash(localParts) !== action.contentHash) throw new Error(`${action.type} ${action.displayName} local definition changed after planning; create a new plan`);
+    if (action.operation === "update") {
+      const remote = await client.getDefinition(plan.workspace.id, action.type, action.existingId, action.format);
+      verifyDefinitionParts(remote.parts, action.format);
+      if (definitionHash(remote.parts) !== action.remoteDefinitionHash) throw new Error(`${action.type} ${action.displayName} remote definition changed after planning; create a new plan`);
+    }
   }
   const updateActions = plan.actions.filter((action) => action.operation === "update");
   if (updateActions.length && !backupDirectory) throw new Error("Updates require a backup directory");
@@ -94,5 +118,6 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
     const acceptance = plan.postDeployment.acceptanceDax ? await executeAcceptanceQuery({ client, workspaceId: plan.workspace.id, semanticModelId, query: plan.postDeployment.acceptanceDax }) : null;
     verification = { binding, refresh: { status: refresh.status }, acceptance };
   }
-  return { planId: plan.planId, workspace: plan.workspace, items: results, verification };
+  const accepted = Boolean(verification?.binding && verification?.refresh?.status === "Completed" && verification?.acceptance);
+  return { planId: plan.planId, workspace: plan.workspace, items: results, verification, accepted, status: accepted ? "accepted" : "published-unverified" };
 }

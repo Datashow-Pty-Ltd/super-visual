@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
@@ -50,6 +50,49 @@ describe("safe Fabric deployment", () => {
     const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
     client.items.push({ id: "late-model", type: "SemanticModel", displayName: "Sales model" });
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow("appeared after planning");
+    expect(client.calls).toEqual([]);
+  });
+
+  test("updates only after exact authorization and writes recoverable backups", async () => {
+    const root = await fixture();
+    const backup = await mkdtemp(path.join(os.tmpdir(), "supervisual-backup-"));
+    const items = [
+      { id: "model-existing", type: "SemanticModel", displayName: "Sales model" },
+      { id: "report-existing", type: "Report", displayName: "Sales report" },
+    ];
+    const client = new FakeClient(items);
+    client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }] });
+    client.definitions.set("report-existing", { format: "PBIR", parts: [{ path: "definition.pbir", payload: Buffer.from(JSON.stringify({ datasetReference: {} })).toString("base64"), payloadType: "InlineBase64" }] });
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report", allowUpdates: true });
+    await expect(applyDeploymentPlan({ client, plan, confirmPlanId: "wrong", backupDirectory: backup })).rejects.toThrow(/exact plan confirmation/);
+    const result = await applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId, backupDirectory: backup });
+    expect(client.calls).toEqual(["update:SemanticModel", "update:Report"]);
+    await expect(access(path.join(backup, "SemanticModel-model-existing", "definition.pbism"))).resolves.toBeUndefined();
+    await expect(access(path.join(backup, "Report-report-existing", "definition.pbir"))).resolves.toBeUndefined();
+    expect(result.status).toBe("published-unverified");
+    expect(result.accepted).toBe(false);
+  });
+
+  test("rejects local solution content that changed after planning", async () => {
+    const root = await fixture();
+    const client = new FakeClient();
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
+    await writeFile(path.join(root, "SemanticAdapter.SemanticModel", "definition", "model.tmdl"), "model Changed\n");
+    await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow(/local definition changed after planning/);
+    expect(client.calls).toEqual([]);
+  });
+
+  test("rejects remote update content that changed after planning", async () => {
+    const root = await fixture();
+    const client = new FakeClient([
+      { id: "model-existing", type: "SemanticModel", displayName: "Sales model" },
+      { id: "report-existing", type: "Report", displayName: "Sales report" },
+    ]);
+    client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }] });
+    client.definitions.set("report-existing", { format: "PBIR", parts: [{ path: "definition.pbir", payload: Buffer.from("{}\n").toString("base64"), payloadType: "InlineBase64" }] });
+    const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report", allowUpdates: true });
+    client.definitions.set("model-existing", { format: "TMDL", parts: [{ path: "definition.pbism", payload: Buffer.from("{\"changed\":true}\n").toString("base64"), payloadType: "InlineBase64" }] });
+    await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId, backupDirectory: await mkdtemp(path.join(os.tmpdir(), "supervisual-backup-")) })).rejects.toThrow(/remote definition changed after planning/);
     expect(client.calls).toEqual([]);
   });
 });

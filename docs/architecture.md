@@ -44,6 +44,12 @@ The Power BI runtime parses one governed DataView, partitions rows by
 and applies report and self filters through the host. React pages consume a
 plain report model and callbacks.
 
+For `claude-dashboard-bundle.v1`, the runtime adds a compatibility boundary for
+the declared `dash.*` APIs. The importer preserves permitted HTML, CSS, and
+mount code, vendors local assets, and generates row-shape bindings. The same
+governed broker remains the only data source; no Claude service is called at
+runtime.
+
 ### Semantic adapter
 
 The adapter exposes report-specific rows with the shape:
@@ -59,7 +65,8 @@ the runtime requests invalidated widget IDs as one batch.
 
 ### Deployment
 
-The deployer produces a read-only plan, resolves the target workspace and
+The deployer exposes read-only discovery/status, produces a content-hashed
+plan, resolves the target workspace and
 connections, creates or explicitly updates definitions, binds the semantic
 model connection, refreshes, executes verification queries, publishes the
 report, and records the resulting IDs. Authentication remains outside project
@@ -70,11 +77,11 @@ files.
 ```text
 contracts
   -> compliance
-  -> compiler
-  -> runtime-powerbi
-  -> semantic-powerbi / report-powerbi
-  -> deployment-fabric
-  -> examples/adventureworks
+  -> adapter-claude-dashboard
+  -> compiler / runtime-powerbi / semantic
+  -> fabric deployment
+  -> cli
+  -> examples
 ```
 
 No package above the example layer may import AdventureWorks data, copy,

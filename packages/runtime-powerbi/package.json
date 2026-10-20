@@ -10,6 +10,7 @@
   "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
   "publishConfig": { "access": "public" },
   "peerDependencies": {
+    "d3": "^7.9.0",
     "powerbi-visuals-api": "^5.11.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

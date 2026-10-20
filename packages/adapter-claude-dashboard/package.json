@@ -1,0 +1,18 @@
+{
+  "name": "@datashow/super-visual-adapter-claude-dashboard",
+  "version": "0.1.0-rc.0",
+  "description": "Static intake adapter for documented Claude-style dashboard source bundles.",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "files": ["src"],
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22.12.0" },
+  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/adapter-claude-dashboard" },
+  "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@datashow/super-visual-compliance": "0.1.0-rc.0",
+    "@datashow/super-visual-contracts": "0.1.0-rc.0",
+    "esbuild": "0.28.2"
+  }
+}

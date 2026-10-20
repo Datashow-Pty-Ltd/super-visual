@@ -3,6 +3,7 @@ import { access, cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/p
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadProject, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
+import { inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const templatesRoot = path.join(packageRoot, "templates");
@@ -31,14 +32,15 @@ export function supportedTemplates() {
 export function supportedAdapters() {
   return [
     { id: "react-source-bundle", input: "report-source-bundle.v1", status: "supported" },
-    { id: "claude-dashboard", input: "versioned exported source bundle", status: "planned", note: "Claude Dashboards is beta and has no documented stable public interchange format." },
+    { id: "claude-dashboard", input: "claude-dashboard-bundle.v1", status: "supported", note: "Super Visual's documented intake contract; not an Anthropic export standard." },
   ];
 }
 
 async function classifyFile(file) {
   const extension = path.extname(file).toLowerCase();
   if (path.basename(file) === "supervisual.yaml") return { type: "supervisual-project", supported: true, projectFile: file };
-  if ([".html", ".htm", ".js", ".zip"].includes(extension)) return { type: "dashboard-source", supported: false, adapter: "claude-dashboard", reason: "Claude Dashboard import is not implemented yet" };
+  if (path.basename(file) === "claude-dashboard.json") return { type: "claude-dashboard-bundle", supported: true, adapter: "claude-dashboard", manifestPath: file };
+  if ([".html", ".htm", ".js", ".zip"].includes(extension)) return { type: "dashboard-source", supported: false, adapter: "claude-dashboard", reason: "Use a directory containing the documented claude-dashboard.json manifest" };
   return { type: "unknown", supported: false };
 }
 
@@ -51,10 +53,20 @@ export async function discoverInput(input = ".") {
   else if (await exists(path.join(resolved, "supervisual.yaml"))) result = { type: "supervisual-project", supported: true, projectFile: path.join(resolved, "supervisual.yaml") };
   else {
     const names = await readdir(resolved);
-    const sourceSignals = names.filter((name) => /^(?:index\.html|application\.js|dashboard\.json|package\.json)$/i.test(name));
-    result = sourceSignals.length
-      ? { type: "dashboard-source-directory", supported: false, adapter: "claude-dashboard", signals: sourceSignals, reason: "Claude Dashboard import is not implemented yet" }
+    const sourceSignals = names.filter((name) => /^(?:claude-dashboard\.json|index\.html|application\.js|dashboard\.js|dashboard\.json|package\.json)$/i.test(name));
+    result = names.includes("claude-dashboard.json")
+      ? { type: "claude-dashboard-bundle", supported: true, adapter: "claude-dashboard", manifestPath: path.join(resolved, "claude-dashboard.json"), signals: sourceSignals }
+      : sourceSignals.length
+      ? { type: "dashboard-source-directory", supported: false, adapter: "claude-dashboard", signals: sourceSignals, reason: "Add a documented claude-dashboard.json manifest" }
       : { type: "directory", supported: false, signals: [] };
+  }
+  if (result.type === "claude-dashboard-bundle") {
+    try {
+      const inspected = await inspectClaudeDashboard(result.manifestPath);
+      return { ok: inspected.ok, input: resolved, ...result, dashApis: inspected.dashApis, dataReads: inspected.dataReads, assets: inspected.assetReferences, diagnostics: inspected.diagnostics };
+    } catch (error) {
+      return { ok: false, input: resolved, ...result, supported: false, diagnostics: [error instanceof Error ? error.message : String(error)] };
+    }
   }
   return { ok: result.supported, input: resolved, ...result };
 }

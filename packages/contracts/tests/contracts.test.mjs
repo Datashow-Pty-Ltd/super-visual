@@ -20,4 +20,16 @@ describe("public contracts", () => {
     expect(validateContract("supervisual-project", { ...project, source: { bundle: "../private.json" } }).ok).toBe(false);
     expect(() => resolveProjectPath("/tmp/project", "../private.json")).toThrow(/escapes/);
   });
+
+  it("accepts the documented Claude Dashboard intake contract", () => {
+    const bundle = {
+      contractVersion: 1,
+      format: "claude-dashboard-bundle",
+      name: "sample-dashboard",
+      entry: { html: "dashboard.html", css: "dashboard.css", script: "dashboard.js" },
+      datasets: [{ id: "sales", dimensions: [{ column: "category", dimensionIndex: 0 }], measures: [{ column: "sales", seriesKey: "[Sales]" }] }],
+      routes: [{ id: "overview", title: "Overview", datasets: ["sales"] }],
+    };
+    expect(validateContract("claude-dashboard-bundle", bundle)).toEqual({ ok: true, errors: [] });
+  });
 });

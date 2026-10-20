@@ -38,13 +38,21 @@ export async function generateRuntimeManifests({ broker, pageSet, reportSource }
     return [widget.id, { table: match[1], column: match[2] }];
   }));
   await writeFile(path.join(sourceRoot, "filterTargets.ts"), `import type { DatasetKey } from "./model";\nimport type { FilterTarget } from "./filter";\nexport const FILTER_TARGETS: Record<DatasetKey, FilterTarget> = ${JSON.stringify(targets, null, 2)};\n`);
+  const claudeParameters = reportSource.adapter?.kind === "claude-dashboard" ? reportSource.adapter.parameters : [];
+  const claudeTargets = Object.fromEntries(claudeParameters.map((parameter) => {
+    const match = parameter.target.match(/^(.+)\[([^\]]+)\]$/);
+    if (!match) throw new Error(`Claude parameter target must use Table[Column] notation: ${parameter.target}`);
+    return [parameter.name, { table: match[1], column: match[2] }];
+  }));
+  const claudeValueMaps = Object.fromEntries(claudeParameters.filter((parameter) => parameter.values).map((parameter) => [parameter.name, parameter.values]));
+  await writeFile(path.join(sourceRoot, "claudeParamTargets.ts"), `import type { FilterTarget, FilterValue } from "./filter";\nexport const CLAUDE_PARAM_FILTER_TARGETS: Record<string, FilterTarget> = ${JSON.stringify(claudeTargets, null, 2)};\nconst CLAUDE_PARAM_VALUE_MAPS: Record<string, Record<string, FilterValue>> = ${JSON.stringify(claudeValueMaps, null, 2)};\nexport function claudeFilterValues(name: string, value: unknown): FilterValue[] {\n  const values = Array.isArray(value) ? value : [value];\n  const mapped = CLAUDE_PARAM_VALUE_MAPS[name] ?? {};\n  return values.flatMap((candidate) => {\n    if (candidate === null || candidate === undefined || candidate === \"\") return [];\n    const resolved = mapped[String(candidate)] ?? candidate;\n    return typeof resolved === \"string\" || typeof resolved === \"number\" || typeof resolved === \"boolean\" ? [resolved] : [];\n  });\n}\n`);
   for (const file of reportSource.files) {
     const target = path.resolve(outputRoot, file.path);
     if (target !== path.resolve(outputRoot) && !target.startsWith(`${path.resolve(outputRoot)}${path.sep}`)) throw new Error(`Generated source escapes output: ${file.path}`);
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, file.content, "utf8");
   }
-  return { datasets: widgets.map((widget) => widget.id), generatedFiles: 5 + reportSource.files.length };
+  return { datasets: widgets.map((widget) => widget.id), generatedFiles: 6 + reportSource.files.length };
 }
 
 export { buildSolution, loadProject, refreshSolutionManifest, verifySolutionManifest } from "./build-solution.mjs";

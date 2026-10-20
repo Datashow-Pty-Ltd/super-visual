@@ -15,9 +15,36 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("discover");
     expect(help.stdout).toContain("init");
     expect(help.stdout).toContain("package");
+    expect(help.stdout).toContain("import");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
     expect(version.stdout.trim()).toBe("0.1.0-rc.0");
+    const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
+    expect(deployHelp.stdout).toContain("discover");
+    expect(deployHelp.stdout).toContain("status");
+  });
+
+  test("discovers and inspects a Claude-style bundle", async () => {
+    const discovered = await run(process.execPath, [cli, "discover", "examples/claude-dashboard-bundle", "--json"], { cwd: root });
+    expect(JSON.parse(discovered.stdout)).toMatchObject({ ok: true, type: "claude-dashboard-bundle", adapter: "claude-dashboard" });
+    const inspected = await run(process.execPath, [cli, "import", "claude-dashboard", "examples/claude-dashboard-bundle", "--project", "examples/hello-world", "--inspect-only", "--json"], { cwd: root });
+    expect(JSON.parse(inspected.stdout)).toMatchObject({ ok: true, adapter: "claude-dashboard", dataReads: ["sales"] });
+  });
+
+  test("imports and compiles a Claude-style bundle", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-claude-"));
+    const project = path.join(temporary, "claude-dashboard");
+    try {
+      await run(process.execPath, [cli, "init", project, "--json"], { cwd: root });
+      const imported = await run(process.execPath, [cli, "import", "claude-dashboard", "examples/claude-dashboard-bundle", "--project", project, "--json"], { cwd: root });
+      expect(JSON.parse(imported.stdout)).toMatchObject({ ok: true, adapter: "claude-dashboard", datasets: ["sales"] });
+      const checked = await run(process.execPath, [cli, "check", project, "--json"], { cwd: root });
+      expect(JSON.parse(checked.stdout).ok).toBe(true);
+      const built = await run(process.execPath, [cli, "compile", project, "--json"], { cwd: root });
+      expect(JSON.parse(built.stdout).fileCount).toBeGreaterThan(40);
+      const verified = await run(process.execPath, [cli, "verify", project, "--json"], { cwd: root });
+      expect(JSON.parse(verified.stdout).ok).toBe(true);
+    } finally { await rm(temporary, { recursive: true, force: true }); }
   });
 
   test("discovers and inspects a project", async () => {

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 20.19 or newer.
+- Node.js 22.12 or newer.
 - Power BI custom visuals enabled for the target tenant.
 - A Fabric-capacity workspace whose immutable ID you know.
 - An accessible AdventureWorksDW source or gateway connection.
@@ -34,6 +34,15 @@ Authenticate with Azure CLI, then run a read-only deployment plan using the
 workspace ID and the exact intended item names. Do not enable updates for the
 first deployment. Review the workspace name, capacity, operations, and plan ID.
 
+First confirm the immutable workspace and available connection IDs:
+
+```bash
+npx supervisual deploy discover \
+  --workspace-id <workspace-guid> \
+  --workspace-name "<expected workspace name>" \
+  --connections
+```
+
 ```bash
 npx supervisual deploy plan examples/adventureworks \
   --workspace-id <workspace-guid> \
@@ -56,7 +65,7 @@ a backup directory; the CLI downloads both current definitions before writing.
 
 ```bash
 npx supervisual deploy apply examples/adventureworks \
-  --plan .supervisual/deploy-plan.json \
+  --plan examples/adventureworks/.supervisual/deploy-plan.json \
   --confirm <plan-id> \
   --backup .supervisual/backups
 ```
@@ -66,3 +75,18 @@ acceptance DAX stored in the plan. Then verify that the report loads all four
 routes. Check category selection, route navigation, the product hierarchy,
 customer flow, and the territory view. A release is not complete until those
 interactions are exercised against live AdventureWorks data.
+
+The apply result contains the deployed semantic-model and report IDs. Recheck
+the persisted service state without triggering another refresh:
+
+```bash
+npx supervisual deploy status \
+  --workspace-id <workspace-guid> \
+  --semantic-model-id <deployed-semantic-model-id> \
+  --report-id <deployed-report-id> \
+  --connection-id <fabric-connection-guid> \
+  --acceptance-query-file examples/adventureworks/acceptance.dax
+```
+
+Only `status: accepted` proves exact report binding, exact connection binding,
+a completed latest refresh, and a non-empty/non-null acceptance result.

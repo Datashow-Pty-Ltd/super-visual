@@ -11,7 +11,7 @@ const required = [
 ];
 await Promise.all(required.map((file) => access(path.join(root, file))));
 
-const packageDirectories = ["cli", "compiler", "compliance", "contracts", "fabric", "runtime-powerbi", "semantic"];
+const packageDirectories = ["adapter-claude-dashboard", "cli", "compiler", "compliance", "contracts", "fabric", "runtime-powerbi", "semantic"];
 const packages = await Promise.all(packageDirectories.map(async (directory) => ({ directory, manifest: JSON.parse(await readFile(path.join(root, "packages", directory, "package.json"), "utf8")) })));
 for (const { directory, manifest } of packages) {
   if (manifest.version !== "0.1.0-rc.0") throw new Error(`${directory} version is ${manifest.version}, expected 0.1.0-rc.0`);

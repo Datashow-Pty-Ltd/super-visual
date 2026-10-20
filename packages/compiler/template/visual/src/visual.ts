@@ -9,6 +9,8 @@ import { buildBrokerAdapter, completeRequestedDatasets } from "./dataView";
 import { dependentWidgets } from "./dependency";
 import { buildBasicFilter, filterValueFromLabel } from "./filter";
 import { FILTER_TARGETS } from "./filterTargets";
+import { CLAUDE_PARAM_FILTER_TARGETS, claudeFilterValues } from "./claudeParamTargets";
+import type { ClaudeParams } from "./claudeDashboard/types";
 import { DATASET_KEYS, emptyDatasets, emptyStatuses, type ActiveSelections, type DashboardModel, type DatasetKey, type MetricPoint, type WidgetStatus } from "./model";
 
 import IVisual = powerbi.extensibility.visual.IVisual;
@@ -88,6 +90,23 @@ export class Visual implements IVisual {
     this.render();
   }
 
+  private applyClaudeParams(changes: ClaudeParams): void {
+    if (this.host.hostCapabilities.allowInteractions === false) return;
+    for (const [name, value] of Object.entries(changes)) {
+      const target = CLAUDE_PARAM_FILTER_TARGETS[name];
+      if (!target) continue;
+      const values = claudeFilterValues(name, value);
+      const filter = buildBasicFilter(target, ...values);
+      this.host.applyJsonFilter(filter, "general", "filter", values.length ? powerbi.FilterAction.merge : powerbi.FilterAction.remove);
+    }
+    for (const key of this.visible) this.status[key] = "stale";
+    this.request(this.visible);
+  }
+
+  private refreshClaudeDataset(dataset: string): void {
+    if (DATASET_SET.has(dataset)) this.request([dataset as DatasetKey]);
+  }
+
   private model(): DashboardModel {
     const rowCounts = Object.fromEntries(DATASET_KEYS.map((key) => [key, this.datasets[key]?.points.length ?? 0])) as Record<DatasetKey, number>;
     const valueSums = Object.fromEntries(DATASET_KEYS.map((key) => [key, this.datasets[key]?.points.reduce((sum, point) => sum + point.value, 0) ?? 0])) as Record<DatasetKey, number>;
@@ -106,6 +125,9 @@ export class Visual implements IVisual {
       onSelect: (widget: DatasetKey, point: MetricPoint) => this.select(widget, point),
       onClear: (widget: DatasetKey) => this.clear(widget),
       onVisibleDatasetsChange: (datasets: DatasetKey[]) => this.request(datasets),
+      onClaudeParamsChange: (changes: ClaudeParams) => this.applyClaudeParams(changes),
+      onClaudeRefresh: (dataset: string) => this.refreshClaudeDataset(dataset),
+      onClaudeLinkChange: (name: string) => { void name; },
     }));
   }
 }

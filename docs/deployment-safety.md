@@ -1,9 +1,12 @@
 # Deployment safety
 
-Fabric deployment is a two-step operation. `deploy plan` performs read-only
+Fabric deployment begins with read-only `deploy discover` and `deploy status`.
+The mutation path is a two-step operation. `deploy plan` performs read-only
 workspace and item discovery and returns a content-derived plan ID. `deploy
 apply` accepts only that exact plan ID and repeats the workspace identity check
-before changing anything.
+before changing anything. The plan ID covers each local definition hash and,
+for updates, the current remote definition hash. Drift on either side requires
+a new plan before any write occurs.
 
 The planner requires a workspace ID and optionally verifies its expected name.
 It rejects workspaces without Fabric capacity and rejects ambiguous duplicate
@@ -17,8 +20,9 @@ existing remote definition to the requested backup directory first. Each
 published definition is downloaded again and structurally verified before the
 next action begins.
 
-Connection binding, refresh, and business-specific DAX acceptance are optional
+Connection binding, refresh, and business-specific DAX acceptance are explicit
 post-deployment actions recorded in the reviewed plan. Binding requires an
 explicit connection ID and exact source path/type match. The publisher never
 guesses a connection or silently replaces an item. A release is not declared
-healthy until the requested refresh and acceptance query pass.
+healthy until the requested refresh and acceptance query pass. A publication
+without all three is reported as `published-unverified`, never as accepted.
