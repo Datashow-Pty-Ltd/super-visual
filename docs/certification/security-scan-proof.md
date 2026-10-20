@@ -2,16 +2,16 @@
 
 This is a point-in-time assurance record, not a warranty or an independent
 certification. The code-hardening checkpoint is commit
-`f605bd872853a6cd85ce467e707e78a0e5e17438` in
+`5f2438819c8d63589b0db9f631224963f6ba3874` in
 `Datashow-Pty-Ltd/super-visual`.
 
 ## Automated evidence
 
 | Control | Result | Public evidence |
 |---|---|---|
-| Cross-platform CI and packaging | Passed on Linux, macOS, and Windows; Node 22 and 24; Hello World, AdventureWorks, and Claude fixture packaged | [CI run 39392727640](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39392727640) |
-| CodeQL security-extended | Workflow passed | [CodeQL run 39392727636](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39392727636) |
-| OpenSSF Scorecard | Workflow passed and SARIF published | [Scorecard run 39392727686](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39392727686) |
+| Cross-platform CI, packaging, supply chain, and fuzzing | Passed on Linux, macOS, and Windows; Node 22 and 24; Hello World, AdventureWorks, and Claude fixture packaged; 30,000 fuzz cases completed | [CI run 39396147822](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39396147822) |
+| CodeQL security-extended | Workflow passed with zero open CodeQL tool alerts | [CodeQL run 39396147733](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39396147733) |
+| OpenSSF Scorecard | Workflow passed and SARIF published | [Scorecard run 39396147684](https://github.com/Datashow-Pty-Ltd/super-visual/actions/runs/39396147684) |
 | npm dependency audit | Zero known vulnerabilities at moderate-or-higher severity | CI `supply-chain` job and local `npm run security:audit` |
 | Dependency alerts | Zero open Dependabot security alerts | GitHub Security at the recorded time |
 | Secret alerts | Zero open secret-scanning alerts; push protection enabled | GitHub Security at the recorded time |
@@ -45,11 +45,11 @@ corresponding boundaries when those flows change.
 ## Repository posture and remaining gaps
 
 Default-branch protection now requires the cross-platform test/package jobs,
-CodeQL, an up-to-date branch, pull-request flow, linear history, and resolved
-review conversations. Force pushes and deletion are disabled. Administrative
-bypass remains available for repository recovery, and zero approving reviews
-are required while the project has a single active maintainer; this is not
-independent code review.
+supply-chain scan, continuous fuzzing, CodeQL, an up-to-date branch,
+pull-request flow, linear history, and resolved review conversations. Force
+pushes and deletion are disabled. Administrative bypass remains available for
+repository recovery, and zero approving reviews are required while the project
+has a single active maintainer; this is not independent code review.
 
 The remaining OpenSSF Scorecard advisories are transparent roadmap items:
 
