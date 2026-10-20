@@ -16,12 +16,14 @@
     "stage:2": "npm run stage:1 && node scripts/verify-reference.mjs --source-root ../llm-power-bi",
     "stage:3": "npm run stage:1 && npm run contracts:test && npm run compliance:test && npm run runtime:test && npm run compiler:test",
     "stage:4": "npm run stage:3 && npm run semantic:test && npm run typecheck",
+    "stage:5": "npm run stage:4 && npm run solution:test",
     "reference:verify": "node scripts/verify-reference.mjs",
     "contracts:test": "vitest run packages/contracts/tests",
     "compliance:test": "vitest run packages/compliance/tests",
     "runtime:test": "vitest run packages/runtime-powerbi/tests",
     "compiler:test": "vitest run packages/compiler/tests",
     "semantic:test": "vitest run packages/semantic/tests",
+    "solution:test": "vitest run packages/compiler/tests/solution.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

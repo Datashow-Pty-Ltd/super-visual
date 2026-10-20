@@ -21,7 +21,8 @@ code become reusable packages.
 The repository is under active development toward `0.1.0`. See the
 [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [semantic binding](docs/semantic-binding.md), and
-[extraction inventory](docs/extraction-inventory.md).
+[solution bundle](docs/solution-bundle.md). The
+[extraction inventory](docs/extraction-inventory.md) maps each proven source.
 
 ## Intended workflow
 

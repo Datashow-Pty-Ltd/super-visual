@@ -46,3 +46,6 @@ export async function generateRuntimeManifests({ broker, pageSet, reportSource }
   }
   return { datasets: widgets.map((widget) => widget.id), generatedFiles: 5 + reportSource.files.length };
 }
+
+export { buildSolution, loadProject } from "./build-solution.mjs";
+export { generateReportWrapper } from "./report-wrapper.mjs";

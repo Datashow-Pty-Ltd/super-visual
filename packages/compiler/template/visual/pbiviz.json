@@ -1,0 +1,20 @@
+{
+  "visual": {
+    "name": "superVisualGenerated",
+    "displayName": "Super Visual",
+    "guid": "superVisualGenerated000000000000000000000000",
+    "visualClassName": "Visual",
+    "version": "1.0.0.0",
+    "description": "A compiled, semantically bound analytical application.",
+    "supportUrl": "https://github.com/Datashow-Pty-Ltd/super-visual",
+    "gitHubUrl": "https://github.com/Datashow-Pty-Ltd/super-visual"
+  },
+  "apiVersion": "5.11.1",
+  "author": { "name": "Datashow", "email": "support@datashow.com.au" },
+  "assets": { "icon": "assets/icon.png" },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": null,
+  "stringResources": []
+}

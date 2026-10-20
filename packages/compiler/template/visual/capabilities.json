@@ -1,0 +1,41 @@
+{
+  "dataRoles": [
+    { "name": "widgetId", "displayName": "Broker — widget ID", "kind": "Grouping" },
+    { "name": "axisKey", "displayName": "Broker — axis key", "kind": "Grouping" },
+    { "name": "label", "displayName": "Broker — label", "kind": "Grouping" },
+    { "name": "sort", "displayName": "Broker — sort", "kind": "Grouping" },
+    { "name": "seriesKey", "displayName": "Broker — series key", "kind": "Grouping" },
+    { "name": "seriesLabel", "displayName": "Broker — series label", "kind": "Grouping" },
+    { "name": "value", "displayName": "Broker — value", "kind": "Measure" },
+    { "name": "context", "displayName": "Broker — context", "kind": "Measure" }
+  ],
+  "objects": {
+    "general": {
+      "displayName": "General",
+      "properties": {
+        "filter": { "displayName": "Business filter", "type": { "filter": true } },
+        "selfFilter": { "displayName": "Widget request", "type": { "filter": { "selfFilter": true } } }
+      }
+    }
+  },
+  "dataViewMappings": [{
+    "conditions": [{
+      "widgetId": { "min": 1, "max": 1 }, "axisKey": { "min": 1, "max": 1 },
+      "label": { "min": 1, "max": 1 }, "sort": { "min": 1, "max": 1 },
+      "seriesKey": { "max": 1 }, "seriesLabel": { "max": 1 },
+      "value": { "min": 1, "max": 1 }, "context": { "min": 1, "max": 1 }
+    }],
+    "table": { "rows": { "select": [
+      { "for": { "in": "widgetId" } }, { "for": { "in": "axisKey" } },
+      { "for": { "in": "label" } }, { "for": { "in": "sort" } },
+      { "for": { "in": "seriesKey" } }, { "for": { "in": "seriesLabel" } },
+      { "for": { "in": "value" } }, { "for": { "in": "context" } }
+    ], "dataReductionAlgorithm": { "top": { "count": 30000 } } } }
+  }],
+  "supportsHighlight": false,
+  "supportsKeyboardFocus": true,
+  "supportsSynchronizingFilterState": true,
+  "supportsLandingPage": true,
+  "supportsEmptyDataView": true,
+  "privileges": []
+}
