@@ -45,6 +45,17 @@ export async function refreshSolutionManifest(outputDirectory) {
   return manifest;
 }
 
+export async function verifySolutionManifest(outputDirectory) {
+  const manifestPath = path.join(outputDirectory, "supervisual.manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const actual = await hashes(outputDirectory);
+  const expected = manifest.files ?? {};
+  const missing = Object.keys(expected).filter((file) => !(file in actual));
+  const unexpected = Object.keys(actual).filter((file) => !(file in expected));
+  const changed = Object.keys(expected).filter((file) => actual[file] && actual[file] !== expected[file]);
+  return { ok: missing.length === 0 && unexpected.length === 0 && changed.length === 0, missing, unexpected, changed, fileCount: Object.keys(actual).length };
+}
+
 async function generateVisual(project, inputs, visualRoot) {
   await cp(visualTemplate, visualRoot, { recursive: true });
   await cp(runtimeSource, path.join(visualRoot, "src"), { recursive: true });

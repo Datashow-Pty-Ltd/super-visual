@@ -3,6 +3,7 @@ dist/
 .tmp/
 .cache/
 coverage/
+.supervisual/
 
 .env
 .env.*

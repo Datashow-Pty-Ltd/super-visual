@@ -43,6 +43,10 @@ The [AdventureWorks sample](examples/adventureworks/README.md) is a complete
 consumer with source provenance and a human deployment guide. `npm run
 example:package` rebuilds and packages it end to end.
 
+Coding agents should follow [CLAUDE.md](CLAUDE.md) and the
+[agent interface](docs/agent-guide.md). Reusable Claude commands are included in
+`.claude/commands/`.
+
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).

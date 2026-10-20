@@ -1,0 +1,12 @@
+{
+  "name": "@datashow/super-visual-cli",
+  "version": "0.1.0-rc.0",
+  "type": "module",
+  "bin": { "supervisual": "bin/supervisual.mjs" },
+  "files": ["bin", "src"],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@datashow/super-visual-compiler": "0.1.0-rc.0",
+    "@datashow/super-visual-fabric": "0.1.0-rc.0"
+  }
+}

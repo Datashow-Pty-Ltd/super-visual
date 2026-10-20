@@ -4,6 +4,9 @@
   "private": true,
   "description": "Compile governed React dashboards into semantically bound Power BI applications.",
   "type": "module",
+  "bin": {
+    "supervisual": "packages/cli/bin/supervisual.mjs"
+  },
   "workspaces": [
     "packages/*",
     "examples/*"
@@ -19,6 +22,7 @@
     "stage:5": "npm run stage:4 && npm run solution:test",
     "stage:6": "npm run stage:5 && npm run fabric:test",
     "stage:7": "npm run stage:6 && npm run example:test",
+    "stage:8": "npm run stage:7 && npm run cli:test",
     "reference:verify": "node scripts/verify-reference.mjs",
     "contracts:test": "vitest run packages/contracts/tests",
     "compliance:test": "vitest run packages/compliance/tests",
@@ -29,6 +33,7 @@
     "fabric:test": "vitest run packages/fabric/tests",
     "example:test": "node scripts/verify-adventureworks.mjs",
     "example:package": "node scripts/verify-adventureworks.mjs --package",
+    "cli:test": "vitest run packages/cli/tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
