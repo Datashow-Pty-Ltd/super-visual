@@ -64,7 +64,8 @@ between automated assurance and independent certification are documented in the
 [security assurance guide](docs/security-assurance.md). See [SECURITY.md](SECURITY.md)
 for private vulnerability reporting and the
 [OpenSSF Best Practices readiness checklist](docs/certification/openssf-best-practices-readiness.md)
-for the certification path.
+for the certification path. The latest public evidence snapshot is the
+[security scan proof](docs/certification/security-scan-proof.md).
 
 ## License
 

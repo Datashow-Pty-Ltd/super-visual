@@ -12,7 +12,8 @@ function trustedUrl(pathOrUrl, serviceBase, expectedOrigin) {
   const candidate = /^https:\/\//i.test(value)
     ? new URL(value)
     : new URL(`${serviceBase}${value.startsWith("/") ? value : `/${value}`}`);
-  if (candidate.protocol !== "https:" || candidate.origin !== expectedOrigin || candidate.username || candidate.password) {
+  const regionalFabricOperation = expectedOrigin === fabricOrigin && candidate.hostname.endsWith(".analysis.windows.net");
+  if (candidate.protocol !== "https:" || (candidate.origin !== expectedOrigin && !regionalFabricOperation) || candidate.username || candidate.password) {
     throw new Error(`Refusing untrusted service URL: ${candidate.origin}`);
   }
   return candidate;
@@ -35,7 +36,7 @@ export class FabricHttpClient {
 
   async request(pathOrUrl, method, skill, body) {
     const url = trustedUrl(pathOrUrl, base, fabricOrigin);
-    // Body data is deliberately sent only to the fixed Microsoft Fabric origin after contract validation.
+    // Body data is deliberately sent only to allowlisted Microsoft Fabric service hosts after contract validation.
     const response = await fetch(url, { method, redirect: "error", headers: { Authorization: `Bearer ${await this.accessToken("fabric")}`, "x-ms-fabric-skill": skill, ...(body === undefined ? {} : { "Content-Type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     return this.complete(response, skill);
   }
@@ -75,6 +76,7 @@ export class FabricHttpClient {
 
   skill(type) { return type === "Report" ? "powerbi-report-management" : "semantic-model-authoring"; }
   collection(type) { return type === "Report" ? "reports" : "semanticModels"; }
+  async listWorkspaces() { const output = []; let next = "/workspaces"; while (next) { const page = await this.request(next, "GET", "semantic-model-authoring"); output.push(...(page.value ?? [])); next = page.continuationUri; } return output; }
   async getWorkspace(id) { return this.request(`/workspaces/${segment(id)}`, "GET", "semantic-model-authoring"); }
   async listItems(workspaceId, type) {
     const output = []; let next = `/workspaces/${segment(workspaceId)}/items?type=${segment(type)}`;

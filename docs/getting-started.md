@@ -79,6 +79,8 @@ an official Anthropic export schema.
 Before deploying, inspect a model with immutable IDs and no mutation:
 
 ```bash
+npx supervisual deploy workspaces --json
+
 npx supervisual semantic discover \
   --workspace-id <workspace-guid> \
   --workspace-name <expected-name> \

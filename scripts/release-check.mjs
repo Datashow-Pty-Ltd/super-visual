@@ -8,6 +8,7 @@ const root = path.resolve(".");
 const required = [
   "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
   "CLAUDE.md", "AGENTS.md", "skills/super-visual/SKILL.md", ".claude/skills/super-visual/SKILL.md", ".codex/skills/super-visual/SKILL.md",
+  "docs/certification/security-scan-proof.md", "docs/certification/openssf-best-practices-readiness.md",
   ".github/workflows/ci.yml", ".github/workflows/release.yml", ".github/workflows/codeql.yml",
   ".github/workflows/dependency-review.yml", ".github/workflows/scorecard.yml", ".github/dependabot.yml",
 ];

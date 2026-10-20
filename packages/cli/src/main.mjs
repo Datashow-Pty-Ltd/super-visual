@@ -7,7 +7,7 @@ import { Command, CommanderError } from "commander";
 import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
 import { evaluateLiveCertification, loadContract, migrateProjectContracts } from "@datashow/super-visual-contracts";
-import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
+import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, discoverFabricWorkspaces, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
 import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
 
@@ -229,6 +229,14 @@ function createProgram() {
     });
 
   const deploy = program.command("deploy").description("plan and apply guarded Microsoft Fabric deployments");
+  addJsonOption(deploy.command("workspaces"))
+    .description("list accessible Fabric workspaces and immutable IDs without mutation")
+    .option("--timeout <seconds>", "Fabric operation timeout", "900")
+    .action(async (options, command) => {
+      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      output(await discoverFabricWorkspaces({ client }), jsonEnabled(command));
+    });
+
   addJsonOption(deploy.command("discover"))
     .description("read workspace identity, items, and optionally accessible connections")
     .requiredOption("--workspace-id <id>", "immutable Fabric workspace ID")

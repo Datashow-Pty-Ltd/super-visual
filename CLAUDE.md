@@ -20,7 +20,8 @@ source assets, run `check`, then rebuild.
    embedded PBIR resource bundle are required.
 5. Run `npx supervisual verify <project> --json`. Do not deploy a bundle whose
    manifest verification fails.
-6. Run `deploy discover` before planning, then run `deploy plan` before every Fabric change. Report its workspace ID, exact
+6. Run `deploy workspaces` when the immutable target ID is unknown, then run
+   `deploy discover` before planning and `deploy plan` before every Fabric change. Report its workspace ID, exact
    item names, operations, blockers, and plan ID.
 7. Run `deploy apply` only when the human explicitly authorises that exact plan
    ID. Never infer `--allow-updates`; updates replace full remote definitions.

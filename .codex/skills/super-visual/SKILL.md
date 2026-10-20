@@ -52,7 +52,9 @@ that inventory with a project's semantic and broker contracts. Both commands are
 read-only; an optional acceptance query may return only its row-count evidence.
 
 Deployment uses plan/apply. Planning is read-only and requires an immutable
-workspace ID. Run `deploy discover` first, use `deploy diff` when comparing a
+workspace ID. Run `deploy workspaces` when the target ID is unknown; it is a
+read-only inventory and never authorizes choosing a workspace on the user's
+behalf. Run `deploy discover` first, use `deploy diff` when comparing a
 built bundle with same-named remote items, and run `deploy status` after apply.
 Report the target identity, operations, blockers, and exact plan ID. Apply only
 after the human explicitly authorizes that exact plan ID and target workspace.

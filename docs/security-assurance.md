@@ -37,6 +37,9 @@ npm run security:sbom
 The generated `.artifacts/security/sbom.cdx.json` file is disposable. Tagged
 releases attach the SBOM, checksums, and attestations to the release.
 
+The latest point-in-time results and reviewed CodeQL dispositions are recorded
+in [`docs/certification/security-scan-proof.md`](certification/security-scan-proof.md).
+
 ## Security boundaries
 
 Super Visual treats dashboard imports, project contracts, generated-definition
