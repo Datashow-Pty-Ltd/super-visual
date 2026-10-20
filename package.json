@@ -17,6 +17,7 @@
     "stage:3": "npm run stage:1 && npm run contracts:test && npm run compliance:test && npm run runtime:test && npm run compiler:test",
     "stage:4": "npm run stage:3 && npm run semantic:test && npm run typecheck",
     "stage:5": "npm run stage:4 && npm run solution:test",
+    "stage:6": "npm run stage:5 && npm run fabric:test",
     "reference:verify": "node scripts/verify-reference.mjs",
     "contracts:test": "vitest run packages/contracts/tests",
     "compliance:test": "vitest run packages/compliance/tests",
@@ -24,6 +25,7 @@
     "compiler:test": "vitest run packages/compiler/tests",
     "semantic:test": "vitest run packages/semantic/tests",
     "solution:test": "vitest run packages/compiler/tests/solution.test.mjs",
+    "fabric:test": "vitest run packages/fabric/tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

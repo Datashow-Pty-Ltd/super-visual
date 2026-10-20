@@ -1,0 +1,8 @@
+{
+  "name": "@datashow/super-visual-fabric",
+  "version": "0.1.0-rc.0",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "files": ["src"],
+  "license": "Apache-2.0"
+}
