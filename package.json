@@ -18,6 +18,7 @@
     "stage:4": "npm run stage:3 && npm run semantic:test && npm run typecheck",
     "stage:5": "npm run stage:4 && npm run solution:test",
     "stage:6": "npm run stage:5 && npm run fabric:test",
+    "stage:7": "npm run stage:6 && npm run example:test",
     "reference:verify": "node scripts/verify-reference.mjs",
     "contracts:test": "vitest run packages/contracts/tests",
     "compliance:test": "vitest run packages/compliance/tests",
@@ -26,11 +27,14 @@
     "semantic:test": "vitest run packages/semantic/tests",
     "solution:test": "vitest run packages/compiler/tests/solution.test.mjs",
     "fabric:test": "vitest run packages/fabric/tests",
+    "example:test": "node scripts/verify-adventureworks.mjs",
+    "example:package": "node scripts/verify-adventureworks.mjs --package",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "ajv": "8.17.1",
     "ajv-formats": "3.0.1",
+    "fflate": "0.8.2",
     "yaml": "2.9.1"
   },
   "devDependencies": {

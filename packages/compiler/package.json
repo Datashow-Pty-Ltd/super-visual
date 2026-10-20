@@ -9,6 +9,7 @@
     "@datashow/super-visual-compliance": "0.1.0-rc.0",
     "@datashow/super-visual-contracts": "0.1.0-rc.0",
     "@datashow/super-visual-semantic": "0.1.0-rc.0",
+    "fflate": "0.8.2",
     "yaml": "2.9.1"
   }
 }

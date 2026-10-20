@@ -1,6 +1,6 @@
 import powerbi from "powerbi-visuals-api";
-import { DATASET_KEYS, type DatasetKey, type MetricPoint, type WidgetDataset } from "./model.js";
-import { WIDGET_MANIFEST } from "./widgetManifest.js";
+import { DATASET_KEYS, type DatasetKey, type MetricPoint, type WidgetDataset } from "./model";
+import { WIDGET_MANIFEST } from "./widgetManifest";
 
 const ROLE = {
   widgetId: "widgetId",

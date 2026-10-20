@@ -1,4 +1,4 @@
-import type { WidgetDataset } from "./model.js";
+import type { WidgetDataset } from "./model";
 
 const colors = ["#1f777a", "#e66550", "#39725f", "#f2c23e"];
 

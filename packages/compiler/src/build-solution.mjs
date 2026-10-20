@@ -37,6 +37,14 @@ async function hashes(root) {
   return output;
 }
 
+export async function refreshSolutionManifest(outputDirectory) {
+  const manifestPath = path.join(outputDirectory, "supervisual.manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.files = await hashes(outputDirectory);
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifest;
+}
+
 async function generateVisual(project, inputs, visualRoot) {
   await cp(visualTemplate, visualRoot, { recursive: true });
   await cp(runtimeSource, path.join(visualRoot, "src"), { recursive: true });

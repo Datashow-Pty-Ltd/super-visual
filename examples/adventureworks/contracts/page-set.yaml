@@ -1,0 +1,164 @@
+contractVersion: 1
+shell:
+  id: adventureworks-product-ledger
+  title: AdventureWorks Performance
+  defaultPage: products
+  designSystem:
+    id: datashow-analytical
+    sha256: cb6129f16bffcc202ae700d58f207f12112151f712d32ed4f081a1e96780e8ca
+  acceptedConcept: { id: adventureworks-product-ledger }
+  governanceLabel: Power BI governed
+  locale: en-AU
+  currencyCode: AUD
+  filterContext: []
+  navigation:
+    - { page: overview, label: Overview }
+    - { page: products, label: Products }
+    - { page: customers, label: Customers }
+    - { page: geography, label: Geography }
+  theme:
+    background: '#F6F5EF'
+    surface: '#FFFEFA'
+    quietSurface: '#F0EFE8'
+    text: '#173C36'
+    mutedText: '#59645F'
+    metadata: '#6D7772'
+    rule: '#C9D0C8'
+    grid: '#E4E6E1'
+    accent: '#2F6F73'
+    attention: '#8F6A38'
+    positive: '#39725F'
+    negative: '#B84A52'
+    context: ['#2F6F73', '#6F6A9A', '#8F6A38']
+    dataColors: ['#2F6F73', '#6F6A9A', '#8F6A38', '#4F7D68', '#7B668C']
+    displayFont: Source Serif 4, Georgia, serif
+    bodyFont: Inter, Aptos, Segoe UI, sans-serif
+    contentWidth: 1560
+    layoutColumns: 12
+    layoutGap: 18
+    cardRadius: 0
+    cardPadding: [16, 16, 16, 16]
+    kpiTopAccent: 0
+    density: comfortable
+    typography: { findingMin: 40, findingMax: 64, sectionTitle: 21, kpiValue: 32, body: 15, chart: 12, table: 13, metadata: 11 }
+pages:
+  - id: overview
+    title: Executive Overview
+    eyebrow: AdventureWorks / trading performance
+    summary:
+      headline: Revenue is growing, led by the bike portfolio.
+      body: Follow monthly momentum, category mix, and market contribution from one governed analytical surface.
+      emphasisBinding: { dataset: category, field: value, aggregation: sum }
+    search: null
+    kpis:
+      - { id: revenue, conceptRegionId: revenue, label: Revenue, binding: { dataset: category, field: value, aggregation: sum }, reportWidgetIds: [category], businessQuestionIds: [growth-drivers], format: currency-compact, comparison: null }
+      - { id: markets, conceptRegionId: markets, label: Markets, binding: { dataset: territory, field: label, aggregation: count }, reportWidgetIds: [territory], businessQuestionIds: [market-performance], format: number, comparison: null }
+    widgets:
+      - id: trend
+        conceptRegionId: trend
+        primitive: line
+        title: Revenue momentum
+        subtitle: Sales and gross profit by month
+        dataset: trend
+        reportWidgetIds: [trend]
+        businessQuestionIds: [business-health]
+        layout: { columns: 8, minHeight: 360 }
+        settings: { orientation: null, curve: monotoneX, showLegend: true, showLabels: false, sort: none, limit: 48, emphasis: area }
+      - id: category
+        conceptRegionId: category
+        primitive: bar
+        title: Category contribution
+        subtitle: Revenue ranked by category
+        dataset: category
+        reportWidgetIds: [category]
+        businessQuestionIds: [growth-drivers]
+        layout: { columns: 4, minHeight: 360 }
+        settings: { orientation: horizontal, curve: null, showLegend: false, showLabels: true, sort: descending, limit: 12, emphasis: bars }
+  - id: products
+    title: Product Ledger
+    eyebrow: AdventureWorks / product intelligence
+    summary:
+      headline: Product contribution is concentrated in the bike portfolio.
+      body: Trace revenue from category through subcategory to individual product and compare the leading contributors.
+      emphasisBinding: { dataset: product, field: value, aggregation: sum }
+    search: { placeholder: Search products or categories, dataset: product, filterTarget: 'Product[Product Category]' }
+    kpis:
+      - { id: product-revenue, conceptRegionId: product-revenue, label: Product revenue, binding: { dataset: product, field: value, aggregation: sum }, reportWidgetIds: [product], businessQuestionIds: [product-performance], format: currency-compact, comparison: null }
+      - { id: active-products, conceptRegionId: active-products, label: Products shown, binding: { dataset: product, field: label, aggregation: distinct-count }, reportWidgetIds: [product], businessQuestionIds: [product-performance], format: number, comparison: null }
+    widgets:
+      - id: product-hierarchy
+        conceptRegionId: product
+        primitive: tree
+        title: Product hierarchy
+        subtitle: Revenue flow from portfolio to product
+        dataset: product
+        reportWidgetIds: [product]
+        businessQuestionIds: [product-performance]
+        layout: { columns: 8, minHeight: 520 }
+        settings: { orientation: null, curve: null, showLegend: false, showLabels: true, sort: descending, limit: 100, emphasis: nodes }
+      - id: top-products
+        conceptRegionId: product-ranking
+        primitive: ranked-table
+        title: Top products
+        subtitle: Ranked by revenue contribution
+        dataset: product
+        reportWidgetIds: [product]
+        businessQuestionIds: [product-performance]
+        layout: { columns: 4, minHeight: 520 }
+        settings: { orientation: null, curve: null, showLegend: false, showLabels: true, sort: descending, limit: 20, emphasis: null }
+  - id: customers
+    title: Customer Observatory
+    eyebrow: AdventureWorks / customer intelligence
+    summary:
+      headline: A concentrated customer cohort anchors commercial performance.
+      body: Follow the governed category-to-customer revenue flow and expose concentration without leaving the report context.
+      emphasisBinding: { dataset: customer, field: value, aggregation: sum }
+    search: null
+    kpis:
+      - { id: customer-revenue, conceptRegionId: customer-revenue, label: Tracked revenue, binding: { dataset: customer, field: value, aggregation: sum }, reportWidgetIds: [customer], businessQuestionIds: [customer-concentration], format: currency-compact, comparison: null }
+      - { id: customer-count, conceptRegionId: customer-count, label: Customers shown, binding: { dataset: customer, field: label, aggregation: count }, reportWidgetIds: [customer], businessQuestionIds: [customer-concentration], format: number, comparison: null }
+    widgets:
+      - id: customer-flow
+        conceptRegionId: customer
+        primitive: sankey
+        title: Who buys these products?
+        subtitle: Category to customer revenue flow
+        dataset: customer
+        reportWidgetIds: [customer]
+        businessQuestionIds: [customer-concentration]
+        layout: { columns: 12, minHeight: 560 }
+        settings: { orientation: horizontal, curve: null, showLegend: false, showLabels: true, sort: none, limit: 100, emphasis: nodes }
+  - id: geography
+    title: Territory Fieldbook
+    eyebrow: AdventureWorks / geographic intelligence
+    summary:
+      headline: North America remains the centre of gravity.
+      body: Read territory contribution in the same governed context as every other route.
+      emphasisBinding: { dataset: territory, field: value, aggregation: sum }
+    search: null
+    kpis:
+      - { id: territory-revenue, conceptRegionId: territory-revenue, label: Territory revenue, binding: { dataset: territory, field: value, aggregation: sum }, reportWidgetIds: [territory], businessQuestionIds: [market-performance], format: currency-compact, comparison: null }
+      - { id: territory-count, conceptRegionId: territory-count, label: Territories, binding: { dataset: territory, field: label, aggregation: count }, reportWidgetIds: [territory], businessQuestionIds: [market-performance], format: number, comparison: null }
+    widgets:
+      - id: territory-share
+        conceptRegionId: territory
+        primitive: pie
+        title: Territory share
+        subtitle: Revenue contribution by sales territory
+        dataset: territory
+        reportWidgetIds: [territory]
+        businessQuestionIds: [market-performance]
+        layout: { columns: 12, minHeight: 500 }
+        settings: { orientation: null, curve: null, showLegend: true, showLabels: true, sort: descending, limit: 20, emphasis: null }
+interactions:
+  - { source: category, action: filter, target: category, invalidates: [trend, territory, customer, product] }
+designRationale:
+  narrative: Preserve the proven editorial ledger, route structure, chart grammar, and governed selection behavior from the deployed AdventureWorks Super Visual.
+  decisions:
+    - Keep the report application source separate from the reusable Power BI runtime.
+    - Use one long-table broker contract for every route and component.
+  accessibility:
+    - Retain semantic headings, keyboard-selectable controls, direct labels, and reduced-motion behavior.
+    - Never rely on colour as the only carrier of meaning.
+  risks:
+    - The sample database endpoint and Fabric connection must be supplied by the deployer.

@@ -1,4 +1,4 @@
-import type { ActiveSelections, DashboardModel, DatasetKey, MetricPoint } from "./model.js";
+import type { ActiveSelections, DashboardModel, DatasetKey, MetricPoint } from "./model";
 
 export interface ReportApplicationProps {
   model: DashboardModel;

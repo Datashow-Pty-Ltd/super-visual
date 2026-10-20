@@ -1,0 +1,23 @@
+{
+  "summary": "Template widgets bound only to executable semantic objects.",
+  "adapterMode": "source-direct-import",
+  "baseModelMutation": false,
+  "dataView": {
+    "mapping": "table",
+    "discriminator": "WidgetId",
+    "fields": ["WidgetId", "AxisKey", "Label", "Sort", "SeriesKey", "SeriesLabel", "WidgetValue", "BrokerContext"]
+  },
+  "widgets": [
+    { "id": "trend", "title": "Sales and gross profit by month", "reportWidgetIds": ["trend"], "businessQuestionIds": ["business-health"], "shape": "categorical", "dimensions": [{ "key": "Date[Year Month]", "label": "Date[Year Month]" }], "axis": "Date[Year Month]", "measures": ["[Total Sales]", "[Gross Profit]"], "rowLimit": 48, "rowSelection": "last-by-axis", "selectable": false, "invalidates": [] },
+    { "id": "category", "title": "Sales by category", "reportWidgetIds": ["category"], "businessQuestionIds": ["growth-drivers"], "shape": "categorical", "dimensions": [{ "key": "Product[Product Category]", "label": "Product[Product Category]" }], "axis": "Product[Product Category]", "measures": ["[Total Sales]"], "rowLimit": 12, "rowSelection": "top-by-value", "selectable": true, "invalidates": ["trend", "territory", "customer", "product"] },
+    { "id": "territory", "title": "Sales by territory", "reportWidgetIds": ["territory"], "businessQuestionIds": ["market-performance"], "shape": "categorical", "dimensions": [{ "key": "Sales Territory[Region]", "label": "Sales Territory[Region]" }], "axis": "Sales Territory[Region]", "measures": ["[Total Sales]"], "rowLimit": 20, "rowSelection": "top-by-value", "selectable": false, "invalidates": [] },
+    { "id": "customer", "title": "Sales by customer and category", "reportWidgetIds": ["customer"], "businessQuestionIds": ["customer-concentration"], "shape": "flow", "dimensions": [{ "key": "Product[Product Category]", "label": "Product[Product Category]" }, { "key": "Customer[Customer Key]", "label": "Customer[Customer]" }], "axis": "Customer[Customer]", "measures": ["[Total Sales]"], "rowLimit": 100, "rowSelection": "top-by-value", "selectable": false, "invalidates": [] },
+    { "id": "product", "title": "Sales by product hierarchy", "reportWidgetIds": ["product"], "businessQuestionIds": ["product-performance"], "shape": "hierarchy", "dimensions": [{ "key": "Product[Product Category]", "label": "Product[Product Category]" }, { "key": "Product[Product Subcategory]", "label": "Product[Product Subcategory]" }, { "key": "Product[Product Key]", "label": "Product[Product]" }], "axis": "Product[Product]", "measures": ["[Total Sales]"], "rowLimit": 100, "rowSelection": "top-by-value", "selectable": false, "invalidates": [] }
+  ],
+  "cachePolicy": {
+    "retainSourceWidget": true,
+    "cancelStaleRequests": true,
+    "externalFilterInvalidation": "all-dependent-widgets"
+  },
+  "risks": []
+}

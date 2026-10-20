@@ -1,5 +1,5 @@
-import { DATASET_KEYS, type DatasetKey } from "./model.js";
-import { SELECTION_DEPENDENCIES } from "./dependencyManifest.js";
+import { DATASET_KEYS, type DatasetKey } from "./model";
+import { SELECTION_DEPENDENCIES } from "./dependencyManifest";
 
 function contextParts(context: string): Record<string, string> {
   return Object.fromEntries(context.split(";").map((part) => {

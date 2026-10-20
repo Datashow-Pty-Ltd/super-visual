@@ -1,6 +1,6 @@
-import { DATASET_KEYS, type DatasetKey } from "./datasetRegistry.js";
+import { DATASET_KEYS, type DatasetKey } from "./datasetRegistry";
 
-export { DATASET_KEYS, type DatasetKey } from "./datasetRegistry.js";
+export { DATASET_KEYS, type DatasetKey } from "./datasetRegistry";
 
 export type WidgetStatus = "empty" | "fresh" | "stale" | "loading" | "error";
 

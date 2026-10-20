@@ -1,0 +1,364 @@
+contractVersion: 1
+name: AdventureWorks Sales
+culture: en-AU
+compatibilityLevel: 1702
+storageMode: import
+sourceParameters:
+  server: localhost
+  database: AdventureWorksDW2025
+tables:
+  - name: Sales
+    role: fact
+    grain: One row per sales order line across the Internet and Reseller channels.
+    description: Conformed sales transactions for revenue, volume, cost, margin, customer, product, geography, channel, and time analysis.
+    source:
+      referencedTables:
+        - { schema: dbo, table: FactInternetSales }
+        - { schema: dbo, table: FactResellerSales }
+      sql: |-
+        SELECT
+          CAST(N'Internet' AS nvarchar(20)) AS [Channel],
+          ProductKey AS [Product Key],
+          OrderDateKey AS [Order Date Key],
+          CAST(CustomerKey AS bigint) AS [Customer Key],
+          PromotionKey AS [Promotion Key],
+          CurrencyKey AS [Currency Key],
+          SalesTerritoryKey AS [Sales Territory Key],
+          CONCAT(N'Internet|', SalesOrderNumber) AS [Order Number],
+          CAST(OrderQuantity AS bigint) AS [Order Quantity],
+          CAST(DiscountAmount AS decimal(19,4)) AS [Discount Amount],
+          CAST(TotalProductCost AS decimal(19,4)) AS [Total Product Cost],
+          CAST(SalesAmount AS decimal(19,4)) AS [Sales Amount],
+          CAST(TaxAmt AS decimal(19,4)) AS [Tax Amount],
+          CAST(Freight AS decimal(19,4)) AS [Freight Amount]
+        FROM dbo.FactInternetSales
+        UNION ALL
+        SELECT
+          CAST(N'Reseller' AS nvarchar(20)) AS [Channel],
+          ProductKey AS [Product Key],
+          OrderDateKey AS [Order Date Key],
+          CAST(1000000 + ResellerKey AS bigint) AS [Customer Key],
+          PromotionKey AS [Promotion Key],
+          CurrencyKey AS [Currency Key],
+          SalesTerritoryKey AS [Sales Territory Key],
+          CONCAT(N'Reseller|', SalesOrderNumber) AS [Order Number],
+          CAST(OrderQuantity AS bigint) AS [Order Quantity],
+          CAST(DiscountAmount AS decimal(19,4)) AS [Discount Amount],
+          CAST(TotalProductCost AS decimal(19,4)) AS [Total Product Cost],
+          CAST(SalesAmount AS decimal(19,4)) AS [Sales Amount],
+          CAST(TaxAmt AS decimal(19,4)) AS [Tax Amount],
+          CAST(Freight AS decimal(19,4)) AS [Freight Amount]
+        FROM dbo.FactResellerSales
+    columns:
+      - { name: Channel, sourceColumn: Channel, dataType: String, hidden: false, summarizeBy: none, description: The originating route to market, either Internet or Reseller. }
+      - { name: Product Key, sourceColumn: Product Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining each sales line to its product. }
+      - { name: Order Date Key, sourceColumn: Order Date Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining each sales line to its order date. }
+      - { name: Customer Key, sourceColumn: Customer Key, dataType: Int64, hidden: true, summarizeBy: none, description: Conformed key joining individual and reseller customers. }
+      - { name: Promotion Key, sourceColumn: Promotion Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining each sales line to its promotion. }
+      - { name: Currency Key, sourceColumn: Currency Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining each sales line to its transaction currency. }
+      - { name: Sales Territory Key, sourceColumn: Sales Territory Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining each sales line to its sales territory. }
+      - { name: Order Number, sourceColumn: Order Number, dataType: String, hidden: true, summarizeBy: none, description: Channel-qualified order identifier used by the order count measure. }
+      - { name: Order Quantity, sourceColumn: Order Quantity, dataType: Int64, hidden: true, summarizeBy: none, description: Number of product units represented by the sales line. }
+      - { name: Discount Amount, sourceColumn: Discount Amount, dataType: Decimal, hidden: true, summarizeBy: none, description: Extended discount value recorded for the sales line. }
+      - { name: Total Product Cost, sourceColumn: Total Product Cost, dataType: Decimal, hidden: true, summarizeBy: none, description: Standard product cost extended to the sales line quantity. }
+      - { name: Sales Amount, sourceColumn: Sales Amount, dataType: Decimal, hidden: true, summarizeBy: none, description: Revenue before tax and freight recorded for the sales line. }
+      - { name: Tax Amount, sourceColumn: Tax Amount, dataType: Decimal, hidden: true, summarizeBy: none, description: Tax charged for the sales line. }
+      - { name: Freight Amount, sourceColumn: Freight Amount, dataType: Decimal, hidden: true, summarizeBy: none, description: Freight charged for the sales line. }
+    measures:
+      - { name: Total Sales, expression: "SUM('Sales'[Sales Amount])", formatString: "$#,##0", displayFolder: Measures\Value, description: Revenue before tax and freight for the current filter context. }
+      - { name: Total Cost, expression: "SUM('Sales'[Total Product Cost])", formatString: "$#,##0", displayFolder: Measures\Value, description: Standard product cost for sales in the current filter context. }
+      - { name: Gross Profit, expression: "SUM('Sales'[Sales Amount]) - SUM('Sales'[Total Product Cost])", formatString: "$#,##0", displayFolder: Measures\Value, description: Revenue less standard product cost before tax, freight, and operating expenses. }
+      - name: Gross Margin (%)
+        expression: |-
+          VAR _sales = [Total Sales]
+          RETURN DIVIDE([Gross Profit], _sales)
+        formatString: 0.0%
+        displayFolder: Measures\Rates
+        description: Gross profit as a share of revenue for the current filter context.
+      - { name: "# Orders", expression: "DISTINCTCOUNT('Sales'[Order Number])", formatString: "#,##0", displayFolder: Measures\Counts, description: Distinct channel-qualified sales orders in the current filter context. }
+      - { name: "# Customers", expression: "DISTINCTCOUNT('Sales'[Customer Key])", formatString: "#,##0", displayFolder: Measures\Counts, description: Distinct individual or reseller customers that generated sales. }
+      - { name: Units Sold, expression: "SUM('Sales'[Order Quantity])", formatString: "#,##0", displayFolder: Measures\Quantity, description: Total product units sold in the current filter context. }
+      - { name: Average Order Value, expression: "DIVIDE([Total Sales], [# Orders])", formatString: "$#,##0", displayFolder: Measures\Rates, description: Average revenue per distinct channel-qualified sales order. }
+      - { name: Total Sales (ly), expression: "CALCULATE([Total Sales], SAMEPERIODLASTYEAR('Date'[Date]))", formatString: "$#,##0", displayFolder: Measures\Time Intelligence, description: Revenue for the equivalent date period one year earlier. }
+      - name: Sales Growth (%)
+        expression: |-
+          VAR _currentSales = [Total Sales]
+          VAR _lastYearSales = [Total Sales (ly)]
+          RETURN DIVIDE(_currentSales - _lastYearSales, _lastYearSales)
+        formatString: 0.0%
+        displayFolder: Measures\Time Intelligence
+        description: Percentage change in revenue compared with the equivalent prior-year period.
+      - name: Product Sales Rank
+        expression: |-
+          RANKX(
+            ALLSELECTED('Product'),
+            [Total Sales],
+            ,
+            DESC,
+            Dense
+          )
+        formatString: "#,##0"
+        displayFolder: Measures\Ranking
+        description: Dense product sales rank within the active report filter context.
+      - { name: Total Sales (ytd), expression: "TOTALYTD([Total Sales], 'Date'[Date])", formatString: "$#,##0", displayFolder: Measures\Time Intelligence, description: Revenue accumulated from the start of the calendar year through the current date context. }
+      - { name: Internet Sales, expression: "CALCULATE([Total Sales], KEEPFILTERS('Sales'[Channel] = \"Internet\"))", formatString: "$#,##0", displayFolder: Measures\Channel, description: Revenue originating from direct Internet customer orders. }
+      - { name: Reseller Sales, expression: "CALCULATE([Total Sales], KEEPFILTERS('Sales'[Channel] = \"Reseller\"))", formatString: "$#,##0", displayFolder: Measures\Channel, description: Revenue originating from reseller channel orders. }
+    hierarchies: []
+  - name: Date
+    role: dimension
+    grain: One row per contiguous calendar date.
+    description: Conformed calendar for filtering and calendar time-intelligence calculations.
+    dataCategory: Time
+    source:
+      referencedTables: [{ schema: dbo, table: DimDate }]
+      sql: |-
+        SELECT
+          DateKey AS [Date Key],
+          FullDateAlternateKey AS [Date],
+          CalendarYear AS [Year],
+          CalendarQuarter AS [Quarter Number],
+          CONCAT(N'Q', CalendarQuarter) AS [Quarter],
+          MonthNumberOfYear AS [Month Number],
+          EnglishMonthName AS [Month],
+          CalendarYear * 100 + MonthNumberOfYear AS [Year Month Number],
+          CONCAT(LEFT(EnglishMonthName, 3), N' ', CalendarYear) AS [Year Month],
+          DayNumberOfMonth AS [Day of Month],
+          DayNumberOfWeek AS [Day of Week Number],
+          EnglishDayNameOfWeek AS [Day of Week]
+        FROM dbo.DimDate
+    columns:
+      - { name: Date Key, sourceColumn: Date Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical integer key joining the calendar to sales facts. }
+      - { name: Date, sourceColumn: Date, dataType: DateTime, hidden: false, summarizeBy: none, formatString: dd mmm yyyy, description: Calendar date used for filtering and time intelligence. }
+      - { name: Year, sourceColumn: Year, dataType: Int64, hidden: false, summarizeBy: none, formatString: "0", description: Four-digit calendar year containing the date. }
+      - { name: Quarter Number, sourceColumn: Quarter Number, dataType: Int64, hidden: true, summarizeBy: none, description: Numeric calendar quarter used to sort quarter labels. }
+      - { name: Quarter, sourceColumn: Quarter, dataType: String, hidden: false, summarizeBy: none, sortByColumn: Quarter Number, description: Calendar quarter label from Q1 through Q4. }
+      - { name: Month Number, sourceColumn: Month Number, dataType: Int64, hidden: true, summarizeBy: none, description: Month position from one through twelve used for sorting. }
+      - { name: Month, sourceColumn: Month, dataType: String, hidden: false, summarizeBy: none, sortByColumn: Month Number, description: Full English calendar month name. }
+      - { name: Year Month Number, sourceColumn: Year Month Number, dataType: Int64, hidden: true, summarizeBy: none, description: Numeric year-month key used to sort month labels across years. }
+      - { name: Year Month, sourceColumn: Year Month, dataType: String, hidden: false, summarizeBy: none, sortByColumn: Year Month Number, description: Abbreviated month and year label for chronological trends. }
+      - { name: Day of Month, sourceColumn: Day of Month, dataType: Int64, hidden: false, summarizeBy: none, description: Calendar day number within the month. }
+      - { name: Day of Week Number, sourceColumn: Day of Week Number, dataType: Int64, hidden: true, summarizeBy: none, description: Numeric weekday position used to sort weekday names. }
+      - { name: Day of Week, sourceColumn: Day of Week, dataType: String, hidden: false, summarizeBy: none, sortByColumn: Day of Week Number, description: English weekday name for the calendar date. }
+    measures: []
+    hierarchies:
+      - name: Calendar
+        levels:
+          - { name: Year, column: Year }
+          - { name: Quarter, column: Quarter }
+          - { name: Month, column: Month }
+          - { name: Date, column: Date }
+  - name: Product
+    role: dimension
+    grain: One row per AdventureWorks product version.
+    description: Denormalized product catalog with category, subcategory, model, color, and price attributes.
+    source:
+      referencedTables:
+        - { schema: dbo, table: DimProduct }
+        - { schema: dbo, table: DimProductSubcategory }
+        - { schema: dbo, table: DimProductCategory }
+      sql: |-
+        SELECT
+          p.ProductKey AS [Product Key],
+          p.ProductKey AS [Product ID],
+          p.EnglishProductName AS [Product],
+          COALESCE(sc.EnglishProductSubcategoryName, N'Unassigned') AS [Product Subcategory],
+          COALESCE(c.EnglishProductCategoryName, N'Unassigned') AS [Product Category],
+          COALESCE(NULLIF(p.Color, N'NA'), N'Unspecified') AS [Color],
+          COALESCE(p.ModelName, N'Unspecified') AS [Model],
+          CAST(p.StandardCost AS decimal(19,4)) AS [Standard Cost],
+          CAST(p.ListPrice AS decimal(19,4)) AS [List Price]
+        FROM dbo.DimProduct AS p
+        LEFT JOIN dbo.DimProductSubcategory AS sc ON sc.ProductSubcategoryKey = p.ProductSubcategoryKey
+        LEFT JOIN dbo.DimProductCategory AS c ON c.ProductCategoryKey = sc.ProductCategoryKey
+    columns:
+      - { name: Product Key, sourceColumn: Product Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining product attributes to sales transactions. }
+      - { name: Product ID, sourceColumn: Product ID, dataType: Int64, hidden: false, summarizeBy: none, description: Stable visible product identity for custom visual data roles and accessibility context. }
+      - { name: Product, sourceColumn: Product, dataType: String, hidden: false, summarizeBy: none, description: Business-facing English product name. }
+      - { name: Product Subcategory, sourceColumn: Product Subcategory, dataType: String, hidden: false, summarizeBy: none, description: Product grouping below the main product category. }
+      - { name: Product Category, sourceColumn: Product Category, dataType: String, hidden: false, summarizeBy: none, description: Highest-level product portfolio grouping. }
+      - { name: Color, sourceColumn: Color, dataType: String, hidden: false, summarizeBy: none, description: Marketed product color with missing values grouped as unspecified. }
+      - { name: Model, sourceColumn: Model, dataType: String, hidden: false, summarizeBy: none, description: Product model family used for portfolio analysis. }
+      - { name: Standard Cost, sourceColumn: Standard Cost, dataType: Decimal, hidden: false, summarizeBy: none, formatString: "$#,##0.00", description: Standard unit cost recorded in the product catalog. }
+      - { name: List Price, sourceColumn: List Price, dataType: Decimal, hidden: false, summarizeBy: none, formatString: "$#,##0.00", description: Published unit list price for the product. }
+    measures: []
+    hierarchies:
+      - name: Product Portfolio
+        levels:
+          - { name: Category, column: Product Category }
+          - { name: Subcategory, column: Product Subcategory }
+          - { name: Product, column: Product }
+  - name: Product Image
+    role: utility
+    grain: One row per ordered Base64 chunk for each of the 100 highest-selling AdventureWorks products.
+    description: Refresh-time image transport table used to validate database-delivered assets in the Datashow Force Bubble visual.
+    source:
+      referencedTables:
+        - { schema: dbo, table: DimProduct }
+        - { schema: dbo, table: FactInternetSales }
+        - { schema: dbo, table: FactResellerSales }
+      sql: |-
+        SELECT
+          encoded.[Product Key],
+          CAST('image/gif' AS varchar(20)) AS [Poster MIME Type],
+          encoded.[Poster Hash],
+          series.value AS [Poster Chunk Index],
+          SUBSTRING(encoded.[Poster Base64], series.value * 30000 + 1, 30000) AS [Poster Chunk]
+        FROM
+        (
+          SELECT
+            topProducts.[Product Key],
+            CONVERT(varchar(64), HASHBYTES('SHA2_256', topProducts.[Poster Bytes]), 2) AS [Poster Hash],
+            BASE64_ENCODE(topProducts.[Poster Bytes]) AS [Poster Base64]
+          FROM
+          (
+            SELECT TOP (100)
+              product.ProductKey AS [Product Key],
+              product.LargePhoto AS [Poster Bytes],
+              sales.[Lifetime Sales]
+            FROM
+            (
+              SELECT ProductKey, SUM(SalesAmount) AS [Lifetime Sales]
+              FROM
+              (
+                SELECT ProductKey, SalesAmount FROM dbo.FactInternetSales
+                UNION ALL
+                SELECT ProductKey, SalesAmount FROM dbo.FactResellerSales
+              ) AS channelSales
+              GROUP BY ProductKey
+            ) AS sales
+            JOIN dbo.DimProduct AS product ON product.ProductKey = sales.ProductKey
+            WHERE product.LargePhoto IS NOT NULL
+            ORDER BY sales.[Lifetime Sales] DESC, product.ProductKey
+          ) AS topProducts
+        ) AS encoded
+        CROSS APPLY GENERATE_SERIES(
+          0,
+          CONVERT(int, CEILING(LEN(encoded.[Poster Base64]) / 30000.0)) - 1
+        ) AS series
+    columns:
+      - { name: Product Key, sourceColumn: Product Key, dataType: Int64, hidden: true, summarizeBy: none, description: Product relationship key repeated for every ordered image chunk. }
+      - { name: Poster MIME Type, sourceColumn: Poster MIME Type, dataType: String, hidden: false, summarizeBy: none, description: Browser media type applied when the visual reconstructs the binary image. }
+      - { name: Poster Hash, sourceColumn: Poster Hash, dataType: String, hidden: true, summarizeBy: none, description: SHA-256 content identity for deterministic cache invalidation and diagnostics. }
+      - { name: Poster Chunk Index, sourceColumn: Poster Chunk Index, dataType: Int64, hidden: false, summarizeBy: none, description: Zero-based sequence used to reconstruct poster chunks independently of source row order. }
+      - { name: Poster Chunk, sourceColumn: Poster Chunk, dataType: String, hidden: false, summarizeBy: none, description: Base64 image fragment capped at 30000 characters for safe semantic model transport. }
+    measures: []
+    hierarchies: []
+  - name: Customer
+    role: dimension
+    grain: One row per individual Internet customer or reseller account.
+    description: Conformed customer dimension combining individual and reseller buyers with common geography attributes.
+    source:
+      referencedTables:
+        - { schema: dbo, table: DimCustomer }
+        - { schema: dbo, table: DimReseller }
+        - { schema: dbo, table: DimGeography }
+      sql: |-
+        SELECT
+          CAST(c.CustomerKey AS bigint) AS [Customer Key],
+          CAST(N'Individual' AS nvarchar(20)) AS [Customer Type],
+          CONCAT(c.FirstName, N' ', COALESCE(NULLIF(c.MiddleName, N'' ) + N' ', N''), c.LastName) AS [Customer],
+          g.City AS [City],
+          g.StateProvinceName AS [State or Province],
+          g.EnglishCountryRegionName AS [Country],
+          g.PostalCode AS [Postal Code],
+          c.EnglishEducation AS [Education],
+          c.EnglishOccupation AS [Occupation],
+          CAST(c.YearlyIncome AS decimal(19,4)) AS [Yearly Income]
+        FROM dbo.DimCustomer AS c
+        JOIN dbo.DimGeography AS g ON g.GeographyKey = c.GeographyKey
+        UNION ALL
+        SELECT
+          CAST(1000000 + r.ResellerKey AS bigint) AS [Customer Key],
+          CAST(N'Reseller' AS nvarchar(20)) AS [Customer Type],
+          r.ResellerName AS [Customer],
+          g.City AS [City],
+          g.StateProvinceName AS [State or Province],
+          g.EnglishCountryRegionName AS [Country],
+          g.PostalCode AS [Postal Code],
+          CAST(NULL AS nvarchar(50)) AS [Education],
+          r.BusinessType AS [Occupation],
+          CAST(r.AnnualRevenue AS decimal(19,4)) AS [Yearly Income]
+        FROM dbo.DimReseller AS r
+        JOIN dbo.DimGeography AS g ON g.GeographyKey = r.GeographyKey
+    columns:
+      - { name: Customer Key, sourceColumn: Customer Key, dataType: Int64, hidden: true, summarizeBy: none, description: Conformed technical key for individual and reseller customers. }
+      - { name: Customer Type, sourceColumn: Customer Type, dataType: String, hidden: false, summarizeBy: none, description: Indicates whether the buyer is an individual or reseller account. }
+      - { name: Customer, sourceColumn: Customer, dataType: String, hidden: false, summarizeBy: none, description: Individual full name or reseller business name. }
+      - { name: City, sourceColumn: City, dataType: String, hidden: false, summarizeBy: none, dataCategory: City, description: Customer city suitable for geographic grouping. }
+      - { name: State or Province, sourceColumn: State or Province, dataType: String, hidden: false, summarizeBy: none, dataCategory: StateOrProvince, description: Customer state or province suitable for geographic grouping. }
+      - { name: Country, sourceColumn: Country, dataType: String, hidden: false, summarizeBy: none, dataCategory: Country, description: Customer country or region suitable for geographic grouping. }
+      - { name: Postal Code, sourceColumn: Postal Code, dataType: String, hidden: false, summarizeBy: none, dataCategory: PostalCode, description: Customer postal code treated as a nonnumeric geographic label. }
+      - { name: Education, sourceColumn: Education, dataType: String, hidden: false, summarizeBy: none, description: Education segment for individual customers when available. }
+      - { name: Occupation, sourceColumn: Occupation, dataType: String, hidden: false, summarizeBy: none, description: Individual occupation or reseller business type. }
+      - { name: Yearly Income, sourceColumn: Yearly Income, dataType: Decimal, hidden: false, summarizeBy: none, formatString: "$#,##0", description: Annual income for individuals or annual revenue for resellers. }
+    measures: []
+    hierarchies:
+      - name: Customer Geography
+        levels:
+          - { name: Country, column: Country }
+          - { name: State or Province, column: State or Province }
+          - { name: City, column: City }
+  - name: Sales Territory
+    role: dimension
+    grain: One row per AdventureWorks sales territory.
+    description: Commercial territory grouping for regional sales performance analysis.
+    source:
+      referencedTables: [{ schema: dbo, table: DimSalesTerritory }]
+      sql: |-
+        SELECT SalesTerritoryKey AS [Sales Territory Key], SalesTerritoryRegion AS [Region],
+          SalesTerritoryCountry AS [Country], SalesTerritoryGroup AS [Territory Group]
+        FROM dbo.DimSalesTerritory
+    columns:
+      - { name: Sales Territory Key, sourceColumn: Sales Territory Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining sales transactions to their territory. }
+      - { name: Region, sourceColumn: Region, dataType: String, hidden: false, summarizeBy: none, description: Named commercial sales region. }
+      - { name: Country, sourceColumn: Country, dataType: String, hidden: false, summarizeBy: none, dataCategory: Country, description: Country assigned to the commercial sales territory. }
+      - { name: Territory Group, sourceColumn: Territory Group, dataType: String, hidden: false, summarizeBy: none, description: Highest-level commercial territory grouping. }
+    measures: []
+    hierarchies:
+      - name: Territory
+        levels:
+          - { name: Group, column: Territory Group }
+          - { name: Country, column: Country }
+          - { name: Region, column: Region }
+  - name: Promotion
+    role: dimension
+    grain: One row per sales promotion.
+    description: Promotion names, types, categories, and advertised discount rates.
+    source:
+      referencedTables: [{ schema: dbo, table: DimPromotion }]
+      sql: |-
+        SELECT PromotionKey AS [Promotion Key], EnglishPromotionName AS [Promotion],
+          EnglishPromotionType AS [Promotion Type], EnglishPromotionCategory AS [Promotion Category],
+          CAST(DiscountPct AS decimal(9,4)) AS [Discount Percentage]
+        FROM dbo.DimPromotion
+    columns:
+      - { name: Promotion Key, sourceColumn: Promotion Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining sales transactions to a promotion. }
+      - { name: Promotion, sourceColumn: Promotion, dataType: String, hidden: false, summarizeBy: none, description: English business name of the promotion. }
+      - { name: Promotion Type, sourceColumn: Promotion Type, dataType: String, hidden: false, summarizeBy: none, description: Mechanism used to deliver the promotion. }
+      - { name: Promotion Category, sourceColumn: Promotion Category, dataType: String, hidden: false, summarizeBy: none, description: Broad commercial grouping of the promotion. }
+      - { name: Discount Percentage, sourceColumn: Discount Percentage, dataType: Decimal, hidden: false, summarizeBy: none, formatString: 0.0%, description: Advertised discount rate associated with the promotion. }
+    measures: []
+    hierarchies: []
+  - name: Currency
+    role: dimension
+    grain: One row per transaction currency.
+    description: Currency code and name for transaction-level currency filtering.
+    source:
+      referencedTables: [{ schema: dbo, table: DimCurrency }]
+      sql: |-
+        SELECT CurrencyKey AS [Currency Key], CurrencyAlternateKey AS [Currency Code], CurrencyName AS [Currency]
+        FROM dbo.DimCurrency
+    columns:
+      - { name: Currency Key, sourceColumn: Currency Key, dataType: Int64, hidden: true, summarizeBy: none, description: Technical key joining sales transactions to transaction currency. }
+      - { name: Currency Code, sourceColumn: Currency Code, dataType: String, hidden: false, summarizeBy: none, description: Three-character transaction currency code. }
+      - { name: Currency, sourceColumn: Currency, dataType: String, hidden: false, summarizeBy: none, description: Full transaction currency name. }
+    measures: []
+    hierarchies: []
+relationships:
+  - { name: Sales to Date, fromTable: Sales, fromColumn: Order Date Key, toTable: Date, toColumn: Date Key, active: true, crossFilteringBehavior: oneDirection }
+  - { name: Sales to Product, fromTable: Sales, fromColumn: Product Key, toTable: Product, toColumn: Product Key, active: true, crossFilteringBehavior: oneDirection }
+  - { name: Product Image to Product, fromTable: Product Image, fromColumn: Product Key, toTable: Product, toColumn: Product Key, active: true, crossFilteringBehavior: bothDirections }
+  - { name: Sales to Customer, fromTable: Sales, fromColumn: Customer Key, toTable: Customer, toColumn: Customer Key, active: true, crossFilteringBehavior: oneDirection }
+  - { name: Sales to Sales Territory, fromTable: Sales, fromColumn: Sales Territory Key, toTable: Sales Territory, toColumn: Sales Territory Key, active: true, crossFilteringBehavior: oneDirection }
+  - { name: Sales to Promotion, fromTable: Sales, fromColumn: Promotion Key, toTable: Promotion, toColumn: Promotion Key, active: true, crossFilteringBehavior: oneDirection }
+  - { name: Sales to Currency, fromTable: Sales, fromColumn: Currency Key, toTable: Currency, toColumn: Currency Key, active: true, crossFilteringBehavior: oneDirection }

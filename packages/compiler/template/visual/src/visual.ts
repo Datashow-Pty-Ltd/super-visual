@@ -17,6 +17,7 @@ import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructor
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 
 const BROKER_TARGET = { table: "Widget Axis", column: "WidgetId" };
+const DATASET_SET = new Set<string>(DATASET_KEYS);
 
 export class Visual implements IVisual {
   private readonly host: IVisualHost;
@@ -29,7 +30,8 @@ export class Visual implements IVisual {
   private warnings: string[] = [];
   private sequence = 0;
 
-  constructor(options: VisualConstructorOptions) {
+  constructor(options: VisualConstructorOptions | undefined) {
+    if (!options) throw new Error("Power BI did not provide visual constructor options");
     this.host = options.host;
     options.element.replaceChildren();
     options.element.dataset.reportScrollRoot = "";
@@ -65,7 +67,7 @@ export class Visual implements IVisual {
   getFormattingModel(): powerbi.visuals.FormattingModel { return { cards: [] }; }
 
   private request(datasets: DatasetKey[]): void {
-    this.visible = [...new Set(datasets)].filter((key) => DATASET_KEYS.includes(key));
+    this.visible = [...new Set(datasets)].filter((key) => DATASET_SET.has(key));
     for (const key of this.visible) if (!this.datasets[key]) this.status[key] = "loading";
     const filter = buildBasicFilter(BROKER_TARGET, ...this.visible);
     this.host.applyJsonFilter(filter, "general", "selfFilter", powerbi.FilterAction.merge);

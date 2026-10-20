@@ -1,0 +1,24 @@
+contractVersion: 1
+application:
+  id: adventureworks-product-ledger
+  title: AdventureWorks Product Ledger
+  entry: contracts/report-source.json
+  style: contracts/report-source.json
+target:
+  platform: powerbi
+  visual:
+    name: datashowSuperDashboard
+    displayName: Datashow Super Dashboard
+    guid: datashowSuperDashboard56E84DD9B92A42F7A70D88B941DB48DE
+    version: 1.0.0.39
+    apiVersion: 5.11.1
+semantic:
+  model: contracts/semantic-model.yaml
+  broker: contracts/widget-broker.json
+  pageSet: contracts/page-set.yaml
+source:
+  bundle: contracts/report-source.json
+output:
+  directory: dist
+compliance:
+  policies: [core, powerbi]

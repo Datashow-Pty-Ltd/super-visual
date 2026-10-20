@@ -1,4 +1,4 @@
-import type { DatasetKey } from "./model.js";
+import type { DatasetKey } from "./model";
 
 export interface WidgetManifestEntry {
   id: DatasetKey;

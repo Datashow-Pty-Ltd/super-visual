@@ -1,4 +1,4 @@
-import type { WidgetDataset } from "./model.js";
+import type { WidgetDataset } from "./model";
 
 function normalizedLabel(value: string): string {
   return value.trim().replace(/\s+/g, " ");

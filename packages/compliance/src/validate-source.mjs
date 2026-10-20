@@ -4,6 +4,9 @@ import ts from "typescript";
 const DEFAULT_ALLOWED_IMPORTS = new Set([
   "react",
   "react-router-dom",
+  "@fontsource/source-serif-4/400.css",
+  "@fontsource/source-serif-4/500.css",
+  "@fontsource/source-serif-4/600.css",
   "@nivo/line",
   "@nivo/bar",
   "@nivo/pie",

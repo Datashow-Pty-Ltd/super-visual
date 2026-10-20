@@ -1,0 +1,11 @@
+{
+  "name": "@datashow/super-visual-example-adventureworks",
+  "version": "0.1.0-rc.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "source": "node scripts/build-source-bundle.mjs",
+    "build": "npm run source && node ../../packages/cli/bin/supervisual.mjs build .",
+    "check": "npm run source && node ../../packages/cli/bin/supervisual.mjs check ."
+  }
+}
