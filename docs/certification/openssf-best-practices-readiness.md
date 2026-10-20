@@ -16,7 +16,7 @@ OpenSSF project description: <https://openssf.org/projects/best-practices-badge/
 | Change and contribution process | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, pull-request CI and dependency review |
 | Vulnerability handling | `SECURITY.md`, GitHub private vulnerability reporting, secret scanning and push protection |
 | Quality and compatibility | `npm test`, stage gates, Linux/macOS/Windows and Node 22/24 CI |
-| Static and dependency analysis | CodeQL, `npm audit`, dependency review, Dependabot, OpenSSF Scorecard |
+| Static, dependency, and dynamic analysis | CodeQL, `npm audit`, dependency review, Dependabot, OpenSSF Scorecard, and Jazzer.js parser fuzzing |
 | Release integrity | SHA-256 checksums, CycloneDX SBOM, GitHub build-provenance attestations, pinned Actions |
 | User and agent safety | JSON CLI, source compliance checks, plan/apply authorization, backup/restore, agent evals |
 
@@ -33,6 +33,9 @@ OpenSSF project description: <https://openssf.org/projects/best-practices-badge/
   archives, and GitHub provenance attestations from a clean consumer account.
 - Record the passing CI, CodeQL, dependency, secret, and Scorecard results for
   the exact release commit.
+- Retain and regress every fuzzing crash; note that OpenSSF Scorecard currently
+  does not recognize custom JavaScript fuzzers, so this control may not change
+  its Fuzzing score even when the CI job passes.
 - Confirm that the vulnerability-response time commitments in `SECURITY.md`
   are operationally sustainable.
 - Answer every badge criterion from current evidence; mark unmet criteria as

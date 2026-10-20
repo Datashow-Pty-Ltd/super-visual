@@ -1,0 +1,4 @@
+table 'Sales'
+	column Category
+		dataType: string
+	measure 'Total Sales' = SUM('Sales'[Amount])
