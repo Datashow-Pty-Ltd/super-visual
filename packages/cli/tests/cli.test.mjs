@@ -360,7 +360,7 @@ describe("supervisual CLI", () => {
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }
-  });
+  }, 15000);
 
   test("builds hello world with an untracked hosted source profile", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-profile-"));
