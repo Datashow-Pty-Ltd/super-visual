@@ -3,6 +3,7 @@
 [![CI](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/ci.yml/badge.svg)](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/codeql.yml/badge.svg)](https://github.com/Datashow-Pty-Ltd/super-visual/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Datashow-Pty-Ltd/super-visual/badge)](https://scorecard.dev/viewer/?uri=github.com/Datashow-Pty-Ltd/super-visual)
+[![npm](https://img.shields.io/npm/v/%40datashow%2Fsuper-visual-cli)](https://www.npmjs.com/package/@datashow/super-visual-cli)
 
 ## Why Super Visual exists
 
@@ -37,7 +38,18 @@ model of Power BI.
 ## Get started
 
 Requirements are Node.js 22.12 or newer, Azure CLI authentication, and a
-Fabric-capacity workspace. From this repository, install once with `npm ci`.
+Fabric-capacity workspace. Install the public CLI directly from npm:
+
+```bash
+npm install --global @datashow/super-visual-cli
+supervisual --version
+```
+
+Cloning this repository is not required to create, preview, or publish a Super
+Visual report. If you prefer not to install the CLI globally, run any command
+with `npx --yes @datashow/super-visual-cli@latest` instead. Repository
+contributors can follow [CONTRIBUTING.md](CONTRIBUTING.md) for the source-build
+workflow.
 
 If your React application already exports `ReportApplication`, create and bind
 the report in one command. `--app` accepts a source directory containing
@@ -45,7 +57,7 @@ the report in one command. `--app` accepts a source directory containing
 `report-design.less`:
 
 ```bash
-npx supervisual init sales-report \
+supervisual init sales-report \
   --app ./my-react-app \
   --workspace-id <workspace-guid> \
   --semantic-model-id <semantic-model-guid>
@@ -56,14 +68,14 @@ so normal development is just:
 
 ```bash
 cd sales-report
-npx supervisual dev --open
+supervisual dev --open
 ```
 
 When the page is ready, package, verify, and create its deployment plan with one
 command:
 
 ```bash
-npx supervisual publish
+supervisual publish
 ```
 
 `publish` shows the exact workspace, operations, and plan ID, then asks you to
@@ -72,7 +84,7 @@ When a human intentionally wants a single uninterrupted command, they can
 pre-authorize the plan that this invocation generates:
 
 ```bash
-npx supervisual publish --pre-authorize
+supervisual publish --pre-authorize
 ```
 
 This skips only the second prompt. The CLI still resolves the immutable
@@ -82,8 +94,8 @@ still require `--allow-updates` and a backup directory.
 For a non-interactive agent or CI job, the equivalent is:
 
 ```bash
-npx supervisual publish --json
-npx supervisual publish --confirm <plan-id>
+supervisual publish --json
+supervisual publish --confirm <plan-id>
 ```
 
 That confirmation prompt is intentional: a live Fabric change must always be
@@ -95,7 +107,7 @@ and `--backup <directory>` while applying.
 Use the built-in app when starting from scratch:
 
 ```bash
-npx supervisual init sales-report \
+supervisual init sales-report \
   --workspace-id <workspace-guid> \
   --semantic-model-id <semantic-model-guid>
 ```
@@ -111,7 +123,7 @@ Users work only with the Power BI semantic model they selected.
 
 Run commands from a Super Visual project directory. Where `[project]` is
 shown, it defaults to the current directory. Use
-`npx supervisual <command> --help` for every available option.
+`supervisual <command> --help` for every available option.
 
 | Command | What it does |
 | --- | --- |
