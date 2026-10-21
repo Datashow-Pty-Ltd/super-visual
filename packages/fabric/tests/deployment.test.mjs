@@ -84,6 +84,7 @@ describe("safe Fabric deployment", () => {
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: "wrong" })).rejects.toThrow("exact plan confirmation");
     const result = await applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId });
     expect(client.calls).toEqual(["create:SemanticModel", "create:Report"]);
+    expect(result.reportUrl).toBe("https://app.powerbi.com/groups/workspace-1/reports/report-1");
     const report = client.definitions.get(result.items.report.id);
     expect(JSON.parse(decodePart(report.parts.find((part) => part.path === "definition.pbir")).toString()).datasetReference.byConnection.connectionString).toBe("semanticmodelid=semanticmodel-1");
   });

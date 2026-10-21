@@ -60,11 +60,13 @@ describe("supervisual CLI", () => {
     });
 
     expect(summary).toContain("Publish complete — Sales Report is live.");
-    expect(summary).toContain("Open the report:\nhttps://app.powerbi.com/groups/workspace-1/reports/report-1");
     expect(summary).toContain("Workspace: Release Workspace (workspace-1)");
     expect(summary).toContain("Semantic model: Sales Report — Super Visual data (model-1)");
     expect(summary).toContain("Verification: connection bound · refresh Completed · acceptance query passed (1 row)");
-    expect(summary).toContain("Receipt: /tmp/deploy-receipt.json");
+    expect(summary).toContain("Receipt: /tmp/deploy-receipt.json\n\nDeployment result (JSON):\n{");
+    expect(summary).toContain('"reportUrl": "https://app.powerbi.com/groups/workspace-1/reports/report-1"');
+    expect(summary).toContain("}\n\nOpen the report:\nhttps://app.powerbi.com/groups/workspace-1/reports/report-1");
+    expect(summary.trimEnd()).toMatch(/https:\/\/app\.powerbi\.com\/groups\/workspace-1\/reports\/report-1$/);
     expect(summary.trimStart()).not.toMatch(/^\{/);
   });
 
@@ -82,7 +84,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.2.0-alpha.0");
+    expect(version.stdout.trim()).toBe("0.2.0-alpha.1");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");

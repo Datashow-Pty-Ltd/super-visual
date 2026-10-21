@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0-alpha.1 — 2026-10-22
+
+- Added the deployed Power BI report URL to the structured publish result and
+  persisted deployment receipt.
+- Restored a clearly separated human-readable JSON deployment record after the
+  publish summary, while retaining strict single-object output for `--json`.
+- Made the report URL the final terminal line after the JSON record so it is
+  easy to find and open after a successful publish.
+
 ## 0.2.0-alpha.0 — 2026-10-21
 
 - Corrected the public maturity label from release candidate to alpha while
