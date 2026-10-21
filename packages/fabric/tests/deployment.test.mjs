@@ -2,7 +2,7 @@ import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { applyDeploymentPlan, applyRestorePlan, createDeploymentDiff, createDeploymentPlan, createRestorePlan, decodePart, verifyDefinitionParts } from "../src/index.mjs";
+import { applyDeploymentPlan, applyRestorePlan, createDeploymentDiff, createDeploymentPlan, createRestorePlan, decodePart, preflightDeploymentTarget, verifyDefinitionParts } from "../src/index.mjs";
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "supervisual-deploy-"));
@@ -130,6 +130,50 @@ describe("safe Fabric deployment", () => {
     const plan = await createDeploymentPlan({ client, workspaceId: "workspace-1", solutionDirectory: root, semanticModelName: "Sales model", reportName: "Sales report" });
     expect(plan.blockers).toHaveLength(1);
     await expect(applyDeploymentPlan({ client, plan, confirmPlanId: plan.planId })).rejects.toThrow("blocked");
+  });
+
+  test("detects same-name items before reading definitions or local build output", async () => {
+    const client = new FakeClient([
+      { id: "model-existing", type: "SemanticModel", displayName: "Sales model" },
+      { id: "report-existing", type: "Report", displayName: "Sales report" },
+    ]);
+    client.getDefinition = async () => { throw new Error("preflight must not read definitions"); };
+
+    const blocked = await preflightDeploymentTarget({
+      client,
+      workspaceId: "workspace-1",
+      workspaceName: "Release",
+      semanticModelName: "Sales model",
+      reportName: "Sales report",
+    });
+    expect(blocked).toMatchObject({
+      ok: false,
+      status: "blocked",
+      workspace: { id: "workspace-1", displayName: "Release" },
+      actions: [
+        { key: "semanticModel", operation: "blocked", existingId: "model-existing" },
+        { key: "report", operation: "blocked", existingId: "report-existing" },
+      ],
+    });
+    expect(blocked.blockers).toHaveLength(2);
+    expect(client.calls).toEqual([]);
+
+    const permitted = await preflightDeploymentTarget({
+      client,
+      workspaceId: "workspace-1",
+      semanticModelName: "Sales model",
+      reportName: "Sales report",
+      allowUpdates: true,
+    });
+    expect(permitted).toMatchObject({
+      ok: true,
+      status: "ready",
+      actions: [
+        { key: "semanticModel", operation: "update" },
+        { key: "report", operation: "update" },
+      ],
+      blockers: [],
+    });
   });
 
   test("rejects an item that appeared after a create plan", async () => {

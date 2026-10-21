@@ -66,6 +66,31 @@ async function deploymentTarget({ client, workspaceId, workspaceName, semanticMo
   };
 }
 
+function deploymentActions({ semantic, report, semanticModelName, reportName, allowUpdates }) {
+  return [
+    { key: "semanticModel", type: "SemanticModel", format: "TMDL", displayName: semanticModelName, operation: semantic ? (allowUpdates ? "update" : "blocked") : "create", existingId: semantic?.id ?? null, directory: "SemanticAdapter.SemanticModel" },
+    { key: "report", type: "Report", format: "PBIR", displayName: reportName, operation: report ? (allowUpdates ? "update" : "blocked") : "create", existingId: report?.id ?? null, directory: "Report.Report" },
+  ];
+}
+
+function deploymentBlockers(actions) {
+  return actions.filter((action) => action.operation === "blocked").map((action) => `${action.type} ${action.displayName} already exists; create a plan with updates explicitly enabled`);
+}
+
+export async function preflightDeploymentTarget({ client, workspaceId, workspaceName, semanticModelName, reportName, allowUpdates = false }) {
+  const { workspace, semantic, report } = await deploymentTarget({ client, workspaceId, workspaceName, semanticModelName, reportName });
+  const actions = deploymentActions({ semantic, report, semanticModelName, reportName, allowUpdates });
+  const blockers = deploymentBlockers(actions);
+  return {
+    ok: blockers.length === 0,
+    status: blockers.length ? "blocked" : "ready",
+    workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId },
+    allowUpdates,
+    actions,
+    blockers,
+  };
+}
+
 export async function createDeploymentDiff({ client, workspaceId, workspaceName, solutionDirectory, semanticModelName, reportName }) {
   const target = await deploymentTarget({ client, workspaceId, workspaceName, semanticModelName, reportName });
   const descriptors = [
@@ -97,10 +122,7 @@ export async function createDeploymentDiff({ client, workspaceId, workspaceName,
 
 export async function createDeploymentPlan({ client, workspaceId, workspaceName, solutionDirectory, semanticModelName, reportName, allowUpdates = false, postDeployment = null }) {
   const { workspace, semantic, report } = await deploymentTarget({ client, workspaceId, workspaceName, semanticModelName, reportName });
-  const actions = [
-    { key: "semanticModel", type: "SemanticModel", format: "TMDL", displayName: semanticModelName, operation: semantic ? (allowUpdates ? "update" : "blocked") : "create", existingId: semantic?.id ?? null, directory: "SemanticAdapter.SemanticModel" },
-    { key: "report", type: "Report", format: "PBIR", displayName: reportName, operation: report ? (allowUpdates ? "update" : "blocked") : "create", existingId: report?.id ?? null, directory: "Report.Report" },
-  ];
+  const actions = deploymentActions({ semantic, report, semanticModelName, reportName, allowUpdates });
   for (const action of actions) {
     const localParts = await encodeDefinition(path.join(solutionDirectory, action.directory));
     verifyDefinitionParts(localParts, action.format);
@@ -114,7 +136,7 @@ export async function createDeploymentPlan({ client, workspaceId, workspaceName,
   }
   const resolvedSolutionDirectory = path.resolve(solutionDirectory);
   const core = { contractVersion: 1, workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId }, solutionDirectory: resolvedSolutionDirectory, allowUpdates, actions, postDeployment };
-  const blockers = actions.filter((action) => action.operation === "blocked").map((action) => `${action.type} ${action.displayName} already exists; create a plan with updates explicitly enabled`);
+  const blockers = deploymentBlockers(actions);
   if (postDeployment) {
     try {
       await preflightPostDeploymentConnection({ client, solutionDirectory: resolvedSolutionDirectory, postDeployment });

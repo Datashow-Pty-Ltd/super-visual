@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0-alpha.4 — 2026-10-22
+
+- Check the target workspace for same-named report items before semantic-model
+  inspection, React compilation, visual packaging, or deployment planning.
+- Stop immediately with the existing report URL when updates were not explicitly
+  enabled.
+- Repeat target discovery during plan creation to preserve collision and drift
+  protection across the compilation window.
+
 ## 0.2.0-alpha.3 — 2026-10-22
 
 - Suppress result JSON in normal terminal output across every CLI command.
