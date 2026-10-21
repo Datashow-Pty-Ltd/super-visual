@@ -21,6 +21,13 @@ const releaseGate = releaseWorkflow.indexOf("npm run stage:9");
 if (browserInstall === -1 || releaseGate === -1 || browserInstall > releaseGate) {
   throw new Error("Release workflow must install Playwright Chromium before running the stage:9 browser tests");
 }
+if (!releaseWorkflow.includes("workflow_dispatch:")) {
+  throw new Error("Release workflow must retain its non-publishing manual verification trigger");
+}
+const tagOnlyReleaseSteps = releaseWorkflow.match(/if: startsWith\(github\.ref, 'refs\/tags\/v'\)/g) ?? [];
+if (tagOnlyReleaseSteps.length < 2) {
+  throw new Error("Artifact attestation and GitHub prerelease publication must remain tag-only");
+}
 
 const packageDirectories = ["adapter-claude-dashboard", "cli", "compiler", "compliance", "contracts", "fabric", "runtime-powerbi", "semantic"];
 const packages = await Promise.all(packageDirectories.map(async (directory) => ({ directory, manifest: JSON.parse(await readFile(path.join(root, "packages", directory, "package.json"), "utf8")) })));
