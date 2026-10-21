@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0-alpha.0 — 2026-10-21
+
+- Corrected the public maturity label from release candidate to alpha while
+  preserving monotonic semantic-version precedence over the published
+  `0.1.0-rc.*` line.
+- Established `alpha` and `next` as the prerelease channels for ongoing public
+  testing before the first stable release.
+- Includes the complete Super Visual compiler, semantic preview, packaging,
+  Fabric deployment, sample-project, and agent-skill workflow delivered through
+  `0.1.0-rc.7`.
+
 ## 0.1.0-rc.7 — 2026-10-21
 
 - Streamed `supervisual publish` validation, packaging, planning, deployment,
