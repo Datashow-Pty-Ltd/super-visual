@@ -62,6 +62,12 @@ supervisual init hello-world \
   --semantic-model-id <semantic-model-guid>
 ```
 
+`init` verifies the workspace and semantic model through read-only Fabric APIs,
+creates the project, and runs six local checks covering its contracts, semantic
+references, page bindings, and React source policy. The terminal shows each
+stage and its final status before printing the initialization manifest as JSON.
+Use `--json` when a script or agent needs only the machine-readable manifest.
+
 The Fabric IDs are saved locally under the ignored `.supervisual/` directory,
 so previewing the real model locally is just:
 

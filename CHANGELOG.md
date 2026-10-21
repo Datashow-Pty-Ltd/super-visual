@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-rc.1 — 2026-10-21
 
 - Simplified the normal workflow to one selected Power BI semantic-model ID:
   initialize, preview live data locally, then publish with an exact plan
@@ -10,6 +10,11 @@
 - Kept report-specific deployment resources internal while retaining advanced
   contributor and recovery commands.
 - Added documentation link and legacy-workflow checks to the release gate.
+- Replaced the default `init` JSON dump with a narrated terminal workflow and
+  a clearly labelled initialization manifest.
+- Added read-only workspace and semantic-model verification when a complete
+  Fabric binding is supplied, followed by six reported local validation checks.
+- Preserved strict single-object output for agents and scripts using `--json`.
 
 ## 0.1.0-rc.0 — 2026-10-20
 

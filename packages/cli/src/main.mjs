@@ -15,7 +15,7 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.1.0-rc.0";
+const VERSION = "0.1.0-rc.1";
 
 function projectFile(input = ".") {
   const resolved = path.resolve(input);
@@ -24,6 +24,36 @@ function projectFile(input = ".") {
 
 function output(value, json) {
   process.stdout.write(`${json ? JSON.stringify(value) : typeof value === "string" ? value : JSON.stringify(value, null, 2)}\n`);
+}
+
+function writeInitProgress(event) {
+  const marker = event.status === "passed" ? "✓" : "…";
+  process.stdout.write(`${marker} ${event.message}\n`);
+}
+
+function semanticInventory(model) {
+  const tables = model.tables ?? [];
+  return {
+    tables: tables.length,
+    columns: tables.reduce((total, table) => total + (table.columns?.length ?? 0), 0),
+    measures: tables.reduce((total, table) => total + (table.measures?.length ?? 0), 0),
+    hierarchies: tables.reduce((total, table) => total + (table.hierarchies?.length ?? 0), 0),
+    hierarchyLevels: tables.reduce((total, table) => total + (table.hierarchies ?? []).reduce((levels, hierarchy) => levels + (hierarchy.levels?.length ?? 0), 0), 0),
+    relationships: model.relationships?.length ?? 0,
+    parameters: model.parameters?.length ?? 0,
+  };
+}
+
+function printInitializationResult(result) {
+  process.stdout.write(`\nInitialization complete — ${result.application.title} is ready.\n`);
+  process.stdout.write(`Project: ${result.directory}\n`);
+  process.stdout.write(`Project manifest: ${result.projectFile}\n`);
+  if (result.binding) {
+    if (result.binding.workspace) process.stdout.write(`Workspace: ${result.binding.workspace.name ?? "(name not recorded)"} (${result.binding.workspace.id})\n`);
+    if (result.binding.semanticModel) process.stdout.write(`Semantic model: ${result.binding.semanticModel.name ?? "(name not recorded)"} (${result.binding.semanticModel.id})\n`);
+  }
+  process.stdout.write(`\nInitialization manifest (JSON):\n${JSON.stringify(result, null, 2)}\n`);
+  process.stdout.write(`\nNext:\n${result.next.map((command) => `  ${command}`).join("\n")}\n`);
 }
 
 function jsonEnabled(command) {
@@ -240,18 +270,54 @@ function createProgram() {
     .option("--report-name <name>", "target report name")
     .option("--connection-id <id>", "advanced override for the selected model's Fabric connection")
     .option("--connection-mode <mode>", "advanced Fabric connectivity override", "ShareableCloud")
+    .option("--skip-live-validation", "save the binding without checking the workspace and semantic model")
+    .option("--timeout <seconds>", "Fabric validation timeout", "900")
     .option("--force", "write into an existing empty directory")
     .action(async (directory, options, command) => {
       if ((options.workspaceName || options.semanticModelId || options.reportName || options.connectionId) && !options.workspaceId) throw new Error("--workspace-id is required when saving a Fabric binding");
-      const result = await initializeProject({ directory, template: options.template, name: options.name, title: options.title, app: options.app, force: options.force });
+      const json = jsonEnabled(command);
+      if (!json) process.stdout.write(`\nSuper Visual init\n\n`);
+      let liveValidation = null;
+      if (options.workspaceId && options.semanticModelId && !options.skipLiveValidation) {
+        if (!json) writeInitProgress({ status: "running", message: "Verifying the Fabric workspace and Power BI semantic model (read-only)" });
+        const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+        const inspected = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId });
+        liveValidation = {
+          ok: true,
+          status: "passed",
+          scope: "fabric-read-only",
+          workspace: inspected.workspace,
+          semanticModel: { id: inspected.semanticModel.id, displayName: inspected.semanticModel.displayName, format: inspected.semanticModel.format },
+          inventory: semanticInventory(inspected.semanticModel),
+        };
+        if (!json) writeInitProgress({ status: "passed", message: `Verified workspace ${inspected.workspace.displayName} and semantic model ${inspected.semanticModel.displayName}` });
+      } else if (!json && options.skipLiveValidation) {
+        process.stdout.write("! Live Fabric validation skipped by request\n");
+      } else if (!json) {
+        process.stdout.write("• No complete Fabric binding supplied; live validation was not run\n");
+      }
+      const result = await initializeProject({
+        directory,
+        template: options.template,
+        name: options.name,
+        title: options.title,
+        app: options.app,
+        force: options.force,
+        onProgress: json ? null : writeInitProgress,
+      });
       if (options.workspaceId) {
         const saved = await writeProjectTarget(result.directory, targetUpdate({
           ...options,
+          workspaceName: options.workspaceName ?? liveValidation?.workspace.displayName,
+          semanticModelName: liveValidation?.semanticModel.displayName,
           reportName: options.reportName ?? result.application.title,
         }));
         result.binding = { file: saved.file, ...saved.value };
+        if (!json) writeInitProgress({ status: "passed", message: `Saved Fabric binding to ${saved.file}` });
       }
-      output(result, jsonEnabled(command));
+      result.validation = { local: result.validation, live: liveValidation ?? { ok: true, status: "not-run", scope: "fabric-read-only" } };
+      if (json) output(result, true);
+      else printInitializationResult(result);
     });
 
   addJsonOption(program.command("check [project]"))
