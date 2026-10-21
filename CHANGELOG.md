@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-rc.5 — 2026-10-21
+
+- Fixed global npm installations by declaring and resolving the Power BI runtime package instead of relying on the monorepo directory layout.
+- Added live, animated progress for every major `supervisual dev` startup stage.
+- Added a concise human-readable preview-ready summary and command-specific recovery guidance.
+
 ## 0.1.0-rc.4 — 2026-10-21
 
 - Write human progress synchronously to the terminal file descriptor so stage

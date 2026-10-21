@@ -1,6 +1,6 @@
 {
   "name": "@datashow/super-visual-semantic",
-  "version": "0.1.0-rc.4",
+  "version": "0.1.0-rc.5",
   "description": "Governed TMDL and report-specific widget broker adapter compiler for Super Visual.",
   "type": "module",
   "exports": "./src/index.mjs",
@@ -21,6 +21,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@datashow/super-visual-compliance": "0.1.0-rc.4"
+    "@datashow/super-visual-compliance": "0.1.0-rc.5"
   }
 }

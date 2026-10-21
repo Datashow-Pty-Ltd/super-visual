@@ -16,7 +16,7 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.1.0-rc.4";
+const VERSION = "0.1.0-rc.5";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;
@@ -65,7 +65,7 @@ export function stopActiveProgress() {
   activeProgress = null;
 }
 
-export function writeInitProgress(event) {
+export function writeCommandProgress(event) {
   if (event.status === "running") {
     stopActiveProgress();
     writeProgress(`> ${event.message}\n`);
@@ -85,6 +85,14 @@ export function writeInitProgress(event) {
   stopActiveProgress();
   const marker = event.status === "passed" ? "✓" : "!";
   writeProgress(`${marker} ${event.message}\n`);
+}
+
+function printPreviewResult(result) {
+  process.stdout.write(`\nLocal preview is ready.\n`);
+  process.stdout.write(`URL: ${result.url}\n`);
+  process.stdout.write(`Workspace: ${result.workspace.displayName} (${result.workspace.id})\n`);
+  process.stdout.write(`Semantic model: ${result.semanticModel.displayName} (${result.semanticModel.id})\n`);
+  process.stdout.write("The preview is using live semantic-model data. Press Ctrl+C to stop it.\n");
 }
 
 function semanticInventory(model) {
@@ -345,7 +353,7 @@ function createProgram() {
             workspaceId: options.workspaceId,
             workspaceName: options.workspaceName,
             semanticModelId: options.semanticModelId,
-            onProgress: json ? null : writeInitProgress,
+            onProgress: json ? null : writeCommandProgress,
           });
         } catch (error) {
           throw new CliUserError(error instanceof Error ? error.message : String(error), {
@@ -361,7 +369,7 @@ function createProgram() {
           semanticModel: { id: inspected.semanticModel.id, displayName: inspected.semanticModel.displayName, format: inspected.semanticModel.format },
           inventory: semanticInventory(inspected.semanticModel),
         };
-        if (!json) writeInitProgress({ status: "passed", message: `Verified workspace ${inspected.workspace.displayName} and semantic model ${inspected.semanticModel.displayName}` });
+        if (!json) writeCommandProgress({ status: "passed", message: `Verified workspace ${inspected.workspace.displayName} and semantic model ${inspected.semanticModel.displayName}` });
       } else if (!json && options.skipLiveValidation) {
         writeProgress("! Live Fabric validation skipped by request\n");
       } else if (!json) {
@@ -374,10 +382,10 @@ function createProgram() {
         title: options.title,
         app: options.app,
         force: options.force,
-        onProgress: json ? null : writeInitProgress,
+        onProgress: json ? null : writeCommandProgress,
       });
       if (options.workspaceId) {
-        if (!json) writeInitProgress({ status: "running", message: "Saving the reusable Fabric project binding" });
+        if (!json) writeCommandProgress({ status: "running", message: "Saving the reusable Fabric project binding" });
         const saved = await writeProjectTarget(result.directory, targetUpdate({
           ...options,
           workspaceName: options.workspaceName ?? liveValidation?.workspace.displayName,
@@ -385,7 +393,7 @@ function createProgram() {
           reportName: options.reportName ?? result.application.title,
         }));
         result.binding = { file: saved.file, ...saved.value };
-        if (!json) writeInitProgress({ status: "passed", message: `Saved Fabric binding to ${saved.file}` });
+        if (!json) writeCommandProgress({ status: "passed", message: `Saved Fabric binding to ${saved.file}` });
       }
       result.validation = { local: result.validation, live: liveValidation ?? { ok: true, status: "not-run", scope: "fabric-read-only" } };
       if (json) output(result, true);
@@ -434,23 +442,38 @@ function createProgram() {
     .option("--open", "open the preview in the default browser")
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .action(async (project = ".", options, command) => {
-      await syncProjectSource(projectFile(project));
-      const loaded = await loadProject(projectFile(project));
-      const target = await resolveProjectTarget(loaded.root, options, { requireSemanticModel: true });
-      const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-      const preview = await startSemanticPreview({
-        client,
-        projectFile: projectFile(project),
-        workspaceId: target.workspaceId,
-        workspaceName: target.workspaceName,
-        semanticModelId: target.semanticModelId ?? target.managedSemanticModelId,
-        host: options.host,
-        port: Number(options.port),
-        open: Boolean(options.open),
-      });
-      const { close, ...result } = preview;
-      output(result, jsonEnabled(command));
-      await waitForPreviewShutdown({ close });
+      const json = jsonEnabled(command);
+      if (!json) writeProgress(`\nSuper Visual dev\n\n`);
+      try {
+        if (!json) writeCommandProgress({ status: "running", message: "Synchronizing the React source and report contract" });
+        await syncProjectSource(projectFile(project));
+        if (!json) writeCommandProgress({ status: "passed", message: "Synchronized the React source and report contract" });
+        if (!json) writeCommandProgress({ status: "running", message: "Loading the saved Fabric project binding" });
+        const loaded = await loadProject(projectFile(project));
+        const target = await resolveProjectTarget(loaded.root, options, { requireSemanticModel: true });
+        if (!json) writeCommandProgress({ status: "passed", message: "Loaded the Fabric workspace and semantic-model binding" });
+        const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+        const preview = await startSemanticPreview({
+          client,
+          projectFile: projectFile(project),
+          workspaceId: target.workspaceId,
+          workspaceName: target.workspaceName,
+          semanticModelId: target.semanticModelId ?? target.managedSemanticModelId,
+          host: options.host,
+          port: Number(options.port),
+          open: Boolean(options.open),
+          onProgress: json ? null : writeCommandProgress,
+        });
+        const { close, ...result } = preview;
+        if (json) output(result, true);
+        else printPreviewResult(result);
+        await waitForPreviewShutdown({ close });
+      } catch (error) {
+        throw new CliUserError(error instanceof Error ? error.message : String(error), {
+          summary: "Super Visual could not start the local semantic preview.",
+          guidance: "Check the project binding and your Fabric access, then run supervisual dev --open again.",
+        });
+      }
     });
 
   const preview = program.command("preview").description("exercise the local React host against a live semantic model");
