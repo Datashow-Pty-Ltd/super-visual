@@ -16,11 +16,10 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.1.0-rc.6";
+const VERSION = "0.1.0-rc.7";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;
-let activeProgress = null;
 
 function writeProgress(value) {
   try {
@@ -58,34 +57,48 @@ function output(value, json) {
   process.stdout.write(`${json ? JSON.stringify(value) : typeof value === "string" ? value : JSON.stringify(value, null, 2)}\n`);
 }
 
-export function stopActiveProgress() {
-  if (!activeProgress) return;
-  clearInterval(activeProgress.timer);
-  writeProgress(`\r${" ".repeat(activeProgress.width)}\r`);
-  activeProgress = null;
+export function createCommandProgressRenderer({
+  write = writeProgress,
+  isTTY = () => Boolean(progressStream.isTTY),
+  startTimer = (callback, milliseconds) => setInterval(callback, milliseconds),
+  cancelTimer = (timer) => clearInterval(timer),
+} = {}) {
+  let activeProgress = null;
+  const stop = () => {
+    if (!activeProgress) return;
+    cancelTimer(activeProgress.timer);
+    write(`\r${" ".repeat(activeProgress.width)}\r`);
+    activeProgress = null;
+  };
+  const handle = (event) => {
+    if (event.status === "running") {
+      stop();
+      write(`> ${event.message}\n`);
+      if (!isTTY()) return;
+      let frame = 0;
+      const render = () => {
+        const line = `${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]} Working...`;
+        write(`\r${line}`);
+        activeProgress.width = Math.max(activeProgress.width, line.length);
+        frame += 1;
+      };
+      activeProgress = { timer: null, width: 12 };
+      render();
+      activeProgress.timer = startTimer(render, 120);
+      return;
+    }
+    stop();
+    const marker = event.status === "passed" ? "✓" : "!";
+    write(`${marker} ${event.message}\n`);
+  };
+  return { handle, stop };
 }
 
-export function writeCommandProgress(event) {
-  if (event.status === "running") {
-    stopActiveProgress();
-    writeProgress(`> ${event.message}\n`);
-    if (!progressStream.isTTY) return;
-    let frame = 0;
-    const render = () => {
-      const line = `${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]} Working...`;
-      writeProgress(`\r${line}`);
-      activeProgress.width = Math.max(activeProgress.width, line.length);
-      frame += 1;
-    };
-    activeProgress = { timer: null, width: 12 };
-    render();
-    activeProgress.timer = setInterval(render, 120);
-    return;
-  }
-  stopActiveProgress();
-  const marker = event.status === "passed" ? "✓" : "!";
-  writeProgress(`${marker} ${event.message}\n`);
-}
+const commandProgressRenderer = createCommandProgressRenderer();
+
+export function stopActiveProgress() { commandProgressRenderer.stop(); }
+
+export function writeCommandProgress(event) { commandProgressRenderer.handle(event); }
 
 function printPreviewResult(result) {
   process.stdout.write(`\nLocal preview is ready.\n`);
@@ -124,12 +137,17 @@ function jsonEnabled(command) {
   return Boolean(command.optsWithGlobals().json);
 }
 
-async function packageVisual(result) {
+async function packageVisual(result, onProgress = null) {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-package-"));
   const visual = path.join(temporary, "Visual");
+  onProgress?.({ status: "running", step: "visual-build", message: "Preparing the isolated Power BI visual build" });
   await cp(path.join(result.outputDirectory, "Visual"), visual, { recursive: true });
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: visual, maxBuffer: 10 * 1024 * 1024 });
+  onProgress?.({ status: "passed", step: "visual-build", message: "Prepared the isolated Power BI visual build" });
+  onProgress?.({ status: "running", step: "typecheck", message: "Type-checking the compiled React application and visual runtime" });
   await run("npm", ["run", "typecheck"], { cwd: visual, maxBuffer: 10 * 1024 * 1024 });
+  onProgress?.({ status: "passed", step: "typecheck", message: "Type-checked the compiled React application and visual runtime" });
+  onProgress?.({ status: "running", step: "pbiviz", message: "Building the deployable Power BI visual package" });
   await run("npm", ["run", "package"], { cwd: visual, maxBuffer: 20 * 1024 * 1024 });
   const name = (await readdir(path.join(visual, "dist"))).find((file) => file.endsWith(".pbiviz"));
   if (!name) throw new Error("pbiviz package did not produce a visual archive");
@@ -139,6 +157,7 @@ async function packageVisual(result) {
   await cp(path.join(visual, "dist", name), destination);
   await embedVisualPackage(destination, path.join(result.outputDirectory, "Report.Report"));
   await refreshSolutionManifest(result.outputDirectory);
+  onProgress?.({ status: "passed", step: "pbiviz", message: `Built and embedded ${name}` });
   return destination;
 }
 
@@ -152,12 +171,18 @@ async function semanticParameters(file) {
   return { server: profile.source.server.trim(), database: profile.source.database.trim() };
 }
 
-async function build(project, shouldPackage, parametersFile, semanticCatalogSource = null, semanticParameterOverride = null) {
+async function build(project, shouldPackage, parametersFile, semanticCatalogSource = null, semanticParameterOverride = null, onProgress = null) {
+  onProgress?.({ status: "running", step: "source", message: "Synchronizing the React source and report contract" });
   await syncProjectSource(projectFile(project));
+  onProgress?.({ status: "passed", step: "source", message: "Synchronized the React source and report contract" });
   const parameters = semanticParameterOverride ?? await semanticParameters(parametersFile);
+  onProgress?.({ status: "running", step: "compile", message: "Compiling the application, semantic binding, and report wrapper" });
   const result = await buildSolution(projectFile(project), { semanticParameters: parameters, semanticCatalogSource });
-  const artifact = shouldPackage ? await packageVisual(result) : null;
+  onProgress?.({ status: "passed", step: "compile", message: "Compiled the application, semantic binding, and report wrapper" });
+  const artifact = shouldPackage ? await packageVisual(result, onProgress) : null;
+  onProgress?.({ status: "running", step: "verify", message: "Verifying the generated solution manifest and file hashes" });
   const verified = await verifySolutionManifest(result.outputDirectory);
+  onProgress?.({ status: verified.ok ? "passed" : "failed", step: "verify", message: verified.ok ? `Verified ${verified.fileCount} generated files` : "Generated solution verification failed" });
   return {
     ok: verified.ok,
     outputDirectory: result.outputDirectory,
@@ -224,11 +249,45 @@ function printDeploymentPlan(plan) {
   process.stdout.write(`\nReady to publish to ${plan.workspace.displayName} (${plan.workspace.id}):\n  - ${operations}\n\nPlan ID: ${plan.planId}\n`);
 }
 
-async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt: receiptOption, resume, timeout }) {
+export function formatPublishResult(result) {
+  const report = result.items?.report;
+  const semanticModel = result.items?.semanticModel;
+  const reportUrl = report?.id && result.workspace?.id
+    ? `https://app.powerbi.com/groups/${encodeURIComponent(result.workspace.id)}/reports/${encodeURIComponent(report.id)}`
+    : null;
+  const acceptance = result.verification?.acceptance;
+  const verification = [
+    result.verification?.binding ? "connection bound" : null,
+    result.verification?.refresh?.status ? `refresh ${result.verification.refresh.status}` : null,
+    acceptance ? `acceptance query passed (${acceptance.rowCount} row${acceptance.rowCount === 1 ? "" : "s"})` : null,
+  ].filter(Boolean).join(" · ") || "incomplete";
+  const lines = [
+    "",
+    result.accepted
+      ? `Publish complete — ${report?.displayName ?? "the report"} is live.`
+      : `Publish finished — ${report?.displayName ?? "the report"} was deployed, but live verification is incomplete.`,
+    ...(reportUrl ? ["", "Open the report:", reportUrl] : []),
+    "",
+    `Workspace: ${result.workspace?.displayName ?? "Unknown"} (${result.workspace?.id ?? "unknown"})`,
+    ...(report ? [`Report: ${report.displayName} (${report.id})`] : []),
+    ...(semanticModel ? [`Semantic model: ${semanticModel.displayName} (${semanticModel.id})`] : []),
+    `Verification: ${verification}`,
+    `Plan: ${result.planId}`,
+    ...(result.receiptPath ? [`Receipt: ${result.receiptPath}`] : []),
+    "",
+  ];
+  return lines.join("\n");
+}
+
+function printPublishResult(result) { process.stdout.write(formatPublishResult(result)); }
+
+async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt: receiptOption, resume, timeout, onProgress = null }) {
   const resolvedPlanPath = path.resolve(planPath);
+  onProgress?.({ status: "running", step: "deployment-plan", message: "Loading and validating the authorized deployment plan" });
   const plan = JSON.parse(await readFile(resolvedPlanPath, "utf8"));
   if (confirm !== plan.planId) throw new Error(`Deployment requires exact plan confirmation ${plan.planId}`);
   if (receiptOption && resume && path.resolve(receiptOption) !== path.resolve(resume)) throw new Error("--receipt and --resume must identify the same file when both are supplied");
+  onProgress?.({ status: "passed", step: "deployment-plan", message: `Validated authorized plan ${plan.planId}` });
   const receiptPath = path.resolve(receiptOption ?? resume ?? path.join(loaded.root, ".supervisual", "deploy-receipt.json"));
   const receipt = resume
     ? JSON.parse(await readFile(path.resolve(resume), "utf8"))
@@ -236,6 +295,7 @@ async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt
   await writeJsonAtomic(receiptPath, receipt);
   const client = new FabricHttpClient({ timeoutSeconds: Number(timeout) });
   try {
+    onProgress?.({ status: "running", step: "deployment", message: backup ? "Revalidating the target and preparing the recoverable deployment" : "Revalidating the target and applying the authorized deployment" });
     const result = await applyDeploymentPlan({
       client,
       plan,
@@ -247,6 +307,12 @@ async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt
         receipt.status = "in-progress";
         receipt.updatedAt = new Date().toISOString();
         await writeJsonAtomic(receiptPath, receipt);
+        onProgress?.({ status: "passed", step: `deploy-${action}`, message: `${item.resumed ? "Verified" : item.operation === "update" ? "Updated" : "Created"} ${item.displayName}` });
+        onProgress?.({
+          status: "running",
+          step: action === "semanticModel" ? "deploy-report" : "live-verification",
+          message: action === "semanticModel" ? "Deploying the bound Power BI report" : "Binding the connection, refreshing the semantic model, and running acceptance checks",
+        });
       },
     });
     receipt.items = result.items;
@@ -254,6 +320,7 @@ async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt
     receipt.completedAt = new Date().toISOString();
     receipt.verification = result.verification;
     await writeJsonAtomic(receiptPath, receipt);
+    onProgress?.({ status: result.accepted ? "passed" : "failed", step: "live-verification", message: result.accepted ? "Deployment and live verification completed successfully" : "Deployment completed but live verification is incomplete" });
     return { ...result, receiptPath, planPath: resolvedPlanPath };
   } catch (error) {
     receipt.status = "interrupted";
@@ -566,11 +633,17 @@ function createProgram() {
     .option("--resume <file>", "resume from a matching interrupted receipt")
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .action(async (project = ".", options, command) => {
+      const json = jsonEnabled(command);
+      const onProgress = json ? null : writeCommandProgress;
+      if (!json) writeProgress(`\nSuper Visual publish\n\n`);
+      onProgress?.({ status: "running", step: "project", message: "Loading and validating the Super Visual project" });
       const loaded = await loadProject(projectFile(project));
+      onProgress?.({ status: "passed", step: "project", message: "Loaded and validated the Super Visual project" });
       const planPath = path.resolve(options.plan ?? path.join(loaded.root, ".supervisual", "deploy-plan.json"));
       if (options.confirm && options.preAuthorize) throw new Error("--confirm and --pre-authorize are mutually exclusive");
       if (options.confirm) {
-        const result = await applySavedDeployment({ loaded, planPath, confirm: options.confirm, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
+        const result = await applySavedDeployment({ loaded, planPath, confirm: options.confirm, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout, onProgress });
+        onProgress?.({ status: "running", step: "deployment-state", message: "Saving the deployed Fabric item identities" });
         await writeProjectTarget(loaded.root, targetUpdate({
           workspaceId: result.workspace.id,
           workspaceName: result.workspace.displayName,
@@ -579,31 +652,40 @@ function createProgram() {
           reportId: result.items.report?.id,
           reportName: result.items.report?.displayName,
         }));
-        output({ ok: result.accepted, ...result }, jsonEnabled(command));
+        onProgress?.({ status: "passed", step: "deployment-state", message: "Saved the deployed Fabric item identities" });
+        if (json) output({ ok: result.accepted, ...result }, true);
+        else printPublishResult(result);
         if (!result.accepted) process.exitCode = 3;
         return result;
       }
 
+      onProgress?.({ status: "running", step: "binding", message: "Loading the saved Fabric workspace and semantic-model binding" });
       const target = await resolveProjectTarget(loaded.root, options, { requireSemanticModel: true });
+      onProgress?.({ status: "passed", step: "binding", message: "Loaded the Fabric workspace and semantic-model binding" });
       const reportName = target.reportName ?? loaded.project.application.title;
       const semanticModelName = target.managedSemanticModelName ?? `${reportName} — Super Visual data`;
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const selectedSemanticModelId = target.semanticModelId ?? target.managedSemanticModelId;
-      const inspected = await inspectSemanticModel({ client, workspaceId: target.workspaceId, workspaceName: target.workspaceName, semanticModelId: selectedSemanticModelId });
+      const inspected = await inspectSemanticModel({ client, workspaceId: target.workspaceId, workspaceName: target.workspaceName, semanticModelId: selectedSemanticModelId, onProgress });
+      onProgress?.({ status: "running", step: "compatibility", message: "Checking application queries against the selected semantic model" });
       const compatibility = usesSemanticCatalog(loaded.broker)
         ? { ok: true, summary: { required: 1, matched: 1, missing: 0, ambiguous: 0 }, diagnostics: [] }
         : checkSemanticCompatibility(inspected.semanticModel, loaded.semanticModel, loaded.broker);
       if (!compatibility.ok) throw new Error(`Selected semantic model is incompatible:\n- ${compatibility.diagnostics.map((item) => item.message).join("\n- ")}`);
+      onProgress?.({ status: "passed", step: "compatibility", message: `Confirmed ${compatibility.summary.matched || compatibility.summary.required} semantic binding${compatibility.summary.required === 1 ? "" : "s"}` });
+      onProgress?.({ status: "running", step: "connection", message: "Resolving the selected semantic model's Fabric connection and source path" });
       const selectedConnection = selectedConnectionDefaults(await client.getSemanticConnections(target.workspaceId, selectedSemanticModelId));
       const connectionId = target.connectionId ?? selectedConnection?.connectionId;
       const connectionMode = target.connectionId ? target.connectionMode : selectedConnection?.connectionMode ?? target.connectionMode;
       const automaticParameters = options.parametersFile ? null : selectedConnection?.semanticParameters;
       if (!connectionId) throw new Error("The selected semantic model does not expose one reusable Fabric connection. Use the advanced --connection-id override.");
       if (!options.parametersFile && !automaticParameters) throw new Error("The selected semantic model source path cannot be reused automatically. Use the advanced --parameters-file override.");
-      const packaged = await build(project, true, options.parametersFile, inspected.semanticModel, automaticParameters);
+      onProgress?.({ status: "passed", step: "connection", message: "Resolved the reusable Fabric connection and semantic source path" });
+      const packaged = await build(project, true, options.parametersFile, inspected.semanticModel, automaticParameters, onProgress);
       if (!packaged.ok) throw new Error("Packaged solution manifest verification failed");
       const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : 'EVALUATE ROW("Super Visual", 1)';
       const postDeployment = { connectionId, connectivityType: connectionMode, timeoutSeconds: Number(options.timeout), acceptanceDax };
+      onProgress?.({ status: "running", step: "plan", message: "Inspecting the target workspace and creating the immutable deployment plan" });
       const plan = await createDeploymentPlan({
         client,
         workspaceId: target.workspaceId,
@@ -614,6 +696,8 @@ function createProgram() {
         allowUpdates: Boolean(options.allowUpdates),
         postDeployment,
       });
+      onProgress?.({ status: plan.blockers.length ? "failed" : "passed", step: "plan", message: plan.blockers.length ? `Created a blocked deployment plan with ${plan.blockers.length} issue${plan.blockers.length === 1 ? "" : "s"}` : `Created immutable deployment plan ${plan.planId}` });
+      onProgress?.({ status: "running", step: "plan-state", message: "Saving the deployment plan and resolved Fabric target" });
       await writeJsonAtomic(planPath, plan);
       await writeProjectTarget(loaded.root, targetUpdate({
         workspaceId: target.workspaceId,
@@ -625,6 +709,7 @@ function createProgram() {
         connectionId,
         connectionMode,
       }));
+      onProgress?.({ status: "passed", step: "plan-state", message: `Saved the deployment plan to ${planPath}` });
       const result = {
         ok: plan.blockers.length === 0,
         status: plan.blockers.length ? "blocked" : "planned",
@@ -635,11 +720,12 @@ function createProgram() {
         next: plan.blockers.length ? null : `supervisual publish --confirm ${plan.planId}`,
       };
       if (!plan.blockers.length && options.preAuthorize) {
-        if (!jsonEnabled(command)) {
+        if (!json) {
           printDeploymentPlan(plan);
           process.stdout.write("Pre-authorization accepted; applying this generated plan without a second prompt.\n");
         }
-        const applied = await applySavedDeployment({ loaded, planPath, confirm: plan.planId, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
+        const applied = await applySavedDeployment({ loaded, planPath, confirm: plan.planId, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout, onProgress });
+        onProgress?.({ status: "running", step: "deployment-state", message: "Saving the deployed Fabric item identities" });
         await writeProjectTarget(loaded.root, targetUpdate({
           workspaceId: applied.workspace.id,
           workspaceName: applied.workspace.displayName,
@@ -650,14 +736,17 @@ function createProgram() {
           reportId: applied.items.report?.id,
           reportName: applied.items.report?.displayName,
         }));
-        output({ ok: applied.accepted, preAuthorized: true, ...applied }, jsonEnabled(command));
+        onProgress?.({ status: "passed", step: "deployment-state", message: "Saved the deployed Fabric item identities" });
+        if (json) output({ ok: applied.accepted, preAuthorized: true, ...applied }, true);
+        else printPublishResult(applied);
         if (!applied.accepted) process.exitCode = 3;
         return applied;
       }
-      if (!plan.blockers.length && !jsonEnabled(command) && process.stdin.isTTY && process.stdout.isTTY) {
+      if (!plan.blockers.length && !json && process.stdin.isTTY && process.stdout.isTTY) {
         const confirmed = await confirmDeploymentPlan(plan);
         if (confirmed) {
-          const applied = await applySavedDeployment({ loaded, planPath, confirm: plan.planId, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
+          const applied = await applySavedDeployment({ loaded, planPath, confirm: plan.planId, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout, onProgress });
+          onProgress?.({ status: "running", step: "deployment-state", message: "Saving the deployed Fabric item identities" });
           await writeProjectTarget(loaded.root, targetUpdate({
             workspaceId: applied.workspace.id,
             workspaceName: applied.workspace.displayName,
@@ -668,14 +757,15 @@ function createProgram() {
             reportId: applied.items.report?.id,
             reportName: applied.items.report?.displayName,
           }));
-          output({ ok: applied.accepted, ...applied }, false);
+          onProgress?.({ status: "passed", step: "deployment-state", message: "Saved the deployed Fabric item identities" });
+          printPublishResult(applied);
           if (!applied.accepted) process.exitCode = 3;
           return applied;
         }
         output(`Publish cancelled. The reviewed plan is saved at ${planPath}.`, false);
         return result;
       }
-      output(result, jsonEnabled(command));
+      output(result, json);
       if (plan.blockers.length) process.exitCode = 2;
       return result;
     });

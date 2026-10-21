@@ -1,6 +1,6 @@
 {
   "name": "@datashow/super-visual-runtime-powerbi",
-  "version": "0.1.0-rc.6",
+  "version": "0.1.0-rc.7",
   "description": "Reusable long-table broker runtime for compiled Super Visual Power BI visuals.",
   "type": "module",
   "files": [
