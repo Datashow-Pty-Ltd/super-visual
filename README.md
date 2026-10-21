@@ -224,9 +224,28 @@ for the complete example.
 
 - [Deploy Hello World](docs/recipes/hello-world.md) — the smallest complete
   first deployment and semantic-preview loop.
-- [Deploy AdventureWorks](docs/recipes/adventureworks.md) — provision the proven
-  Azure SQL source, plan and apply the semantic model and report, then run live
-  acceptance.
+- [Build and deploy AdventureWorks](docs/recipes/adventureworks.md) — understand
+  the required data stack, provision or reuse AdventureWorksDW2025, create the
+  semantic model, deploy the report, and run live acceptance.
+
+The AdventureWorks dashboard is a live-data reference application, not a
+self-contained mock-data demo. Compiling and packaging it requires only the
+repository, but live preview and interaction testing require a compatible Power
+BI semantic model. Reproducing the complete example from scratch requires this
+ordered stack:
+
+```text
+AdventureWorksDW2025 database
+  -> Fabric cloud connection
+  -> Power BI semantic model
+  -> Super Visual report
+```
+
+Super Visual supplies the semantic-model definition, React application,
+binding contracts, report wrapper, and deployment automation. It does not
+redistribute Microsoft's AdventureWorks database. The recipe supports either
+provisioning the full stack from an appropriately licensed BACPAC or reusing an
+existing compatible database or semantic model.
 
 The AdventureWorks helper exposes the ordered workflow directly:
 

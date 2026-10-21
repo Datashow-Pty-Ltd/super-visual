@@ -1,14 +1,41 @@
-# Recipe: deploy AdventureWorks
+# Recipe: build and deploy AdventureWorks
 
 This recipe reproduces the proven AdventureWorks deployment in three ordered
 stages: source database, semantic model, and Super Visual report. The helper is
 a public, parameterized form of the deployed method; it contains no tenant IDs,
 credentials, or capacity controls.
 
-This is intentionally broader than the normal Super Visual workflow because it
-provisions the sample database and its Power BI semantic model. If a semantic
-model already exists, use [Getting started](../getting-started.md): select that
-model with `--semantic-model-id`, preview, and publish.
+## What this recipe builds
+
+The AdventureWorks dashboard is not a self-contained mock-data application. A
+live preview or deployed report needs a compatible Power BI semantic model, and
+that model needs an accessible AdventureWorks data source:
+
+```text
+AdventureWorksDW2025 database
+  -> Fabric cloud connection
+  -> Power BI semantic model
+  -> Super Visual report
+```
+
+Super Visual supplies the semantic-model definition, React application, widget
+broker, report wrapper, and guarded deployment process. It does not redistribute
+the Microsoft sample database or connection credentials.
+
+Choose the shortest applicable path:
+
+| Starting point | Begin at | What Super Visual does |
+| --- | --- | --- |
+| You only want to inspect, compile, or package the example | Step 1 | Validates and builds the source without requiring live data |
+| You already have a compatible AdventureWorks semantic model | Step 7 | Runs the application against that model; use the normal `publish` workflow if you also want a report |
+| You have an existing compatible AdventureWorksDW2025 database | Step 2 with `--reuse-existing`, then Step 3 | Records the source, then creates and deploys the semantic model and report |
+| You are starting from an AdventureWorksDW2025 BACPAC | Step 2 | Provisions the complete database, model, and report path |
+
+This recipe is intentionally broader than the normal Super Visual workflow
+because it can provision both the sample database and its Power BI semantic
+model. For an unrelated existing semantic model, use
+[Getting started](../getting-started.md): select that model with
+`--semantic-model-id`, preview, and publish.
 
 The proven source is Azure SQL. The semantic model and report are Fabric items.
 Fabric capacity must already be running, and capacity start/stop remains an
