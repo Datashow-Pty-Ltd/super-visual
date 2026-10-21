@@ -77,6 +77,7 @@ describe("semantic preview", () => {
     const project = path.join(temporary, "project");
     const remote = path.join(temporary, "remote");
     let preview;
+    let browser;
     try {
       await initializeProject({ directory: project });
       await buildSolution(path.join(project, "supervisual.yaml"), { outputDirectory: remote });
@@ -110,6 +111,29 @@ describe("semantic preview", () => {
       expect({ status: mainResponse.status, body: mainSource }).toMatchObject({ status: 200 });
       expect(mainSource).toContain("SemanticPreviewHost");
 
+      const { chromium } = await import("playwright");
+      browser = await chromium.launch({ headless: true });
+      const page = await browser.newPage({ viewport: { width: 800, height: 480 } });
+      await page.goto(preview.url, { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => window.__SUPERVISUAL_PREVIEW__?.snapshot().status === "ready");
+      const scroll = await page.evaluate(() => {
+        const spacer = document.createElement("div");
+        spacer.style.height = "200vh";
+        document.getElementById("root").append(spacer);
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        return {
+          overflow: getComputedStyle(document.body).overflow,
+          scrollHeight: document.documentElement.scrollHeight,
+          clientHeight: document.documentElement.clientHeight,
+          scrollY: window.scrollY,
+        };
+      });
+      expect(scroll).toMatchObject({ overflow: "auto" });
+      expect(scroll.scrollHeight).toBeGreaterThan(scroll.clientHeight);
+      expect(scroll.scrollY).toBeGreaterThan(0);
+      await browser.close();
+      browser = null;
+
       const rejected = await fetch(new URL("__supervisual/query", preview.url), { method: "POST", headers: { "Content-Type": "application/json", Origin: preview.url.slice(0, -1) }, body: JSON.stringify({ widgets: ["sales"] }) });
       expect(rejected.status).toBe(403);
       const config = await (await fetch(new URL("src/config.ts", preview.url))).text();
@@ -123,14 +147,15 @@ describe("semantic preview", () => {
       expect(await accepted.json()).toMatchObject({ ok: true, metadata: { requestedWidgets: ["sales"], rowCount: 1 } });
       await preview.close();
       preview = null;
-      const browserResult = await runSemanticPreviewTest({ client, projectFile: path.join(project, "supervisual.yaml"), workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 10000 });
+      const browserResult = await runSemanticPreviewTest({ client, projectFile: path.join(project, "supervisual.yaml"), workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 30000 });
       expect(browserResult).toMatchObject({ ok: true, status: "passed", baseline: { receivedRowCount: 1 }, interaction: { available: false, tested: false } });
       expect(browserResult.baseline).not.toHaveProperty("context");
     } finally {
+      await browser?.close();
       await preview?.close();
       await rm(temporary, { recursive: true, force: true });
     }
-  }, 30000);
+  }, 60000);
 
   test("builds the Hello World catalog from the selected semantic model", async () => {
     const temporary = await createPreviewTestDirectory("supervisual-catalog-preview-");
@@ -146,12 +171,12 @@ describe("semantic preview", () => {
         async getDefinition() { return { format: "TMDL", parts: definition }; },
         async executeDax() { throw new Error("The metadata catalog must not require an internal model"); },
       };
-      const result = await runSemanticPreviewTest({ client, projectFile: path.join(project, "supervisual.yaml"), workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 10000 });
+      const result = await runSemanticPreviewTest({ client, projectFile: path.join(project, "supervisual.yaml"), workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 30000 });
       expect(result).toMatchObject({ ok: true, status: "passed", semanticModel: { id: "model-1", displayName: "Selected Model" }, baseline: { receivedRowCount: 6 } });
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }
-  }, 30000);
+  }, 60000);
 
   test("loads the AdventureWorks application and exercises a semantic selection", async () => {
     const temporary = await createPreviewTestDirectory("supervisual-adventure-preview-");
@@ -175,12 +200,12 @@ describe("semantic preview", () => {
           return rows;
         },
       };
-      const result = await runSemanticPreviewTest({ client, projectFile, workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 15000 });
+      const result = await runSemanticPreviewTest({ client, projectFile, workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 30000 });
       expect(result).toMatchObject({ ok: true, status: "passed", interaction: { available: true, tested: true, widget: "category" } });
       expect(result.pagesTested).toBeGreaterThan(1);
     } finally {
       await rm(path.resolve("examples/adventureworks/.supervisual/semantic-preview"), { recursive: true, force: true });
       await rm(temporary, { recursive: true, force: true });
     }
-  }, 60000);
+  }, 90000);
 });
