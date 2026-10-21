@@ -229,7 +229,18 @@ export async function applyDeploymentPlan({ client, plan, confirmPlanId, backupD
     verification = { binding, refresh: { status: refresh.status }, acceptance };
   }
   const accepted = Boolean(verification?.binding && verification?.refresh?.status === "Completed" && verification?.acceptance);
-  return { planId: plan.planId, workspace: plan.workspace, items: results, verification, accepted, status: accepted ? "accepted" : "published-unverified" };
+  const reportUrl = results.report?.id
+    ? `https://app.powerbi.com/groups/${encodeURIComponent(plan.workspace.id)}/reports/${encodeURIComponent(results.report.id)}`
+    : null;
+  return {
+    planId: plan.planId,
+    workspace: plan.workspace,
+    items: results,
+    verification,
+    accepted,
+    status: accepted ? "accepted" : "published-unverified",
+    ...(reportUrl ? { reportUrl } : {}),
+  };
 }
 
 async function loadBackupManifest(backupDirectory) {

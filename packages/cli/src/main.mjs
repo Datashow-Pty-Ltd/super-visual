@@ -16,7 +16,7 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.2.0-alpha.0";
+const VERSION = "0.2.0-alpha.1";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;
@@ -252,9 +252,9 @@ function printDeploymentPlan(plan) {
 export function formatPublishResult(result) {
   const report = result.items?.report;
   const semanticModel = result.items?.semanticModel;
-  const reportUrl = report?.id && result.workspace?.id
+  const reportUrl = result.reportUrl ?? (report?.id && result.workspace?.id
     ? `https://app.powerbi.com/groups/${encodeURIComponent(result.workspace.id)}/reports/${encodeURIComponent(report.id)}`
-    : null;
+    : null);
   const acceptance = result.verification?.acceptance;
   const verification = [
     result.verification?.binding ? "connection bound" : null,
@@ -266,7 +266,6 @@ export function formatPublishResult(result) {
     result.accepted
       ? `Publish complete — ${report?.displayName ?? "the report"} is live.`
       : `Publish finished — ${report?.displayName ?? "the report"} was deployed, but live verification is incomplete.`,
-    ...(reportUrl ? ["", "Open the report:", reportUrl] : []),
     "",
     `Workspace: ${result.workspace?.displayName ?? "Unknown"} (${result.workspace?.id ?? "unknown"})`,
     ...(report ? [`Report: ${report.displayName} (${report.id})`] : []),
@@ -274,6 +273,10 @@ export function formatPublishResult(result) {
     `Verification: ${verification}`,
     `Plan: ${result.planId}`,
     ...(result.receiptPath ? [`Receipt: ${result.receiptPath}`] : []),
+    "",
+    "Deployment result (JSON):",
+    JSON.stringify({ ok: result.accepted, ...result, ...(reportUrl ? { reportUrl } : {}) }, null, 2),
+    ...(reportUrl ? ["", "Open the report:", reportUrl] : []),
     "",
   ];
   return lines.join("\n");
@@ -319,6 +322,7 @@ async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt
     receipt.status = result.status;
     receipt.completedAt = new Date().toISOString();
     receipt.verification = result.verification;
+    receipt.reportUrl = result.reportUrl;
     await writeJsonAtomic(receiptPath, receipt);
     onProgress?.({ status: result.accepted ? "passed" : "failed", step: "live-verification", message: result.accepted ? "Deployment and live verification completed successfully" : "Deployment completed but live verification is incomplete" });
     return { ...result, receiptPath, planPath: resolvedPlanPath };

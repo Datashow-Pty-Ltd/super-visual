@@ -1,6 +1,6 @@
 {
   "name": "hello-world",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,6 @@
     "verify": "supervisual verify ."
   },
   "devDependencies": {
-    "@datashow/super-visual-cli": "0.2.0-alpha.0"
+    "@datashow/super-visual-cli": "0.2.0-alpha.1"
   }
 }
