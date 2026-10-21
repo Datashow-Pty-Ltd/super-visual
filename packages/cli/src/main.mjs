@@ -16,7 +16,7 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.2.0-alpha.1";
+const VERSION = "0.2.0-alpha.2";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;
@@ -249,12 +249,33 @@ function printDeploymentPlan(plan) {
   process.stdout.write(`\nReady to publish to ${plan.workspace.displayName} (${plan.workspace.id}):\n  - ${operations}\n\nPlan ID: ${plan.planId}\n`);
 }
 
+function powerBiReportUrl(workspaceId, reportId) {
+  return workspaceId && reportId
+    ? `https://app.powerbi.com/groups/${encodeURIComponent(workspaceId)}/reports/${encodeURIComponent(reportId)}`
+    : null;
+}
+
+function resultReportUrl(result) {
+  const reportId = result.items?.report?.id
+    ?? result.actions?.find((action) => action.key === "report")?.existingId;
+  return result.reportUrl ?? powerBiReportUrl(result.workspace?.id, reportId);
+}
+
+export function formatPublishPlanResult(result) {
+  const reportUrl = resultReportUrl(result);
+  const structured = { ...result, ...(reportUrl ? { reportUrl } : {}) };
+  return [
+    "",
+    JSON.stringify(structured, null, 2),
+    ...(reportUrl ? ["", "Open the report:", reportUrl] : []),
+    "",
+  ].join("\n");
+}
+
 export function formatPublishResult(result) {
   const report = result.items?.report;
   const semanticModel = result.items?.semanticModel;
-  const reportUrl = result.reportUrl ?? (report?.id && result.workspace?.id
-    ? `https://app.powerbi.com/groups/${encodeURIComponent(result.workspace.id)}/reports/${encodeURIComponent(report.id)}`
-    : null);
+  const reportUrl = resultReportUrl(result);
   const acceptance = result.verification?.acceptance;
   const verification = [
     result.verification?.binding ? "connection bound" : null,
@@ -769,7 +790,8 @@ function createProgram() {
         output(`Publish cancelled. The reviewed plan is saved at ${planPath}.`, false);
         return result;
       }
-      output(result, json);
+      if (json) output(result, true);
+      else process.stdout.write(formatPublishPlanResult(result));
       if (plan.blockers.length) process.exitCode = 2;
       return result;
     });

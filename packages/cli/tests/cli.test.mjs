@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
-import { createCommandProgressRenderer, formatPublishResult, selectedConnectionDefaults, validateFabricId } from "../src/main.mjs";
+import { createCommandProgressRenderer, formatPublishPlanResult, formatPublishResult, selectedConnectionDefaults, validateFabricId } from "../src/main.mjs";
 import { readProjectTarget } from "../src/project-target.mjs";
 
 const run = promisify(execFile);
@@ -70,6 +70,25 @@ describe("supervisual CLI", () => {
     expect(summary.trimStart()).not.toMatch(/^\{/);
   });
 
+  test("separates blocked plan JSON and finishes with the existing report URL", () => {
+    const url = "https://app.powerbi.com/groups/workspace-1/reports/report-1";
+    const output = formatPublishPlanResult({
+      ok: false,
+      status: "blocked",
+      workspace: { id: "workspace-1", displayName: "Release Workspace" },
+      actions: [
+        { key: "semanticModel", operation: "blocked", existingId: "model-1" },
+        { key: "report", operation: "blocked", existingId: "report-1" },
+      ],
+      blockers: ["Report already exists"],
+    });
+
+    expect(output).toMatch(/^\n\{/);
+    expect(output).toContain(`"reportUrl": "${url}"`);
+    expect(output).toContain(`\n}\n\nOpen the report:\n${url}\n`);
+    expect(output.trimEnd().endsWith(url)).toBe(true);
+  });
+
   test("exposes a discoverable command surface and version", async () => {
     const help = await run(process.execPath, [cli, "--help"], { cwd: root });
     expect(help.stdout).toContain("discover");
@@ -84,7 +103,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.2.0-alpha.1");
+    expect(version.stdout.trim()).toBe("0.2.0-alpha.2");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");
