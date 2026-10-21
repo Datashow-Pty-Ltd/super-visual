@@ -51,23 +51,22 @@ with `npx --yes @datashow/super-visual-cli@latest` instead. Repository
 contributors can follow [CONTRIBUTING.md](CONTRIBUTING.md) for the source-build
 workflow.
 
-If your React application already exports `ReportApplication`, create and bind
-the report in one command. `--app` accepts a source directory containing
-`reportApplication.tsx`, optional `report/` modules, and optional
-`report-design.less`:
+The fastest way to try Super Visual is the Hello World application. It opens as
+a searchable catalog of the selected semantic model, making it both a minimal
+example and a live connectivity check:
 
 ```bash
-supervisual init sales-report \
-  --app ./my-react-app \
+supervisual init hello-world \
+  --template hello-world \
   --workspace-id <workspace-guid> \
   --semantic-model-id <semantic-model-guid>
 ```
 
 The Fabric IDs are saved locally under the ignored `.supervisual/` directory,
-so normal development is just:
+so previewing the real model locally is just:
 
 ```bash
-cd sales-report
+cd hello-world
 supervisual dev --open
 ```
 
@@ -104,7 +103,10 @@ human `--pre-authorize` instruction for that invocation. Agents must never add
 that flag on their own. Updates also require `--allow-updates` while planning
 and `--backup <directory>` while applying.
 
-Use the built-in app when starting from scratch:
+## Other ways to start
+
+Omit `--template hello-world` when you want a clean full-page canvas with the
+minimum model-binding contract:
 
 ```bash
 supervisual init sales-report \
@@ -112,12 +114,35 @@ supervisual init sales-report \
   --semantic-model-id <semantic-model-guid>
 ```
 
-The default is a clean full-page canvas with the minimum model-binding contract.
-Choose `--template hello-world` for a searchable catalog that proves React is
-receiving live semantic-model metadata, or start with the complete
-[AdventureWorks example](examples/adventureworks). On the first deployment,
-`publish` creates the report and records its deployment state automatically.
-Users work only with the Power BI semantic model they selected.
+If you already have a Super Visual-compatible React page, use `--app` to copy
+that source into a new project. This is an optional reuse path, not part of the
+Hello World workflow. The source directory must contain `reportApplication.tsx`
+at its root or under `src/`; it may also contain `report-design.less` and a
+`report/` directory of supporting TypeScript modules:
+
+```text
+my-react-app/
+├── reportApplication.tsx
+├── report-design.less
+└── report/
+```
+
+```bash
+supervisual init sales-report \
+  --app ./my-react-app \
+  --workspace-id <workspace-guid> \
+  --semantic-model-id <semantic-model-guid>
+```
+
+The imported page uses the same governed `ReportApplication` interface as the
+built-in examples. Define its named datasets under `contracts/`; `--app` does
+not import an arbitrary Vite or Create React App project wholesale. See
+[Semantic binding](docs/semantic-binding.md) for the data-provider contract, or
+start with the complete [AdventureWorks example](examples/adventureworks).
+
+On the first deployment, `publish` creates the report and records its deployment
+state automatically. Users work only with the Power BI semantic model they
+selected.
 
 ## CLI reference
 
