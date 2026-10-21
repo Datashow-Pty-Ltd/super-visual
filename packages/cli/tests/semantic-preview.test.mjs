@@ -87,8 +87,19 @@ describe("semantic preview", () => {
         async getDefinition() { return { format: "TMDL", parts: definition }; },
         async executeDax() { return [{ "[WidgetId]": "sales", "[AxisKey]": "Bikes", "[Label]": "Bikes", "[Sort]": 1, "[SeriesKey]": "[Total Sales]", "[SeriesLabel]": "Total Sales", "[WidgetValue]": 42, "[BrokerContext]": "sales=Bikes" }]; },
       };
-      preview = await startSemanticPreview({ client, projectFile: path.join(project, "supervisual.yaml"), workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", port: 0 });
+      const progress = [];
+      preview = await startSemanticPreview({ client, projectFile: path.join(project, "supervisual.yaml"), workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", port: 0, onProgress: (event) => progress.push(event) });
       expect(preview).toMatchObject({ ok: true, status: "ready", mode: "live-semantic-model" });
+      expect(progress.map(({ status, step }) => `${status}:${step}`)).toEqual([
+        "running:project", "passed:project",
+        "running:workspace", "passed:workspace",
+        "running:semantic-model", "passed:semantic-model",
+        "running:definition", "running:inventory", "passed:inventory",
+        "running:compatibility", "passed:compatibility",
+        "running:build", "passed:build",
+        "running:host", "passed:host",
+        "running:server", "passed:server",
+      ]);
       const documentResponse = await fetch(preview.url);
       expect(documentResponse.headers.get("access-control-allow-origin")).toBeNull();
       expect(documentResponse.headers.get("content-security-policy")).toContain("connect-src 'self'");

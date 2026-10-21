@@ -25,6 +25,7 @@ for (const { directory, manifest } of packages) {
   const packed = JSON.parse(stdout)[0];
   if (!packed?.files?.length) throw new Error(`${directory} produced an empty npm package`);
   if (directory === "compiler" && !packed.files.some((file) => file.path === "template/visual/src/visual.ts")) throw new Error("compiler package is missing its visual template");
+  if (directory === "compiler" && manifest.dependencies?.["@datashow/super-visual-runtime-powerbi"] !== rootManifest.version) throw new Error("compiler package must depend on the matching Power BI runtime package");
   if (directory === "contracts" && !packed.files.some((file) => file.path.endsWith("supervisual-project.schema.json"))) throw new Error("contracts package is missing project schemas");
   if (directory === "cli" && !packed.files.some((file) => file.path === "templates/hello-world/supervisual.yaml")) throw new Error("CLI package is missing the hello-world template");
 }

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
@@ -9,7 +10,9 @@ import { generateRuntimeManifests, validateCompilation } from "./index.mjs";
 import { generateReportWrapper } from "./report-wrapper.mjs";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const runtimeSource = path.resolve(packageRoot, "../runtime-powerbi/src");
+const require = createRequire(import.meta.url);
+const runtimePackage = require.resolve("@datashow/super-visual-runtime-powerbi/package.json");
+const runtimeSource = path.join(path.dirname(runtimePackage), "src");
 const visualTemplate = path.join(packageRoot, "template", "visual");
 
 async function readStructured(file) {

@@ -396,15 +396,18 @@ async function writePreviewHost(root, token) {
   await writeFile(path.join(root, "src", "config.ts"), `export const PREVIEW_TOKEN = ${JSON.stringify(token)};\n`);
 }
 
-export async function startSemanticPreview({ client, projectFile, workspaceId, workspaceName, semanticModelId, host = "127.0.0.1", port = 5173, open = false }) {
+export async function startSemanticPreview({ client, projectFile, workspaceId, workspaceName, semanticModelId, host = "127.0.0.1", port = 5173, open = false, onProgress = null }) {
   if (!["127.0.0.1", "localhost", "::1"].includes(host)) throw new Error("Semantic preview may bind only to a loopback host");
+  onProgress?.({ status: "running", step: "project", message: "Loading and validating the Super Visual project" });
   const loaded = await loadProject(projectFile);
   const diagnostics = validateCompilation(loaded);
   if (diagnostics.length) throw new Error(`Preview validation failed:\n- ${diagnostics.join("\n- ")}`);
-  const inspected = await inspectSemanticModel({ client, workspaceId, workspaceName, semanticModelId });
+  onProgress?.({ status: "passed", step: "project", message: "Validated the project contracts and semantic bindings" });
+  const inspected = await inspectSemanticModel({ client, workspaceId, workspaceName, semanticModelId, onProgress });
   const catalogMode = usesSemanticCatalog(loaded.broker);
   const brokerDiagnostics = previewBrokerSurfaceDiagnostics(inspected.semanticModel);
   const previewMode = catalogMode ? "catalog" : brokerDiagnostics.length ? "direct" : "managed";
+  onProgress?.({ status: "running", step: "compatibility", message: "Checking application queries against the selected semantic model" });
   const compatibility = catalogMode
     ? { ok: true, summary: { required: 1, matched: 1, missing: 0, ambiguous: 0 }, checks: [], diagnostics: [] }
     : checkSemanticCompatibility(inspected.semanticModel, loaded.semanticModel, loaded.broker);
@@ -412,19 +415,26 @@ export async function startSemanticPreview({ client, projectFile, workspaceId, w
     const messages = compatibility.diagnostics.map((item) => item.message);
     throw new Error(`Semantic preview compatibility failed:\n- ${messages.join("\n- ")}`);
   }
+  onProgress?.({ status: "passed", step: "compatibility", message: `Confirmed ${compatibility.summary.matched || compatibility.summary.required} semantic binding${compatibility.summary.required === 1 ? "" : "s"}` });
   loaded.previewMode = previewMode;
   if (catalogMode) loaded.catalogRows = semanticCatalogRows(inspected.semanticModel);
 
   const previewRoot = path.join(loaded.root, ".supervisual", "semantic-preview");
   const solutionRoot = path.join(previewRoot, "solution");
   const hostRoot = path.join(previewRoot, "host");
+  onProgress?.({ status: "running", step: "build", message: "Building the local preview runtime" });
   await buildSolution(projectFile, { outputDirectory: solutionRoot });
+  onProgress?.({ status: "passed", step: "build", message: "Built the local preview runtime" });
+  onProgress?.({ status: "running", step: "host", message: "Preparing the secure loopback preview host" });
   const token = randomBytes(24).toString("base64url");
   await writePreviewHost(hostRoot, token);
+  const aliases = dependencyAliases();
+  onProgress?.({ status: "passed", step: "host", message: "Prepared the secure loopback preview host" });
+  onProgress?.({ status: "running", step: "server", message: `Starting the preview server on ${host}:${port}` });
   const server = await createServer({
     root: hostRoot,
     logLevel: "silent",
-    resolve: { alias: dependencyAliases(), dedupe: ["react", "react-dom"] },
+    resolve: { alias: aliases, dedupe: ["react", "react-dom"] },
     server: {
       host,
       port: Number(port),
@@ -441,11 +451,13 @@ export async function startSemanticPreview({ client, projectFile, workspaceId, w
   const address = server.httpServer?.address();
   const actualPort = typeof address === "object" && address ? address.port : Number(port);
   const urlHost = host === "::1" ? "[::1]" : host;
+  const url = `http://${urlHost}:${actualPort}/`;
+  onProgress?.({ status: "passed", step: "server", message: `Preview server is ready at ${url}` });
   return {
     ok: true,
     status: "ready",
     mode: "live-semantic-model",
-    url: `http://${urlHost}:${actualPort}/`,
+    url,
     workspace: inspected.workspace,
     semanticModel: { id: inspected.semanticModel.id, displayName: inspected.semanticModel.displayName },
     compatibility: compatibility.summary,
