@@ -15,9 +15,10 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.1.0-rc.2";
+const VERSION = "0.1.0-rc.3";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
+const progressStream = process.stderr;
 let activeProgress = null;
 
 export class CliUserError extends Error {
@@ -51,28 +52,30 @@ function output(value, json) {
 export function stopActiveProgress() {
   if (!activeProgress) return;
   clearInterval(activeProgress.timer);
-  process.stdout.write(`\r${" ".repeat(activeProgress.width)}\r`);
+  progressStream.write(`\r${" ".repeat(activeProgress.width)}\r`);
   activeProgress = null;
 }
 
-function writeInitProgress(event) {
-  if (event.status === "running" && process.stdout.isTTY) {
+export function writeInitProgress(event) {
+  if (event.status === "running") {
     stopActiveProgress();
+    progressStream.write(`> ${event.message}\n`);
+    if (!progressStream.isTTY) return;
     let frame = 0;
     const render = () => {
-      const line = `${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]} ${event.message}`;
-      process.stdout.write(`\r${line}`);
+      const line = `${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]} Working...`;
+      progressStream.write(`\r${line}`);
       activeProgress.width = Math.max(activeProgress.width, line.length);
       frame += 1;
     };
-    activeProgress = { timer: null, width: event.message.length + 2 };
+    activeProgress = { timer: null, width: 12 };
     render();
-    activeProgress.timer = setInterval(render, 80);
+    activeProgress.timer = setInterval(render, 120);
     return;
   }
   stopActiveProgress();
-  const marker = event.status === "passed" ? "✓" : "…";
-  process.stdout.write(`${marker} ${event.message}\n`);
+  const marker = event.status === "passed" ? "✓" : "!";
+  progressStream.write(`${marker} ${event.message}\n`);
 }
 
 function semanticInventory(model) {
@@ -322,7 +325,7 @@ function createProgram() {
       validateFabricId(options.workspaceId, "--workspace-id");
       validateFabricId(options.semanticModelId, "--semantic-model-id");
       const json = jsonEnabled(command);
-      if (!json) process.stdout.write(`\nSuper Visual init\n\n`);
+      if (!json) progressStream.write(`\nSuper Visual init\n\n`);
       let liveValidation = null;
       if (options.workspaceId && options.semanticModelId && !options.skipLiveValidation) {
         if (!json) writeInitProgress({ status: "running", message: "Verifying the Fabric workspace and Power BI semantic model (read-only)" });
@@ -346,9 +349,9 @@ function createProgram() {
         };
         if (!json) writeInitProgress({ status: "passed", message: `Verified workspace ${inspected.workspace.displayName} and semantic model ${inspected.semanticModel.displayName}` });
       } else if (!json && options.skipLiveValidation) {
-        process.stdout.write("! Live Fabric validation skipped by request\n");
+        progressStream.write("! Live Fabric validation skipped by request\n");
       } else if (!json) {
-        process.stdout.write("• No complete Fabric binding supplied; live validation was not run\n");
+        progressStream.write("! No complete Fabric binding supplied; live validation was not run\n");
       }
       const result = await initializeProject({
         directory,
@@ -360,6 +363,7 @@ function createProgram() {
         onProgress: json ? null : writeInitProgress,
       });
       if (options.workspaceId) {
+        if (!json) writeInitProgress({ status: "running", message: "Saving the reusable Fabric project binding" });
         const saved = await writeProjectTarget(result.directory, targetUpdate({
           ...options,
           workspaceName: options.workspaceName ?? liveValidation?.workspace.displayName,

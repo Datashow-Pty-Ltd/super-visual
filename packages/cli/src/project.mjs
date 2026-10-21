@@ -286,9 +286,11 @@ export async function initializeProject({ directory, template = "blank", name, t
     await writeFile(path.join(target, "README.md"), blankReadme(projectTitle));
   }
   if (app) {
+    onProgress?.({ status: "running", step: "application", message: `Importing React application from ${path.resolve(app)}` });
     await installApplication(target, app, projectTitle);
     onProgress?.({ status: "passed", step: "application", message: `Imported React application from ${path.resolve(app)}` });
   }
+  onProgress?.({ status: "running", step: "source", message: "Synchronizing React source and report-source contract" });
   const style = await readFile(path.join(target, "source", "report-design.less"), "utf8");
   const designHash = createHash("sha256").update(style).digest("hex");
   await replaceTemplateTokens(target, { DESIGN_HASH: designHash });
