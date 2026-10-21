@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 
 const run = promisify(execFile);
 const root = path.resolve(".");
+const rootManifest = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 const required = [
   "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md",
   "CLAUDE.md", "AGENTS.md", "skills/super-visual/SKILL.md", ".claude/skills/super-visual/SKILL.md", ".codex/skills/super-visual/SKILL.md",
@@ -17,7 +18,7 @@ await Promise.all(required.map((file) => access(path.join(root, file))));
 const packageDirectories = ["adapter-claude-dashboard", "cli", "compiler", "compliance", "contracts", "fabric", "runtime-powerbi", "semantic"];
 const packages = await Promise.all(packageDirectories.map(async (directory) => ({ directory, manifest: JSON.parse(await readFile(path.join(root, "packages", directory, "package.json"), "utf8")) })));
 for (const { directory, manifest } of packages) {
-  if (manifest.version !== "0.1.0-rc.0") throw new Error(`${directory} version is ${manifest.version}, expected 0.1.0-rc.0`);
+  if (manifest.version !== rootManifest.version) throw new Error(`${directory} version is ${manifest.version}, expected ${rootManifest.version}`);
   if (manifest.license !== "Apache-2.0") throw new Error(`${directory} must declare Apache-2.0`);
   if (manifest.publishConfig?.access !== "public") throw new Error(`${directory} must declare public publish access`);
   const { stdout } = await run("npm", ["pack", "--dry-run", "--json", "--workspace", manifest.name], { cwd: root, maxBuffer: 20 * 1024 * 1024 });

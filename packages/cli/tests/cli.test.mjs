@@ -26,7 +26,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.1.0-rc.0");
+    expect(version.stdout.trim()).toBe("0.1.0-rc.1");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");
@@ -146,6 +146,32 @@ describe("supervisual CLI", () => {
     }
   }, 15000);
 
+  test("explains initialization and validation before printing the human manifest", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-human-init-"));
+    const project = path.join(temporary, "hello-human");
+    try {
+      const initialized = await run(process.execPath, [cli, "init", project, "--template", "hello-world"], { cwd: root });
+      expect(initialized.stdout).toContain("Super Visual init");
+      expect(initialized.stdout).toContain("Created project files from the hello-world template");
+      expect(initialized.stdout).toContain("6 local validation checks passed with no diagnostics");
+      expect(initialized.stdout).toContain("Initialization complete — Hello Human is ready.");
+      expect(initialized.stdout).toContain("Initialization manifest (JSON):");
+      expect(initialized.stdout).toContain("supervisual dev --open");
+      const manifestText = initialized.stdout.split("Initialization manifest (JSON):\n")[1].split("\n\nNext:\n")[0];
+      expect(JSON.parse(manifestText)).toMatchObject({
+        ok: true,
+        status: "ready",
+        template: "hello-world",
+        validation: {
+          local: { ok: true, status: "passed", checks: expect.arrayContaining(["project-contract", "widget-broker"]) },
+          live: { status: "not-run", scope: "fabric-read-only" },
+        },
+      });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
   test("initializes a project with a reusable Fabric binding and existing React application", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-bound-"));
     const project = path.join(temporary, "bound-dashboard");
@@ -157,6 +183,7 @@ describe("supervisual CLI", () => {
         "--workspace-name", "Sandbox",
         "--semantic-model-id", "model-1",
         "--report-name", "Bound Dashboard",
+        "--skip-live-validation",
         "--json",
       ], { cwd: root });
       expect(JSON.parse(initialized.stdout)).toMatchObject({

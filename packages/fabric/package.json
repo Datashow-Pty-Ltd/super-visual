@@ -1,13 +1,23 @@
 {
   "name": "@datashow/super-visual-fabric",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0-rc.1",
   "description": "Plan-based, backup-first Fabric deployment primitives for Super Visual bundles.",
   "type": "module",
   "exports": "./src/index.mjs",
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "license": "Apache-2.0",
-  "engines": { "node": ">=22.12.0" },
-  "repository": { "type": "git", "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git", "directory": "packages/fabric" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Datashow-Pty-Ltd/super-visual.git",
+    "directory": "packages/fabric"
+  },
   "homepage": "https://github.com/Datashow-Pty-Ltd/super-visual#readme",
-  "publishConfig": { "access": "public" }
+  "publishConfig": {
+    "access": "public"
+  }
 }

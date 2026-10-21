@@ -7,6 +7,14 @@ import { inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-da
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const templatesRoot = path.join(packageRoot, "templates");
+const initializationChecks = [
+  "project-contract",
+  "widget-broker",
+  "page-set-primitives",
+  "report-graph-bindings",
+  "report-source-policy",
+  "semantic-references",
+];
 
 async function exists(file) {
   try { await access(file); return true; } catch { return false; }
@@ -240,9 +248,10 @@ export async function syncProjectSource(projectFile) {
   return { ok: true, synced: true, files: nextFiles.length, bundlePath, pageSetPath };
 }
 
-export async function initializeProject({ directory, template = "blank", name, title, app, force = false }) {
+export async function initializeProject({ directory, template = "blank", name, title, app, force = false, onProgress = null }) {
   if (!supportedTemplates().some((candidate) => candidate.id === template)) throw new Error(`Unknown template ${template}`);
   const target = path.resolve(directory);
+  onProgress?.({ status: "running", step: "scaffold", message: `Creating ${template} project in ${target}` });
   if (await exists(target)) {
     const metadata = await stat(target);
     if (!metadata.isDirectory()) throw new Error(`Target exists and is not a directory: ${target}`);
@@ -261,6 +270,8 @@ export async function initializeProject({ directory, template = "blank", name, t
     VISUAL_NAME: visualName,
     VISUAL_GUID: visualGuid,
   });
+  onProgress?.({ status: "passed", step: "scaffold", message: `Created project files from the ${template} template` });
+  onProgress?.({ status: "passed", step: "identity", message: `Generated unique visual identity ${visualGuid}` });
   if (template === "blank") {
     const entry = blankApplication.replaceAll("{{PROJECT_TITLE}}", projectTitle);
     await writeFile(path.join(target, "source", "reportApplication.tsx"), entry);
@@ -274,7 +285,10 @@ export async function initializeProject({ directory, template = "blank", name, t
     await writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
     await writeFile(path.join(target, "README.md"), blankReadme(projectTitle));
   }
-  if (app) await installApplication(target, app, projectTitle);
+  if (app) {
+    await installApplication(target, app, projectTitle);
+    onProgress?.({ status: "passed", step: "application", message: `Imported React application from ${path.resolve(app)}` });
+  }
   const style = await readFile(path.join(target, "source", "report-design.less"), "utf8");
   const designHash = createHash("sha256").update(style).digest("hex");
   await replaceTemplateTokens(target, { DESIGN_HASH: designHash });
@@ -283,7 +297,11 @@ export async function initializeProject({ directory, template = "blank", name, t
   bundle.designSystem.sha256 = designHash;
   await writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
   await syncProjectSource(path.join(target, "supervisual.yaml"));
+  onProgress?.({ status: "passed", step: "source", message: "Synchronized React source and report-source contract" });
+  onProgress?.({ status: "running", step: "validation", message: "Validating generated contracts, bindings, and source policy" });
   const inspection = await inspectProject(path.join(target, "supervisual.yaml"));
   if (!inspection.ok) throw new Error(`Generated project did not validate:\n- ${inspection.diagnostics.join("\n- ")}`);
-  return { ok: true, directory: target, projectFile: path.join(target, "supervisual.yaml"), template, application: inspection.application, ...(app ? { reactApplication: path.resolve(app) } : {}), next: [`cd ${target}`, "supervisual dev", "supervisual publish"] };
+  const validation = { ok: true, status: "passed", scope: "local", checks: initializationChecks, diagnostics: inspection.diagnostics };
+  onProgress?.({ status: "passed", step: "validation", message: `${initializationChecks.length} local validation checks passed with no diagnostics` });
+  return { ok: true, status: "ready", directory: target, projectFile: path.join(target, "supervisual.yaml"), template, application: inspection.application, validation, ...(app ? { reactApplication: path.resolve(app) } : {}), next: [`cd ${target}`, "supervisual dev --open", "supervisual publish"] };
 }

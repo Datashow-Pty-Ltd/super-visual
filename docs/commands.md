@@ -53,7 +53,8 @@ supervisual init <directory> [--template blank|hello-world] [--app <path>]
   [--workspace-id <id>] [--workspace-name <name>]
   [--semantic-model-id <id>]
   [--report-name <name>] [--connection-id <id>]
-  [--connection-mode <mode>] [--force]
+  [--connection-mode <mode>] [--skip-live-validation]
+  [--timeout <seconds>] [--force]
 supervisual check [project]
 supervisual compile [project] [--parameters-file <file>]
 supervisual build [project] [--package] [--parameters-file <file>]
@@ -66,8 +67,15 @@ to `build --package`. Initialization defaults to a clean full-page canvas,
 creates a unique visual GUID, and refuses to write into a non-empty directory.
 `--app` imports a compatible `reportApplication.tsx`, optional `report/` modules,
 and optional `report-design.less`. Fabric target options are written only to the
-ignored `.supervisual/target.json` binding. `--force` permits an existing empty
-directory; it does not overwrite files. A source profile overrides only the
+ignored `.supervisual/target.json` binding. When workspace and semantic-model
+IDs are supplied, initialization first uses read-only Fabric APIs to verify the
+workspace, model identity, and readable TMDL definition. It then validates the
+generated project contract, widget broker, page primitives, report graph,
+source policy, and semantic references. Human output reports each stage and
+ends with a JSON initialization manifest; `--json` emits only that one object.
+`--skip-live-validation` is the explicit offline escape hatch and is recorded
+as `not-run` in the manifest. `--force` permits an existing empty directory; it
+does not overwrite files. A source profile overrides only the
 deployment source `server` and `database`; it must use the versioned
 `fabric-sql-source` shape and should be stored under the ignored `.supervisual`
 directory. This is an advanced compile/package override, not part of the normal
