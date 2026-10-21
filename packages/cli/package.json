@@ -1,6 +1,6 @@
 {
   "name": "@datashow/super-visual-cli",
-  "version": "0.1.0-rc.3",
+  "version": "0.1.0-rc.4",
   "description": "CLI for validating, compiling, packaging, verifying, and deploying Super Visual projects.",
   "type": "module",
   "bin": {
@@ -25,10 +25,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@datashow/super-visual-adapter-claude-dashboard": "0.1.0-rc.3",
-    "@datashow/super-visual-compiler": "0.1.0-rc.3",
-    "@datashow/super-visual-contracts": "0.1.0-rc.3",
-    "@datashow/super-visual-fabric": "0.1.0-rc.3",
+    "@datashow/super-visual-adapter-claude-dashboard": "0.1.0-rc.4",
+    "@datashow/super-visual-compiler": "0.1.0-rc.4",
+    "@datashow/super-visual-contracts": "0.1.0-rc.4",
+    "@datashow/super-visual-fabric": "0.1.0-rc.4",
     "@fontsource/source-serif-4": "5.3.1",
     "@nivo/bar": "0.99.0",
     "@nivo/line": "0.99.0",

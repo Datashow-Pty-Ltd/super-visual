@@ -43,14 +43,21 @@ describe("semantic model inspection", () => {
 
   test("downloads only the selected semantic model definition", async () => {
     const calls = [];
+    const progress = [];
     const client = {
       async getWorkspace(id) { return { id, displayName: "Sandbox", capacityId: "capacity-1" }; },
       async listItems() { return [{ id: "model-1", displayName: "Demo", type: "SemanticModel" }]; },
       async getDefinition(_workspaceId, type, id, format) { calls.push({ type, id, format }); return { format, parts: definition }; },
       async executeDax() { return [{ Value: 1 }]; },
     };
-    const result = await inspectSemanticModel({ client, workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", acceptanceDax: 'EVALUATE ROW("Value", 1)' });
+    const result = await inspectSemanticModel({ client, workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", acceptanceDax: 'EVALUATE ROW("Value", 1)', onProgress: (event) => progress.push(event) });
     expect(calls).toEqual([{ type: "SemanticModel", id: "model-1", format: "TMDL" }]);
+    expect(progress.map(({ status, step }) => `${status}:${step}`)).toEqual([
+      "running:workspace", "passed:workspace",
+      "running:semantic-model", "passed:semantic-model",
+      "running:definition", "running:inventory", "passed:inventory",
+      "running:acceptance", "passed:acceptance",
+    ]);
     expect(result).toMatchObject({ ok: true, workspace: { id: "workspace-1" }, semanticModel: { id: "model-1", compatibilityLevel: 1702 }, acceptance: { rowCount: 1 } });
   });
 });

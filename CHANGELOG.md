@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-rc.4 — 2026-10-21
+
+- Write human progress synchronously to the terminal file descriptor so stage
+  updates cannot remain queued behind long validation work.
+- Split live semantic validation into visible workspace lookup, model lookup,
+  definition download, structure inspection, and optional acceptance-query
+  milestones instead of one opaque validation step.
+
 ## 0.1.0-rc.3 — 2026-10-21
 
 - Stream each `init` stage to stderr as soon as it begins so progress remains
