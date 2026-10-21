@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { promisify } from "node:util";
-import { Command, CommanderError } from "commander";
+import { Command, CommanderError, Option } from "commander";
 import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
 import { evaluateLiveCertification, loadContract, migrateProjectContracts } from "@datashow/super-visual-contracts";
@@ -16,7 +16,7 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.2.0-alpha.2";
+const VERSION = "0.2.0-alpha.3";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;
@@ -55,6 +55,98 @@ function projectFile(input = ".") {
 
 function output(value, json) {
   process.stdout.write(`${json ? JSON.stringify(value) : typeof value === "string" ? value : JSON.stringify(value, null, 2)}\n`);
+}
+
+function ensureTrailingNewline(value) {
+  return value.endsWith("\n") ? value : `${value}\n`;
+}
+
+function namedList(items) {
+  return items.map((item) => {
+    if (typeof item === "string") return `  - ${item}`;
+    const name = item.displayName ?? item.name ?? item.id ?? item.type ?? "Item";
+    const identity = item.id && item.id !== name ? ` (${item.id})` : "";
+    const description = item.description ?? item.note;
+    const status = item.status ? ` [${item.status}]` : "";
+    return `  - ${name}${identity}${status}${description ? ` — ${description}` : ""}`;
+  });
+}
+
+export function formatHumanResult(result) {
+  if (typeof result === "string") return ensureTrailingNewline(result);
+  if (Array.isArray(result)) return `${result.length} item${result.length === 1 ? "" : "s"}:\n${namedList(result).join("\n")}\n`;
+
+  const lines = [];
+  if (result.templates) {
+    lines.push(`${result.templates.length} project template${result.templates.length === 1 ? "" : "s"} available:`, ...namedList(result.templates));
+  } else if (result.adapters) {
+    lines.push(`${result.adapters.length} source adapter${result.adapters.length === 1 ? "" : "s"} available:`, ...namedList(result.adapters));
+  } else if (result.application && result.projectFile) {
+    lines.push(`Project inspected — ${result.application.title ?? result.application.id}.`, `Project: ${result.projectFile}`);
+    if (result.capabilities) {
+      lines.push(`Capabilities: ${result.capabilities.pages?.length ?? 0} pages · ${result.capabilities.datasets?.length ?? 0} datasets · ${result.capabilities.semanticTables?.length ?? 0} semantic tables`);
+    }
+    if (result.output) lines.push(`Generated output: ${result.output.ok ? "verified" : "needs attention"}${result.output.fileCount === undefined ? "" : ` · ${result.output.fileCount} files`}`);
+  } else if (result.type && result.input) {
+    lines.push(`${result.supported === false ? "Unsupported" : "Detected"} ${result.type}.`, `Input: ${result.input}`);
+    if (result.projectFile) lines.push(`Project: ${result.projectFile}`);
+  } else if (result.project && Array.isArray(result.diagnostics)) {
+    lines.push(result.ok ? `Validation passed — ${result.diagnostics.length} diagnostics.` : `Validation failed — ${result.diagnostics.length} diagnostics.`, `Project: ${result.project}`);
+  } else if (result.outputDirectory) {
+    lines.push(result.ok === false ? "Build verification failed." : "Build complete.", `Output: ${result.outputDirectory}`);
+    if (result.fileCount !== undefined) lines.push(`Verified files: ${result.fileCount}`);
+    if (result.visualPackage) lines.push(`Visual package: ${result.visualPackage}`);
+  } else if (result.fileCount !== undefined && (result.missing || result.changed || result.unexpected)) {
+    lines.push(result.ok ? `Verification passed — ${result.fileCount} generated files.` : "Verification failed.");
+    lines.push(`Missing: ${result.missing?.length ?? 0} · Changed: ${result.changed?.length ?? 0} · Unexpected: ${result.unexpected?.length ?? 0}`);
+  } else if (result.status === "current" && result.documents) {
+    lines.push(`Contracts are current — ${result.documents.length} documents checked.`);
+  } else if (result.adapter && result.input) {
+    lines.push(result.ok === false ? "Source inspection failed." : `Source inspection passed — ${result.adapter}.`, `Input: ${result.input}`);
+    if (result.manifestPath) lines.push(`Manifest: ${result.manifestPath}`);
+    if (result.dataReads) lines.push(`Datasets: ${result.dataReads.length ? result.dataReads.join(", ") : "none"}`);
+    if (result.assets) lines.push(`Assets: ${result.assets.length}`);
+  } else if (result.workspaces) {
+    lines.push(`${result.workspaces.length} Fabric workspace${result.workspaces.length === 1 ? "" : "s"} available:`, ...namedList(result.workspaces));
+  } else {
+    lines.push(result.ok === false ? "Command completed with issues." : "Command completed successfully.");
+  }
+
+  if (result.status && result.status !== "current") lines.push(`Status: ${result.status}`);
+  if (result.workspace) lines.push(`Workspace: ${result.workspace.displayName ?? result.workspace.name ?? "Unknown"} (${result.workspace.id ?? "unknown"})`);
+  if (result.semanticModel) {
+    lines.push(`Semantic model: ${result.semanticModel.displayName ?? result.semanticModel.name ?? "Unknown"} (${result.semanticModel.id ?? "unknown"})`);
+    if (result.semanticModel.tables) {
+      const inventory = semanticInventory(result.semanticModel);
+      lines.push(`Model inventory: ${inventory.tables} tables · ${inventory.columns} columns · ${inventory.measures} measures · ${inventory.hierarchies} hierarchies`);
+    }
+  }
+  if (result.planId) lines.push(`Plan ID: ${result.planId}`);
+  if (result.planPath) lines.push(`Plan: ${result.planPath}`);
+  if (result.record) lines.push(`Record: ${result.record}`);
+  if (result.url) lines.push(`URL: ${result.url}`);
+  if (result.reportUrl) lines.push(`Report: ${result.reportUrl}`);
+  if (result.diagnostics?.length) lines.push("Diagnostics:", ...result.diagnostics.map((item) => `  - ${item.message ?? String(item)}`));
+  if (result.blockers?.length) lines.push("Blockers:", ...result.blockers.map((item) => `  - ${item}`));
+  if (result.actions?.length) lines.push("Actions:", ...result.actions.map((item) => `  - ${item.operation} ${item.type} — ${item.displayName}`));
+
+  return `${lines.join("\n")}\n`;
+}
+
+function resultOutputOptions(command) {
+  const options = command.optsWithGlobals();
+  if (options.json && options.includeJson) throw new CliUserError("--json and --include-json cannot be used together.", {
+    summary: "Choose one JSON output mode.",
+    guidance: "Use --json for machine-only output or --include-json for human output followed by formatted JSON.",
+  });
+  return { json: Boolean(options.json), includeJson: Boolean(options.includeJson) };
+}
+
+function outputResult(value, command, human = formatHumanResult(value)) {
+  const { json, includeJson } = resultOutputOptions(command);
+  if (json) return output(value, true);
+  process.stdout.write(ensureTrailingNewline(human));
+  if (includeJson) process.stdout.write(`\nDetails (JSON):\n${JSON.stringify(value, null, 2)}\n\n`);
 }
 
 export function createCommandProgressRenderer({
@@ -100,11 +192,12 @@ export function stopActiveProgress() { commandProgressRenderer.stop(); }
 
 export function writeCommandProgress(event) { commandProgressRenderer.handle(event); }
 
-function printPreviewResult(result) {
+function printPreviewResult(result, includeJson = false) {
   process.stdout.write(`\nLocal preview is ready.\n`);
   process.stdout.write(`URL: ${result.url}\n`);
   process.stdout.write(`Workspace: ${result.workspace.displayName} (${result.workspace.id})\n`);
   process.stdout.write(`Semantic model: ${result.semanticModel.displayName} (${result.semanticModel.id})\n`);
+  if (includeJson) process.stdout.write(`\nPreview details (JSON):\n${JSON.stringify(result, null, 2)}\n\n`);
   process.stdout.write("The preview is using live semantic-model data. Press Ctrl+C to stop it.\n");
 }
 
@@ -121,7 +214,7 @@ function semanticInventory(model) {
   };
 }
 
-function printInitializationResult(result) {
+function printInitializationResult(result, includeJson = false) {
   process.stdout.write(`\nInitialization complete — ${result.application.title} is ready.\n`);
   process.stdout.write(`Project: ${result.directory}\n`);
   process.stdout.write(`Project manifest: ${result.projectFile}\n`);
@@ -129,12 +222,16 @@ function printInitializationResult(result) {
     if (result.binding.workspace) process.stdout.write(`Workspace: ${result.binding.workspace.name ?? "(name not recorded)"} (${result.binding.workspace.id})\n`);
     if (result.binding.semanticModel) process.stdout.write(`Semantic model: ${result.binding.semanticModel.name ?? "(name not recorded)"} (${result.binding.semanticModel.id})\n`);
   }
-  process.stdout.write(`\nInitialization manifest (JSON):\n${JSON.stringify(result, null, 2)}\n`);
+  if (includeJson) process.stdout.write(`\nInitialization manifest (JSON):\n${JSON.stringify(result, null, 2)}\n`);
   process.stdout.write(`\nNext:\n${result.next.map((command) => `  ${command}`).join("\n")}\n`);
 }
 
 function jsonEnabled(command) {
-  return Boolean(command.optsWithGlobals().json);
+  return resultOutputOptions(command).json;
+}
+
+function includeJsonEnabled(command) {
+  return resultOutputOptions(command).includeJson;
 }
 
 async function packageVisual(result, onProgress = null) {
@@ -206,7 +303,9 @@ export function selectedConnectionDefaults(references) {
 }
 
 function addJsonOption(command) {
-  return command.option("--json", "emit one machine-readable JSON value");
+  return command
+    .addOption(new Option("--json", "emit one machine-readable JSON value").conflicts("includeJson"))
+    .addOption(new Option("--include-json", "append formatted JSON to the human-readable result").conflicts("json"));
 }
 
 function usesSemanticCatalog(broker) {
@@ -261,18 +360,34 @@ function resultReportUrl(result) {
   return result.reportUrl ?? powerBiReportUrl(result.workspace?.id, reportId);
 }
 
-export function formatPublishPlanResult(result) {
+export function formatPublishPlanResult(result, { includeJson = false } = {}) {
   const reportUrl = resultReportUrl(result);
   const structured = { ...result, ...(reportUrl ? { reportUrl } : {}) };
-  return [
+  const blocked = result.status === "blocked" || Boolean(result.blockers?.length);
+  const lines = [
     "",
-    JSON.stringify(structured, null, 2),
+    blocked
+      ? "Publishing stopped — the deployment plan has blockers."
+      : "Publish plan ready — no Fabric changes have been applied yet.",
+    "",
+    `Workspace: ${result.workspace?.displayName ?? "Unknown"} (${result.workspace?.id ?? "unknown"})`,
+    `Plan ID: ${result.planId ?? "unknown"}`,
+    ...(result.planPath ? [`Plan: ${result.planPath}`] : []),
+    ...(result.actions?.length ? ["", "Planned actions:", ...result.actions.map((action) => `  - ${action.operation} ${action.type} — ${action.displayName ?? action.key}`)] : []),
+    ...(result.blockers?.length ? ["", "Blockers:", ...result.blockers.map((blocker) => `  - ${blocker}`)] : []),
+    "",
+    blocked
+      ? "Next: rerun supervisual publish with --allow-updates and a recoverable --backup directory."
+      : `Next: ${result.next ?? `supervisual publish --confirm ${result.planId}`}`,
+    ...(includeJson ? ["", "Deployment plan (JSON):", JSON.stringify(structured, null, 2)] : []),
     ...(reportUrl ? ["", "Open the report:", reportUrl] : []),
+    ...(includeJson && !reportUrl ? [""] : []),
     "",
-  ].join("\n");
+  ];
+  return lines.join("\n");
 }
 
-export function formatPublishResult(result) {
+export function formatPublishResult(result, { includeJson = false } = {}) {
   const report = result.items?.report;
   const semanticModel = result.items?.semanticModel;
   const reportUrl = resultReportUrl(result);
@@ -294,16 +409,14 @@ export function formatPublishResult(result) {
     `Verification: ${verification}`,
     `Plan: ${result.planId}`,
     ...(result.receiptPath ? [`Receipt: ${result.receiptPath}`] : []),
-    "",
-    "Deployment result (JSON):",
-    JSON.stringify({ ok: result.accepted, ...result, ...(reportUrl ? { reportUrl } : {}) }, null, 2),
+    ...(includeJson ? ["", "Deployment result (JSON):", JSON.stringify({ ok: result.accepted, ...result, ...(reportUrl ? { reportUrl } : {}) }, null, 2)] : []),
     ...(reportUrl ? ["", "Open the report:", reportUrl] : []),
     "",
   ];
   return lines.join("\n");
 }
 
-function printPublishResult(result) { process.stdout.write(formatPublishResult(result)); }
+function printPublishResult(result, includeJson = false) { process.stdout.write(formatPublishResult(result, { includeJson })); }
 
 async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt: receiptOption, resume, timeout, onProgress = null }) {
   const resolvedPlanPath = path.resolve(planPath);
@@ -370,11 +483,11 @@ function createProgram() {
 
   addJsonOption(program.command("discover [input]"))
     .description("detect a Super Visual project or supported dashboard input")
-    .action(async (input = ".", options, command) => output(await discoverInput(input), jsonEnabled(command)));
+    .action(async (input = ".", options, command) => outputResult(await discoverInput(input), command));
 
   addJsonOption(program.command("inspect [project]"))
     .description("summarize a project, its bindings, policies, and generated output")
-    .action(async (project = ".", options, command) => output(await inspectProject(projectFile(project)), jsonEnabled(command)));
+    .action(async (project = ".", options, command) => outputResult(await inspectProject(projectFile(project)), command));
 
   addJsonOption(program.command("migrate [project]"))
     .description("inspect contract versions and optionally apply recoverable source migrations")
@@ -383,17 +496,17 @@ function createProgram() {
     .action(async (project = ".", options, command) => {
       if (options.backup && !options.write) throw new Error("--backup requires --write");
       const result = await migrateProjectContracts(projectFile(project), { write: Boolean(options.write), backupDirectory: options.backup ? path.resolve(options.backup) : undefined });
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       return result;
     });
 
   addJsonOption(program.command("templates"))
     .description("list project templates available to init")
-    .action((options, command) => output({ ok: true, templates: supportedTemplates() }, jsonEnabled(command)));
+    .action((options, command) => outputResult({ ok: true, templates: supportedTemplates() }, command));
 
   addJsonOption(program.command("adapters"))
     .description("list source adapters and their compatibility status")
-    .action((options, command) => output({ ok: true, adapters: supportedAdapters() }, jsonEnabled(command)));
+    .action((options, command) => outputResult({ ok: true, adapters: supportedAdapters() }, command));
 
   const importCommand = program.command("import").description("import a supported dashboard source into a Super Visual project");
   addJsonOption(importCommand.command("claude-dashboard <input>"))
@@ -404,13 +517,13 @@ function createProgram() {
       if (options.inspectOnly) {
         const inspected = await inspectClaudeDashboard(input);
         const result = { ok: inspected.ok, input: inspected.input, manifestPath: inspected.manifestPath, adapter: "claude-dashboard", dashApis: inspected.dashApis, dataReads: inspected.dataReads, assets: inspected.assetReferences, diagnostics: inspected.diagnostics };
-        output(result, jsonEnabled(command));
+        outputResult(result, command);
         if (!result.ok) process.exitCode = 1;
         return result;
       }
       if (!options.project) throw new Error("--project is required unless --inspect-only is used");
       const result = await importClaudeDashboard({ input, projectFile: projectFile(options.project) });
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       return result;
     });
 
@@ -489,7 +602,7 @@ function createProgram() {
       }
       result.validation = { local: result.validation, live: liveValidation ?? { ok: true, status: "not-run", scope: "fabric-read-only" } };
       if (json) output(result, true);
-      else printInitializationResult(result);
+      else printInitializationResult(result, includeJsonEnabled(command));
     });
 
   addJsonOption(program.command("check [project]"))
@@ -498,7 +611,7 @@ function createProgram() {
       const loaded = await loadProject(projectFile(project));
       const diagnostics = validateCompilation(loaded);
       const result = { ok: diagnostics.length === 0, project: projectFile(project), diagnostics };
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       if (!result.ok) process.exitCode = 1;
       return result;
     });
@@ -507,19 +620,19 @@ function createProgram() {
     .description("compile a deterministic, inspectable solution bundle")
     .option("--package", "also create and embed the deployable .pbiviz archive")
     .option("--parameters-file <file>", "deployment source profile with service-reachable server and database")
-    .action(async (project = ".", options, command) => output(await build(project, Boolean(options.package), options.parametersFile), jsonEnabled(command)));
+    .action(async (project = ".", options, command) => outputResult(await build(project, Boolean(options.package), options.parametersFile), command));
 
   addJsonOption(program.command("package [project]"))
     .description("compile, package, embed, and verify a deployable solution")
     .option("--parameters-file <file>", "deployment source profile with service-reachable server and database")
-    .action(async (project = ".", options, command) => output(await build(project, true, options.parametersFile), jsonEnabled(command)));
+    .action(async (project = ".", options, command) => outputResult(await build(project, true, options.parametersFile), command));
 
   addJsonOption(program.command("verify [project]"))
     .description("verify every generated file against the solution manifest")
     .action(async (project = ".", options, command) => {
       const loaded = await loadProject(projectFile(project));
       const result = await verifySolutionManifest(path.resolve(loaded.root, loaded.project.output.directory));
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       if (!result.ok) process.exitCode = 1;
       return result;
     });
@@ -558,7 +671,7 @@ function createProgram() {
         });
         const { close, ...result } = preview;
         if (json) output(result, true);
-        else printPreviewResult(result);
+        else printPreviewResult(result, includeJsonEnabled(command));
         await waitForPreviewShutdown({ close });
       } catch (error) {
         throw new CliUserError(error instanceof Error ? error.message : String(error), {
@@ -589,7 +702,7 @@ function createProgram() {
         semanticModelId: target.semanticModelId ?? target.managedSemanticModelId,
         timeoutMs: Number(options.browserTimeout),
       });
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       return result;
     });
 
@@ -599,7 +712,7 @@ function createProgram() {
     .action(async (record, options, command) => {
       const value = await loadContract("live-certification-record", path.resolve(record));
       const result = evaluateLiveCertification(value);
-      output({ ...result, record: path.resolve(record) }, jsonEnabled(command));
+      outputResult({ ...result, record: path.resolve(record) }, command);
       if (!result.ok) process.exitCode = 1;
       return result;
     });
@@ -616,7 +729,7 @@ function createProgram() {
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : null;
       const result = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId, acceptanceDax });
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       return result;
     });
 
@@ -634,7 +747,7 @@ function createProgram() {
       const inspected = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId, acceptanceDax });
       const compatibility = checkSemanticCompatibility(inspected.semanticModel, loaded.semanticModel, loaded.broker);
       const result = { ...inspected, ok: compatibility.ok, compatibility };
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       if (!result.ok) process.exitCode = 1;
       return result;
     });
@@ -679,7 +792,7 @@ function createProgram() {
         }));
         onProgress?.({ status: "passed", step: "deployment-state", message: "Saved the deployed Fabric item identities" });
         if (json) output({ ok: result.accepted, ...result }, true);
-        else printPublishResult(result);
+        else printPublishResult(result, includeJsonEnabled(command));
         if (!result.accepted) process.exitCode = 3;
         return result;
       }
@@ -763,7 +876,7 @@ function createProgram() {
         }));
         onProgress?.({ status: "passed", step: "deployment-state", message: "Saved the deployed Fabric item identities" });
         if (json) output({ ok: applied.accepted, preAuthorized: true, ...applied }, true);
-        else printPublishResult(applied);
+        else printPublishResult(applied, includeJsonEnabled(command));
         if (!applied.accepted) process.exitCode = 3;
         return applied;
       }
@@ -783,7 +896,7 @@ function createProgram() {
             reportName: applied.items.report?.displayName,
           }));
           onProgress?.({ status: "passed", step: "deployment-state", message: "Saved the deployed Fabric item identities" });
-          printPublishResult(applied);
+          printPublishResult(applied, includeJsonEnabled(command));
           if (!applied.accepted) process.exitCode = 3;
           return applied;
         }
@@ -791,7 +904,7 @@ function createProgram() {
         return result;
       }
       if (json) output(result, true);
-      else process.stdout.write(formatPublishPlanResult(result));
+      else process.stdout.write(formatPublishPlanResult(result, { includeJson: includeJsonEnabled(command) }));
       if (plan.blockers.length) process.exitCode = 2;
       return result;
     });
@@ -802,7 +915,7 @@ function createProgram() {
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .action(async (options, command) => {
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-      output(await discoverFabricWorkspaces({ client }), jsonEnabled(command));
+      outputResult(await discoverFabricWorkspaces({ client }), command);
     });
 
   addJsonOption(deploy.command("discover"))
@@ -813,7 +926,7 @@ function createProgram() {
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .action(async (options, command) => {
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-      output(await discoverFabric({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, includeConnections: Boolean(options.connections) }), jsonEnabled(command));
+      outputResult(await discoverFabric({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, includeConnections: Boolean(options.connections) }), command);
     });
 
   addJsonOption(deploy.command("status"))
@@ -829,7 +942,7 @@ function createProgram() {
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : null;
       const result = await readDeploymentStatus({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId, reportId: options.reportId, connectionId: options.connectionId, acceptanceDax });
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
     });
 
   addJsonOption(deploy.command("diff [project]"))
@@ -844,7 +957,7 @@ function createProgram() {
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const solutionDirectory = path.resolve(loaded.root, loaded.project.output.directory);
       const result = await createDeploymentDiff({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, solutionDirectory, semanticModelName: options.semanticModelName, reportName: options.reportName });
-      output(result, jsonEnabled(command));
+      outputResult(result, command);
       return result;
     });
 
@@ -870,7 +983,7 @@ function createProgram() {
       const planPath = path.resolve(options.output ?? path.join(loaded.root, ".supervisual", "deploy-plan.json"));
       await mkdir(path.dirname(planPath), { recursive: true });
       await writeFile(planPath, `${JSON.stringify(plan, null, 2)}\n`);
-      output({ ...plan, planPath }, jsonEnabled(command));
+      outputResult({ ...plan, planPath }, command);
       if (plan.blockers.length) process.exitCode = 2;
       return plan;
     });
@@ -886,7 +999,7 @@ function createProgram() {
     .action(async (project = ".", options, command) => {
       const loaded = await loadProject(projectFile(project));
       const result = await applySavedDeployment({ loaded, planPath: options.plan, confirm: options.confirm, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
-      output({ ok: result.accepted, ...result }, jsonEnabled(command));
+      outputResult({ ok: result.accepted, ...result }, command);
       if (!result.accepted) process.exitCode = 3;
       return result;
     });
@@ -905,7 +1018,7 @@ function createProgram() {
       const planPath = path.resolve(options.output ?? path.join(options.backup, "restore-plan.json"));
       await mkdir(path.dirname(planPath), { recursive: true });
       await writeFile(planPath, `${JSON.stringify(plan, null, 2)}\n`);
-      output({ ...plan, planPath }, jsonEnabled(command));
+      outputResult({ ...plan, planPath }, command);
       return plan;
     });
 
@@ -918,7 +1031,7 @@ function createProgram() {
       const plan = JSON.parse(await readFile(path.resolve(options.plan), "utf8"));
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
       const result = await applyRestorePlan({ client, plan, confirmPlanId: options.confirm });
-      output({ ok: false, ...result }, jsonEnabled(command));
+      outputResult({ ok: false, ...result }, command);
       process.exitCode = 3;
       return result;
     });

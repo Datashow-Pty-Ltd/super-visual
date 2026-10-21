@@ -1,6 +1,6 @@
 {
   "name": "@datashow/super-visual-compiler",
-  "version": "0.2.0-alpha.2",
+  "version": "0.2.0-alpha.3",
   "description": "Compile governed React applications into inspectable Super Visual solution bundles.",
   "type": "module",
   "exports": "./src/index.mjs",
@@ -22,10 +22,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@datashow/super-visual-compliance": "0.2.0-alpha.2",
-    "@datashow/super-visual-contracts": "0.2.0-alpha.2",
-    "@datashow/super-visual-runtime-powerbi": "0.2.0-alpha.2",
-    "@datashow/super-visual-semantic": "0.2.0-alpha.2",
+    "@datashow/super-visual-compliance": "0.2.0-alpha.3",
+    "@datashow/super-visual-contracts": "0.2.0-alpha.3",
+    "@datashow/super-visual-runtime-powerbi": "0.2.0-alpha.3",
+    "@datashow/super-visual-semantic": "0.2.0-alpha.3",
     "fflate": "0.8.3",
     "yaml": "2.9.1"
   }

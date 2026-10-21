@@ -43,7 +43,7 @@ describe("supervisual CLI", () => {
   });
 
   test("describes a completed publish and prints its Power BI report URL", () => {
-    const summary = formatPublishResult({
+    const result = {
       accepted: true,
       planId: "plan-123",
       workspace: { id: "workspace-1", displayName: "Release Workspace" },
@@ -57,22 +57,30 @@ describe("supervisual CLI", () => {
         acceptance: { rowCount: 1, columnCount: 1, nonNull: true },
       },
       receiptPath: "/tmp/deploy-receipt.json",
-    });
+    };
+    const summary = formatPublishResult(result);
 
     expect(summary).toContain("Publish complete — Sales Report is live.");
     expect(summary).toContain("Workspace: Release Workspace (workspace-1)");
     expect(summary).toContain("Semantic model: Sales Report — Super Visual data (model-1)");
     expect(summary).toContain("Verification: connection bound · refresh Completed · acceptance query passed (1 row)");
-    expect(summary).toContain("Receipt: /tmp/deploy-receipt.json\n\nDeployment result (JSON):\n{");
-    expect(summary).toContain('"reportUrl": "https://app.powerbi.com/groups/workspace-1/reports/report-1"');
-    expect(summary).toContain("}\n\nOpen the report:\nhttps://app.powerbi.com/groups/workspace-1/reports/report-1");
+    expect(summary).toContain("Receipt: /tmp/deploy-receipt.json");
+    expect(summary).not.toContain("Deployment result (JSON)");
+    expect(summary).not.toContain('"reportUrl"');
+    expect(summary).toContain("Open the report:\nhttps://app.powerbi.com/groups/workspace-1/reports/report-1");
     expect(summary.trimEnd()).toMatch(/https:\/\/app\.powerbi\.com\/groups\/workspace-1\/reports\/report-1$/);
     expect(summary.trimStart()).not.toMatch(/^\{/);
+
+    const included = formatPublishResult(result, { includeJson: true });
+    expect(included).toContain("Receipt: /tmp/deploy-receipt.json\n\nDeployment result (JSON):\n{");
+    expect(included).toContain('"reportUrl": "https://app.powerbi.com/groups/workspace-1/reports/report-1"');
+    expect(included).toContain("}\n\nOpen the report:\nhttps://app.powerbi.com/groups/workspace-1/reports/report-1");
+    expect(included.trimEnd()).toMatch(/https:\/\/app\.powerbi\.com\/groups\/workspace-1\/reports\/report-1$/);
   });
 
-  test("separates blocked plan JSON and finishes with the existing report URL", () => {
+  test("suppresses blocked plan JSON by default and includes it only when requested", () => {
     const url = "https://app.powerbi.com/groups/workspace-1/reports/report-1";
-    const output = formatPublishPlanResult({
+    const result = {
       ok: false,
       status: "blocked",
       workspace: { id: "workspace-1", displayName: "Release Workspace" },
@@ -81,12 +89,23 @@ describe("supervisual CLI", () => {
         { key: "report", operation: "blocked", existingId: "report-1" },
       ],
       blockers: ["Report already exists"],
-    });
+      planId: "plan-123",
+      planPath: "/tmp/deploy-plan.json",
+    };
+    const output = formatPublishPlanResult(result);
 
-    expect(output).toMatch(/^\n\{/);
-    expect(output).toContain(`"reportUrl": "${url}"`);
-    expect(output).toContain(`\n}\n\nOpen the report:\n${url}\n`);
+    expect(output).toContain("Publishing stopped — the deployment plan has blockers.");
+    expect(output).toContain("Plan ID: plan-123");
+    expect(output).toContain("Blockers:\n  - Report already exists");
+    expect(output).not.toContain('"reportUrl"');
+    expect(output).toContain(`Open the report:\n${url}\n`);
     expect(output.trimEnd().endsWith(url)).toBe(true);
+
+    const included = formatPublishPlanResult(result, { includeJson: true });
+    expect(included).toContain("\nDeployment plan (JSON):\n{");
+    expect(included).toContain(`"reportUrl": "${url}"`);
+    expect(included).toContain(`\n}\n\nOpen the report:\n${url}\n`);
+    expect(included.trimEnd().endsWith(url)).toBe(true);
   });
 
   test("exposes a discoverable command surface and version", async () => {
@@ -103,7 +122,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.2.0-alpha.2");
+    expect(version.stdout.trim()).toBe("0.2.0-alpha.3");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");
@@ -118,8 +137,27 @@ describe("supervisual CLI", () => {
     const publishHelp = await run(process.execPath, [cli, "publish", "--help"], { cwd: root });
     expect(publishHelp.stdout).toContain("--pre-authorize");
     expect(publishHelp.stdout).toContain("--semantic-model-id");
+    expect(publishHelp.stdout).toContain("--include-json");
     expect(publishHelp.stdout).not.toContain("--semantic-model-name");
   }, 15000);
+
+  test("uses human output by default and exposes explicit JSON modes", async () => {
+    const human = await run(process.execPath, [cli, "templates"], { cwd: root });
+    expect(human.stdout).toContain("2 project templates available:");
+    expect(human.stdout).toContain("hello-world");
+    expect(human.stdout).not.toContain("Details (JSON)");
+    expect(human.stdout).not.toContain('"templates"');
+
+    const included = await run(process.execPath, [cli, "templates", "--include-json"], { cwd: root });
+    expect(included.stdout).toContain("2 project templates available:");
+    expect(included.stdout).toContain("\nDetails (JSON):\n{");
+    const includedJson = included.stdout.split("\nDetails (JSON):\n")[1].trim();
+    expect(JSON.parse(includedJson)).toMatchObject({ ok: true, templates: expect.any(Array) });
+
+    const machine = await run(process.execPath, [cli, "templates", "--json"], { cwd: root });
+    expect(JSON.parse(machine.stdout)).toMatchObject({ ok: true, templates: expect.any(Array) });
+    expect(machine.stdout).not.toContain("project templates available");
+  });
 
   test("treats legacy saved model IDs as internal managed state", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-target-"));
@@ -243,9 +281,10 @@ describe("supervisual CLI", () => {
     }
   }, 15000);
 
-  test("explains initialization and validation before printing the human manifest", async () => {
+  test("explains initialization and validation without dumping JSON by default", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-human-init-"));
     const project = path.join(temporary, "hello-human");
+    const projectWithJson = path.join(temporary, "hello-with-json");
     try {
       const initialized = await run(process.execPath, [cli, "init", project, "--template", "hello-world"], { cwd: root });
       expect(initialized.stderr).toContain("Super Visual init");
@@ -256,9 +295,14 @@ describe("supervisual CLI", () => {
       expect(initialized.stderr).toContain("✓ 6 local validation checks passed with no diagnostics");
       expect(initialized.stderr.indexOf("> Creating hello-world project")).toBeLessThan(initialized.stderr.indexOf("✓ Created project files"));
       expect(initialized.stdout).toContain("Initialization complete — Hello Human is ready.");
-      expect(initialized.stdout).toContain("Initialization manifest (JSON):");
+      expect(initialized.stdout).not.toContain("Initialization manifest (JSON):");
+      expect(initialized.stdout).not.toContain('"validation"');
       expect(initialized.stdout).toContain("supervisual dev --open");
-      const manifestText = initialized.stdout.split("Initialization manifest (JSON):\n")[1].split("\n\nNext:\n")[0];
+
+      const included = await run(process.execPath, [cli, "init", projectWithJson, "--template", "hello-world", "--include-json"], { cwd: root });
+      expect(included.stdout).toContain("Initialization complete — Hello With Json is ready.");
+      expect(included.stdout).toContain("\nInitialization manifest (JSON):\n{");
+      const manifestText = included.stdout.split("Initialization manifest (JSON):\n")[1].split("\n\nNext:\n")[0];
       expect(JSON.parse(manifestText)).toMatchObject({
         ok: true,
         status: "ready",
