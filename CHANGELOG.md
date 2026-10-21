@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-alpha.2 — 2026-10-22
+
+- Added blank-line separation before and after human-mode deployment-plan JSON.
+- Included the existing Power BI report URL in blocked update plans and printed
+  it as the final terminal line.
+- Added a regression test for the real blocked-plan output path used when a
+  report with the target name already exists.
+
 ## 0.2.0-alpha.1 — 2026-10-22
 
 - Added the deployed Power BI report URL to the structured publish result and
