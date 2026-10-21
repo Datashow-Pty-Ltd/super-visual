@@ -1,7 +1,10 @@
 # Command reference
 
-All operational commands accept `--json`. Machine-readable mode writes one JSON
-value; failures use a non-zero process status.
+All operational commands use concise human-readable output by default. Add
+`--include-json` to append the formatted result object after the human summary.
+Use `--json` for agents, scripts, and CI; that mode writes exactly one JSON value
+and suppresses progress output. `--json` and `--include-json` are mutually
+exclusive. Failures use a non-zero process status in every mode.
 
 ## Understand inputs
 
@@ -72,7 +75,8 @@ IDs are supplied, initialization first uses read-only Fabric APIs to verify the
 workspace, model identity, and readable TMDL definition. It then validates the
 generated project contract, widget broker, page primitives, report graph,
 source policy, and semantic references. Human output reports each stage and
-ends with a JSON initialization manifest; `--json` emits only that one object.
+ends with the project location, binding, and next commands. `--include-json`
+adds the initialization manifest; `--json` emits only that one object.
 `--skip-live-validation` is the explicit offline escape hatch and is recorded
 as `not-run` in the manifest. `--force` permits an existing empty directory; it
 does not overwrite files. A source profile overrides only the

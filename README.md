@@ -65,8 +65,9 @@ supervisual init hello-world \
 `init` verifies the workspace and semantic model through read-only Fabric APIs,
 creates the project, and runs six local checks covering its contracts, semantic
 references, page bindings, and React source policy. The terminal shows each
-stage and its final status before printing the initialization manifest as JSON.
-Use `--json` when a script or agent needs only the machine-readable manifest.
+stage and its final status, then prints a concise human-readable summary. Add
+`--include-json` when you also want the formatted result object, or use `--json`
+when a script or agent needs only one machine-readable value.
 
 The Fabric IDs are saved locally under the ignored `.supervisual/` directory,
 so previewing the real model locally is just:
@@ -180,6 +181,7 @@ shown, it defaults to the current directory. Use
 | Common option | What it does |
 | --- | --- |
 | `--json` | Emit one machine-readable JSON value for agents, scripts, and CI. |
+| `--include-json` | Keep the normal human-readable result and append its formatted JSON details. |
 | `--app <path>` | Initialize from an existing compatible React application. |
 | `--template <name>` | Initialize from a built-in template such as `blank` or `hello-world`. |
 | `--workspace-id <id>` | Select or save the immutable Fabric workspace ID. |

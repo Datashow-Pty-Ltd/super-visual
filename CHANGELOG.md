@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-alpha.3 — 2026-10-22
+
+- Suppress result JSON in normal terminal output across every CLI command.
+- Add `--include-json` for human-readable output followed by formatted JSON.
+- Preserve `--json` as a strict single-value interface for agents, scripts, and CI.
+- Keep publish report URLs as the final terminal line, including blocked plans.
+
 ## 0.2.0-alpha.2 — 2026-10-22
 
 - Added blank-line separation before and after human-mode deployment-plan JSON.
