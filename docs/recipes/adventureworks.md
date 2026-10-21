@@ -5,6 +5,11 @@ stages: source database, semantic model, and Super Visual report. The helper is
 a public, parameterized form of the deployed method; it contains no tenant IDs,
 credentials, or capacity controls.
 
+This is intentionally broader than the normal Super Visual workflow because it
+provisions the sample database and its Power BI semantic model. If a semantic
+model already exists, use [Getting started](../getting-started.md): select that
+model with `--semantic-model-id`, preview, and publish.
+
 The proven source is Azure SQL. The semantic model and report are Fabric items.
 Fabric capacity must already be running, and capacity start/stop remains an
 operator responsibility outside this project.

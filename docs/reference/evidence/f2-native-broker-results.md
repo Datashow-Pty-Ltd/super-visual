@@ -1,5 +1,9 @@
 # F2 Super Dashboard — source-direct broker A/B results
 
+> Historical research evidence, not current setup instructions. Names and IDs
+> below record the A/B test only. The supported user workflow is documented in
+> [Getting started](../../getting-started.md).
+
 Test date: 5 September 2026 (Australia/Melbourne)
 
 ## Verdict

@@ -3,7 +3,7 @@
 This directory records the final deployed Super Visual proof used to guide the
 open-source extraction.
 
-- `deployed-baseline.json` identifies the v38 visual package, semantic adapter,
+- `deployed-baseline.json` identifies the v38 visual package, managed semantic binding,
   report wrapper, and deployment evidence by SHA-256.
 - `runtime-source-hashes.json` identifies the runtime source files that created
   the reference package.

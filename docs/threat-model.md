@@ -4,7 +4,7 @@
 
 - Fabric and Power BI access tokens and connection identifiers.
 - Customer semantic metadata, data, workspace definitions, and backups.
-- Integrity of compiled visual, semantic adapter, PBIR, manifest, and release
+- Integrity of compiled visual, managed semantic binding, PBIR, manifest, and release
   artifacts.
 - Human control over the exact tenant mutation being authorized.
 

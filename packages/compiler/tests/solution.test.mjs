@@ -39,4 +39,21 @@ describe("solution compiler", () => {
       version: "2.0.0",
     });
   });
+
+  test("builds the Hello World catalog from the selected semantic model", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "supervisual-selected-catalog-"));
+    const selected = {
+      id: "model-1",
+      displayName: "AdventureWorks Selected",
+      tables: [{ name: "Product", columns: [{ name: "Category" }], measures: [{ name: "Sales" }], hierarchies: [] }],
+      relationships: [],
+      parameters: [],
+    };
+    const result = await buildSolution(path.resolve("examples/hello-world/supervisual.yaml"), { outputDirectory: root, semanticCatalogSource: selected });
+    const catalog = await readFile(path.join(root, "SemanticAdapter.SemanticModel", "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8");
+    expect(catalog).toContain("AdventureWorks Selected");
+    expect(catalog).toContain("Product");
+    expect(catalog).not.toContain("Hello World");
+    expect(result.manifest.provenance.semanticCatalogSource).toEqual({ id: "model-1", displayName: "AdventureWorks Selected" });
+  });
 });

@@ -12,7 +12,7 @@ Super Visual project
                  v
               compiler
         /          |          \
- Power BI visual   |   semantic adapter
+ Power BI visual   |   managed semantic binding (internal)
         \          |          /
               PBIR report
                  |
@@ -34,8 +34,9 @@ build manifest. These files are the interoperability boundary.
 
 The compiler validates the project, creates generated runtime manifests,
 copies the stable visual scaffold, bundles local assets, compiles the semantic
-adapter and PBIR wrapper, invokes Microsoft's packaging tools, and records
-artifact hashes.
+binding and PBIR wrapper, invokes Microsoft's packaging tools, and records
+artifact hashes. The generated binding is internal; the public input is the
+Power BI semantic-model ID selected by the user.
 
 ### Runtime
 
@@ -50,9 +51,9 @@ mount code, vendors local assets, and generates row-shape bindings. The same
 governed broker remains the only data source; no Claude service is called at
 runtime.
 
-### Semantic adapter
+### Internally managed semantic binding
 
-The adapter exposes report-specific rows with the shape:
+The internal binding exposes report-specific rows with the shape:
 
 ```text
 WidgetId | AxisKey | Label | Sort | SeriesKey | SeriesLabel |

@@ -1,5 +1,0 @@
-EVALUATE
-ROW(
-    "Total Sales", [Total Sales],
-    "Category Count", COUNTROWS(VALUES('Sales'[Category]))
-)

@@ -7,6 +7,9 @@ interface CatalogRow {
   entity: string;
 }
 
+const TYPE_ORDER = ["Model", "Table", "Column", "Measure", "Hierarchy", "Hierarchy level", "Relationship", "Parameter"];
+const TYPE_PLURALS: Record<string, string> = { Hierarchy: "Hierarchies", "Hierarchy level": "Hierarchy levels" };
+
 export function ReportApplication({ model, onVisibleDatasetsChange }: ReportApplicationProps): ReactElement {
   const [query, setQuery] = useState("");
   useEffect(() => onVisibleDatasetsChange?.(["model-catalog"]), [onVisibleDatasetsChange]);
@@ -18,7 +21,7 @@ export function ReportApplication({ model, onVisibleDatasetsChange }: ReportAppl
       parent: point.dimensions[1]?.label ?? "",
       entity: point.dimensions[2]?.label ?? point.label,
     }))
-    .sort((left, right) => left.type.localeCompare(right.type)
+    .sort((left, right) => (TYPE_ORDER.indexOf(left.type) - TYPE_ORDER.indexOf(right.type))
       || left.parent.localeCompare(right.parent)
       || left.entity.localeCompare(right.entity)), [dataset]);
 
@@ -30,6 +33,7 @@ export function ReportApplication({ model, onVisibleDatasetsChange }: ReportAppl
     result[row.type] = (result[row.type] ?? 0) + 1;
     return result;
   }, {});
+  const countTypes = [...TYPE_ORDER.filter((type) => counts[type] !== undefined), ...Object.keys(counts).filter((type) => !TYPE_ORDER.includes(type)).sort()];
   const connected = rows.length > 0;
 
   return <main className="hello-world">
@@ -46,7 +50,7 @@ export function ReportApplication({ model, onVisibleDatasetsChange }: ReportAppl
     </header>
 
     <section className="summary" aria-label="Semantic model summary">
-      {Object.entries(counts).map(([type, count]) => <div key={type}><strong>{count}</strong><span>{type}{count === 1 ? "" : "s"}</span></div>)}
+      {countTypes.map((type) => <div key={type}><strong>{counts[type]}</strong><span>{counts[type] === 1 ? type : TYPE_PLURALS[type] ?? `${type}s`}</span></div>)}
     </section>
 
     <section className="catalog" aria-labelledby="catalog-title">
@@ -54,7 +58,7 @@ export function ReportApplication({ model, onVisibleDatasetsChange }: ReportAppl
         <div><h2 id="catalog-title">Semantic model entities</h2><p>Tables, columns, measures, hierarchies, relationships, and parameters declared by the model.</p></div>
         <label className="search"><span>Search entities</span><input type="search" value={query} onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search type, parent, or name" /></label>
       </div>
-      {!connected ? <p className="empty">The page will populate when the semantic adapter returns its first broker rows.</p>
+      {!connected ? <p className="empty">The page will populate when the selected semantic model returns its first rows.</p>
         : visibleRows.length === 0 ? <p className="empty">No semantic entities match “{query}”.</p>
         : <div className="table-scroll"><table>
           <thead><tr><th scope="col">Type</th><th scope="col">Parent</th><th scope="col">Entity</th></tr></thead>

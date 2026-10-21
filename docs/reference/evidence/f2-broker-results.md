@@ -1,8 +1,12 @@
 # F2 Super Dashboard Broker POC — results
 
+> Historical research evidence, not current setup instructions. The supported
+> user workflow is documented in [Getting started](../../getting-started.md) and
+> requires only the selected Power BI semantic-model ID.
+
 Test date: 5 September 2026 (Australia/Melbourne)
 
-Follow-up: the source-direct Import A/B test removed the chained semantic-model hop and materially improved tail latency. See [f2-super-dashboard-native-broker-results.md](./f2-super-dashboard-native-broker-results.md).
+Follow-up: the source-direct Import A/B test removed the chained semantic-model hop and materially improved tail latency. See [f2-native-broker-results.md](./f2-native-broker-results.md).
 
 ## Verdict
 

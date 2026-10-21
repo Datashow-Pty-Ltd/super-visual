@@ -4,7 +4,7 @@ This is the smallest complete Super Visual project: one semantic table, one
 measure, one broker dataset, one page, and one accessible React chart.
 
 This project is ready for the three-command workflow. If `init` was given a
-workspace and deployed semantic adapter, run:
+workspace and Power BI semantic model, run:
 
 ```bash
 npx supervisual dev --open
@@ -17,9 +17,9 @@ pass the IDs once:
 
 ```bash
 npx supervisual dev . --workspace-id <workspace-guid> \
-  --semantic-model-id <adapter-model-guid> --open
+  --semantic-model-id <semantic-model-guid> --open
 npx supervisual preview test . --workspace-id <workspace-guid> \
-  --semantic-model-id <adapter-model-guid> --json
+  --semantic-model-id <semantic-model-guid> --json
 ```
 
 Edit the contracts under `contracts/` to point at your governed data. Application

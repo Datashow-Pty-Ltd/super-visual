@@ -146,7 +146,7 @@ This is a clean full-page Super Visual project with the minimum governed
 semantic binding. Build the page in \`source/reportApplication.tsx\` and define
 its named datasets under \`contracts/\`.
 
-With a workspace and deployed adapter saved during initialization:
+With a workspace and Power BI semantic model saved during initialization:
 
 \`\`\`bash
 npx supervisual dev --open
@@ -282,6 +282,7 @@ export async function initializeProject({ directory, template = "blank", name, t
   const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
   bundle.designSystem.sha256 = designHash;
   await writeFile(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
+  await syncProjectSource(path.join(target, "supervisual.yaml"));
   const inspection = await inspectProject(path.join(target, "supervisual.yaml"));
   if (!inspection.ok) throw new Error(`Generated project did not validate:\n- ${inspection.diagnostics.join("\n- ")}`);
   return { ok: true, directory: target, projectFile: path.join(target, "supervisual.yaml"), template, application: inspection.application, ...(app ? { reactApplication: path.resolve(app) } : {}), next: [`cd ${target}`, "supervisual dev", "supervisual publish"] };

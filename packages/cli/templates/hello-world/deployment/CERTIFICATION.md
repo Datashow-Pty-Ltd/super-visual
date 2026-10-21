@@ -1,10 +1,17 @@
 # Hello World live certification
 
-Copy `source-profile.example.json` to an ignored `.supervisual` directory and
-replace its values with a service-reachable SQL endpoint and database. Package
-with `--parameters-file`, discover the immutable Fabric workspace and
-connection, then create a deployment plan with unique item names.
+Initialize this project with a workspace and Power BI semantic-model ID using
+`--semantic-model-id`, then run the current live workflow:
 
-Do not apply until a human authorizes the exact plan ID and target workspace.
-Only a post-deployment `accepted` result proves binding, refresh, report
-binding, and DAX acceptance. Record the browser checks separately.
+```bash
+npx supervisual preview test --json
+npx supervisual publish --json
+```
+
+Review the returned workspace, operations, and plan ID. Do not apply until a
+human authorizes that exact plan ID and target workspace. Apply with
+`npx supervisual publish --confirm <authorized-plan-id> --json`.
+
+Only an `accepted` result and a successful browser check constitute a passing
+live certification. The selected semantic-model ID is the only model ID users
+provide.

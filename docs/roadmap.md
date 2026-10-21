@@ -2,12 +2,12 @@
 
 1. **Complete.** Capture the architecture, constraints, decisions, extraction inventory, and
    public contracts.
-2. **Complete.** Freeze the deployed AdventureWorks visual, semantic adapter, PBIR wrapper,
+2. **Complete.** Freeze the deployed AdventureWorks visual, managed semantic binding, PBIR wrapper,
    runtime sources, and acceptance evidence as a hash-verified golden baseline.
 3. **Complete.** Extract the contracts, compiler, compliance rules, and Power BI runtime into
    independent packages.
-4. **Complete.** Add semantic-model reference validation and adapter generation.
-5. **Complete.** Produce one solution bundle containing the visual, semantic adapter, PBIR,
+4. **Complete.** Add semantic-model reference validation and internal binding generation.
+5. **Complete.** Produce one solution bundle containing the visual, managed semantic binding, PBIR,
    compliance report, provenance, and deployment plan.
 6. **Complete.** Extract safe Fabric plan, apply, binding, refresh, and verification tools.
 7. **Complete.** Rebuild AdventureWorks as a standalone sample consumer and document local
