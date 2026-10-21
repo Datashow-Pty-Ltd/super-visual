@@ -5,6 +5,54 @@ deployed AdventureWorks method: a governed Import semantic model, a
 report-specific disconnected broker table, a long-table Power BI DataView, a
 cached React runtime, and an editorial multi-route analytical application.
 
+## Before you run it
+
+The dashboard is a live-data example. The repository contains its React source,
+semantic-model definition, binding contracts, and deployment helper, but it does
+not contain the Microsoft AdventureWorks database or a pre-populated Power BI
+semantic model.
+
+Choose the path that matches what you want to test:
+
+| Goal | Required environment |
+| --- | --- |
+| Inspect, validate, compile, or package the sample | This repository and Node.js only |
+| Preview the React application with live data | An existing compatible AdventureWorks Power BI semantic model |
+| Reproduce the complete deployed example | AdventureWorksDW2025, a Fabric cloud connection, a Fabric workspace, and the semantic model and report created by the deployment helper |
+
+The complete live stack is built in this order:
+
+```text
+AdventureWorksDW2025 database
+  -> Fabric cloud connection
+  -> Power BI semantic model
+  -> Super Visual report
+```
+
+If a compatible semantic model already exists, skip database and model
+provisioning and supply its ordinary Power BI semantic-model ID to `dev` or
+`publish`. Otherwise, follow the
+[AdventureWorks build-and-deploy recipe](../../docs/recipes/adventureworks.md).
+
+For a guided setup from the repository root, run:
+
+```bash
+npm run adventureworks:setup
+```
+
+It checks Azure sign-in, guides source creation or reuse, pauses while you
+create the Fabric connection in Fabric's own secure interface, validates and
+packages the project, shows the immutable deployment plan, and requires you to
+type its exact plan ID before applying it. It never asks for or stores a
+password, token, client secret, or connection credential.
+
+Microsoft publishes the official AdventureWorksDW2025 sample as a SQL Server
+backup rather than an Azure SQL BACPAC. Choose `download-backup` in the wizard
+to download it from `microsoft/sql-server-samples` and record its provenance and
+SHA-256 digest. The wizard then explains the one-time restore/export step. If
+you already have a BACPAC or a compatible database, the guided flow can run all
+the way through live Fabric acceptance.
+
 The sample deliberately keeps project assets outside the reusable packages:
 
 - `contracts/semantic-model.yaml` is the proven AdventureWorks semantic model.
@@ -36,8 +84,8 @@ type-check, `pbiviz package`, custom visual embedding, and manifest refresh:
 npm run example:package
 ```
 
-To exercise the proven React application against the deployed AdventureWorks
-Power BI semantic model before packaging, run:
+To exercise the proven React application against an existing AdventureWorks
+Power BI semantic model, run:
 
 ```bash
 npx supervisual dev examples/adventureworks \
@@ -49,6 +97,7 @@ npx supervisual preview test examples/adventureworks \
 ```
 
 Generated artifacts appear in `examples/adventureworks/dist/` and are ignored
-by Git. Follow the runnable [AdventureWorks recipe](../../docs/recipes/adventureworks.md)
+by Git. Follow the runnable
+[AdventureWorks build-and-deploy recipe](../../docs/recipes/adventureworks.md)
 for the ordered database, semantic-model, report, preview, and acceptance flow.
 The lower-level deployment contract remains in [DEPLOYMENT.md](DEPLOYMENT.md).

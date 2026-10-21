@@ -34,6 +34,7 @@
     "fabric:test": "vitest run packages/fabric/tests",
     "example:test": "node scripts/verify-adventureworks.mjs && node scripts/verify-adventureworks-deploy.mjs",
     "example:package": "node scripts/verify-adventureworks.mjs --package",
+    "adventureworks:setup": "node examples/adventureworks/deployment/setup.mjs",
     "adventureworks:deploy": "node examples/adventureworks/deployment/deploy.mjs",
     "hello:test": "node scripts/verify-hello-world.mjs",
     "hello:package": "node scripts/verify-hello-world.mjs --package",

@@ -20,6 +20,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Install browser required by semantic-preview tests
+        run: npx playwright install --with-deps chromium
       - run: npm run stage:9
       - run: npm run example:package
       - run: npm run hello:package
