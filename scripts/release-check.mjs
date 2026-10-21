@@ -15,6 +15,13 @@ const required = [
 ];
 await Promise.all(required.map((file) => access(path.join(root, file))));
 
+const releaseWorkflow = await readFile(path.join(root, ".github/workflows/release.yml"), "utf8");
+const browserInstall = releaseWorkflow.indexOf("playwright install --with-deps chromium");
+const releaseGate = releaseWorkflow.indexOf("npm run stage:9");
+if (browserInstall === -1 || releaseGate === -1 || browserInstall > releaseGate) {
+  throw new Error("Release workflow must install Playwright Chromium before running the stage:9 browser tests");
+}
+
 const packageDirectories = ["adapter-claude-dashboard", "cli", "compiler", "compliance", "contracts", "fabric", "runtime-powerbi", "semantic"];
 const packages = await Promise.all(packageDirectories.map(async (directory) => ({ directory, manifest: JSON.parse(await readFile(path.join(root, "packages", directory, "package.json"), "utf8")) })));
 for (const { directory, manifest } of packages) {
