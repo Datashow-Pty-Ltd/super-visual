@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-rc.3 — 2026-10-21
+
+- Stream each `init` stage to stderr as soon as it begins so progress remains
+  visible in terminal hosts that buffer stdout or discard overwritten lines.
+- Keep a permanent stage-start line while an ASCII spinner animates beneath it
+  in interactive terminals, followed by the completed check line.
+
 ## 0.1.0-rc.2 — 2026-10-21
 
 - Reject malformed workspace and semantic-model IDs locally during `init`,

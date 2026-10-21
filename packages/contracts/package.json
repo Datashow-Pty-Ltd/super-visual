@@ -1,6 +1,6 @@
 {
   "name": "@datashow/super-visual-contracts",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0-rc.3",
   "description": "Versioned schemas and loaders for Super Visual project contracts.",
   "type": "module",
   "exports": {

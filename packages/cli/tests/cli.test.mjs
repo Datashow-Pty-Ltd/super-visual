@@ -26,7 +26,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.1.0-rc.2");
+    expect(version.stdout.trim()).toBe("0.1.0-rc.3");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");
@@ -171,9 +171,13 @@ describe("supervisual CLI", () => {
     const project = path.join(temporary, "hello-human");
     try {
       const initialized = await run(process.execPath, [cli, "init", project, "--template", "hello-world"], { cwd: root });
-      expect(initialized.stdout).toContain("Super Visual init");
-      expect(initialized.stdout).toContain("Created project files from the hello-world template");
-      expect(initialized.stdout).toContain("6 local validation checks passed with no diagnostics");
+      expect(initialized.stderr).toContain("Super Visual init");
+      expect(initialized.stderr).toContain(`> Creating hello-world project in ${project}`);
+      expect(initialized.stderr).toContain("✓ Created project files from the hello-world template");
+      expect(initialized.stderr).toContain("> Synchronizing React source and report-source contract");
+      expect(initialized.stderr).toContain("> Validating generated contracts, bindings, and source policy");
+      expect(initialized.stderr).toContain("✓ 6 local validation checks passed with no diagnostics");
+      expect(initialized.stderr.indexOf("> Creating hello-world project")).toBeLessThan(initialized.stderr.indexOf("✓ Created project files"));
       expect(initialized.stdout).toContain("Initialization complete — Hello Human is ready.");
       expect(initialized.stdout).toContain("Initialization manifest (JSON):");
       expect(initialized.stdout).toContain("supervisual dev --open");
