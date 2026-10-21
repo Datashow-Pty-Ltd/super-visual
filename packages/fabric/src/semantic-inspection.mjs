@@ -219,18 +219,28 @@ export function checkSemanticCompatibility(inspection, semanticModel, broker) {
   };
 }
 
-export async function inspectSemanticModel({ client, workspaceId, workspaceName, semanticModelId, acceptanceDax = null }) {
+export async function inspectSemanticModel({ client, workspaceId, workspaceName, semanticModelId, acceptanceDax = null, onProgress = null }) {
   if (!workspaceId) throw new Error("A Fabric workspace ID is required; display-name-only discovery is not safe");
   if (!semanticModelId) throw new Error("An exact semantic model ID is required");
+  onProgress?.({ status: "running", step: "workspace", message: `Checking Fabric workspace ${workspaceId}` });
   const workspace = await client.getWorkspace(workspaceId);
   if (!workspace || String(workspace.id) !== String(workspaceId)) throw new Error(`Fabric workspace ${workspaceId} was not found`);
   if (workspaceName && workspace.displayName !== workspaceName) throw new Error(`Workspace ID ${workspaceId} is ${workspace.displayName}, not ${workspaceName}`);
+  onProgress?.({ status: "passed", step: "workspace", message: `Found Fabric workspace ${workspace.displayName}` });
+  onProgress?.({ status: "running", step: "semantic-model", message: `Finding semantic model ${semanticModelId}` });
   const items = await client.listItems(workspaceId, "SemanticModel");
   const semanticModel = items.find((item) => String(item.id) === String(semanticModelId));
   if (!semanticModel) throw new Error(`Semantic model ${semanticModelId} was not found in workspace ${workspaceId}`);
+  onProgress?.({ status: "passed", step: "semantic-model", message: `Found semantic model ${semanticModel.displayName}` });
+  onProgress?.({ status: "running", step: "definition", message: "Downloading the selected semantic model definition (read-only)" });
   const definition = await client.getDefinition(workspaceId, "SemanticModel", semanticModelId, "TMDL");
+  onProgress?.({ status: "running", step: "inventory", message: "Inspecting the semantic model structure" });
   const inspection = inspectTmdlParts(definition.parts);
+  const objectCount = inspection.tables.reduce((total, table) => total + table.columns.length + table.measures.length + table.hierarchies.length, 0);
+  onProgress?.({ status: "passed", step: "inventory", message: `Inspected ${inspection.tables.length} tables and ${objectCount} model objects` });
+  if (acceptanceDax) onProgress?.({ status: "running", step: "acceptance", message: "Running the configured semantic acceptance query" });
   const acceptance = acceptanceDax ? await executeAcceptanceQuery({ client, workspaceId, semanticModelId, query: acceptanceDax }) : null;
+  if (acceptanceDax) onProgress?.({ status: "passed", step: "acceptance", message: `Semantic acceptance query returned ${acceptance.rowCount} rows` });
   return {
     ok: true,
     workspace: { id: workspace.id, displayName: workspace.displayName, capacityId: workspace.capacityId ?? null },

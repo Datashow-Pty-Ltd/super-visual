@@ -1,4 +1,5 @@
 import { cp, mkdir, mkdtemp, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { writeSync } from "node:fs";
 import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -15,11 +16,19 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.1.0-rc.3";
+const VERSION = "0.1.0-rc.4";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;
 let activeProgress = null;
+
+function writeProgress(value) {
+  try {
+    writeSync(2, value);
+  } catch {
+    progressStream.write(value);
+  }
+}
 
 export class CliUserError extends Error {
   constructor(message, { summary, guidance } = {}) {
@@ -52,19 +61,19 @@ function output(value, json) {
 export function stopActiveProgress() {
   if (!activeProgress) return;
   clearInterval(activeProgress.timer);
-  progressStream.write(`\r${" ".repeat(activeProgress.width)}\r`);
+  writeProgress(`\r${" ".repeat(activeProgress.width)}\r`);
   activeProgress = null;
 }
 
 export function writeInitProgress(event) {
   if (event.status === "running") {
     stopActiveProgress();
-    progressStream.write(`> ${event.message}\n`);
+    writeProgress(`> ${event.message}\n`);
     if (!progressStream.isTTY) return;
     let frame = 0;
     const render = () => {
       const line = `${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]} Working...`;
-      progressStream.write(`\r${line}`);
+      writeProgress(`\r${line}`);
       activeProgress.width = Math.max(activeProgress.width, line.length);
       frame += 1;
     };
@@ -75,7 +84,7 @@ export function writeInitProgress(event) {
   }
   stopActiveProgress();
   const marker = event.status === "passed" ? "✓" : "!";
-  progressStream.write(`${marker} ${event.message}\n`);
+  writeProgress(`${marker} ${event.message}\n`);
 }
 
 function semanticInventory(model) {
@@ -325,14 +334,19 @@ function createProgram() {
       validateFabricId(options.workspaceId, "--workspace-id");
       validateFabricId(options.semanticModelId, "--semantic-model-id");
       const json = jsonEnabled(command);
-      if (!json) progressStream.write(`\nSuper Visual init\n\n`);
+      if (!json) writeProgress(`\nSuper Visual init\n\n`);
       let liveValidation = null;
       if (options.workspaceId && options.semanticModelId && !options.skipLiveValidation) {
-        if (!json) writeInitProgress({ status: "running", message: "Verifying the Fabric workspace and Power BI semantic model (read-only)" });
         let inspected;
         try {
           const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-          inspected = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId });
+          inspected = await inspectSemanticModel({
+            client,
+            workspaceId: options.workspaceId,
+            workspaceName: options.workspaceName,
+            semanticModelId: options.semanticModelId,
+            onProgress: json ? null : writeInitProgress,
+          });
         } catch (error) {
           throw new CliUserError(error instanceof Error ? error.message : String(error), {
             summary: "Super Visual could not verify the Fabric workspace and semantic model.",
@@ -349,9 +363,9 @@ function createProgram() {
         };
         if (!json) writeInitProgress({ status: "passed", message: `Verified workspace ${inspected.workspace.displayName} and semantic model ${inspected.semanticModel.displayName}` });
       } else if (!json && options.skipLiveValidation) {
-        progressStream.write("! Live Fabric validation skipped by request\n");
+        writeProgress("! Live Fabric validation skipped by request\n");
       } else if (!json) {
-        progressStream.write("! No complete Fabric binding supplied; live validation was not run\n");
+        writeProgress("! No complete Fabric binding supplied; live validation was not run\n");
       }
       const result = await initializeProject({
         directory,

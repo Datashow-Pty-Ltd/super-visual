@@ -1,6 +1,6 @@
 {
   "name": "super-visual",
-  "version": "0.1.0-rc.3",
+  "version": "0.1.0-rc.4",
   "private": true,
   "description": "Compile governed React dashboards into semantically bound Power BI applications.",
   "type": "module",

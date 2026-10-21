@@ -1,6 +1,6 @@
 {
   "name": "@datashow/super-visual-compliance",
-  "version": "0.1.0-rc.3",
+  "version": "0.1.0-rc.4",
   "description": "Compliance and binding checks for Super Visual application source and contracts.",
   "type": "module",
   "exports": "./src/index.mjs",
