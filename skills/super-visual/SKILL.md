@@ -21,7 +21,8 @@ generated output or move report-specific behavior into reusable runtime code.
   full-page scaffold, or add `--template hello-world` for a searchable
   semantic-model connectivity proof.
   When the user provides compatible React source, pass its directory with
-  `--app`. Save only explicitly selected workspace and semantic-adapter IDs.
+  `--app`. Save only explicitly selected workspace and Power BI semantic-model
+  IDs; never ask the user for an internal companion-model ID.
 - Imported dashboard: list adapters. For `claude-dashboard-bundle.v1`, run
   `npx supervisual import claude-dashboard <input> --project <project>
   --inspect-only --json` before importing. Do not improvise an importer for an
@@ -38,14 +39,15 @@ After changing project source or contracts:
 4. Run `npx supervisual verify <project> --json` before handoff or deployment.
 
 To test data and interactions locally, use `npx supervisual dev <project>
---json`, targeting the deployed report-specific semantic adapter saved in the
-project binding. Supply `--workspace-id` and `--semantic-model-id` when no saved
-binding exists. This is read-only in Fabric and may write only
+--json`, targeting the Power BI semantic model selected by the user and saved in
+the project binding. Supply `--workspace-id` and `--semantic-model-id` when no
+saved binding exists. Any report-specific companion model is an internal
+implementation detail. This is read-only in Fabric and may write only
 ignored preview output under `.supervisual/`. Keep the process running after its
 ready JSON until the user is finished. For a bounded check, run `npx
 supervisual preview test <project>` with the same immutable IDs. Do not treat an
-offline fixture as semantic acceptance, and do not substitute the reusable base
-model: the target must contain the generated `Widget Axis` broker.
+offline fixture as semantic acceptance or ask the user to locate a generated
+binding model.
 
 For a permitted Claude-style bundle, import only after inspection succeeds and
 the target widget broker contains every declared dataset. The adapter must

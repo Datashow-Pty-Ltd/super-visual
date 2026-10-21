@@ -37,15 +37,15 @@ npm run example:package
 ```
 
 To exercise the proven React application against the deployed AdventureWorks
-semantic adapter before packaging, run:
+Power BI semantic model before packaging, run:
 
 ```bash
 npx supervisual dev examples/adventureworks \
   --workspace-id <workspace-guid> \
-  --semantic-model-id <adapter-model-guid> --open
+  --semantic-model-id <semantic-model-guid> --open
 npx supervisual preview test examples/adventureworks \
   --workspace-id <workspace-guid> \
-  --semantic-model-id <adapter-model-guid> --json
+  --semantic-model-id <semantic-model-guid> --json
 ```
 
 Generated artifacts appear in `examples/adventureworks/dist/` and are ignored

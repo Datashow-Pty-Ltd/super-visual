@@ -43,6 +43,45 @@ function semanticColumn(semanticModel, reference) {
   return { ...target, dataType: column.dataType };
 }
 
+function semanticMeasure(semanticModel, reference) {
+  if (typeof reference !== "string" || !reference.endsWith("]")) throw new Error(`Semantic measure must use [Measure] or Table[Measure] notation: ${reference}`);
+  const separator = reference.lastIndexOf("[", reference.length - 2);
+  if (separator > 0) {
+    const tableName = reference.slice(0, separator);
+    const measureName = reference.slice(separator + 1, -1);
+    const table = semanticModel.tables.find((candidate) => candidate.name === tableName);
+    if (!(table?.measures ?? []).some((candidate) => candidate.name === measureName)) throw new Error(`Unknown semantic measure ${reference}`);
+    return { table: tableName, name: measureName, dax: `'${tableName.replaceAll("'", "''")}'[${measureName.replaceAll("]", "]]" )}]` };
+  }
+  if (separator === 0) {
+    const measureName = reference.slice(1, -1);
+    const matches = semanticModel.tables.filter((table) => (table.measures ?? []).some((candidate) => candidate.name === measureName));
+    if (matches.length !== 1) throw new Error(`Semantic measure ${reference} must resolve uniquely`);
+    return { table: matches[0].name, name: measureName, dax: `[${measureName.replaceAll("]", "]]" )}]` };
+  }
+  throw new Error(`Semantic measure must use [Measure] or Table[Measure] notation: ${reference}`);
+}
+
+function axisKeyExpression(column) {
+  if (column.dataType === "String") return column.dax;
+  if (column.dataType === "DateTime") return `FORMAT(${column.dax}, "yyyy-MM-dd")`;
+  return `FORMAT(${column.dax}, "0.############")`;
+}
+
+function sortExpression(semanticModel, axis) {
+  const table = semanticModel.tables.find((candidate) => candidate.name === axis.table);
+  const column = table?.columns?.find((candidate) => candidate.name === axis.column);
+  const sort = column?.sortByColumn ? semanticColumn(semanticModel, `${axis.table}[${column.sortByColumn}]`) : axis;
+  if (sort.dataType === "DateTime") return `VALUE(FORMAT(${sort.dax}, "yyyymmdd"))`;
+  if (["Int64", "Decimal", "Double"].includes(sort.dataType)) return `INT(${sort.dax})`;
+  return "0";
+}
+
+function measureLabel(reference) {
+  const separator = reference.lastIndexOf("[", reference.length - 2);
+  return reference.slice(separator + 1, -1);
+}
+
 function daxValue(value, dataType) {
   if (["Int64", "Decimal", "Double"].includes(dataType)) {
     const numeric = Number(value);
@@ -101,7 +140,7 @@ function validateQueryRequest(request, loaded) {
   return { widgets, selections, parameters };
 }
 
-export function buildSemanticPreviewQuery({ broker, semanticModel, reportSource }, request) {
+function buildManagedSemanticQuery({ broker, semanticModel, reportSource }, request) {
   const loaded = { broker, semanticModel, reportSource };
   const { widgets, selections, parameters } = validateQueryRequest(request, loaded);
   const widgetById = new Map(broker.widgets.map((widget) => [widget.id, widget]));
@@ -134,6 +173,84 @@ RETURN
 ORDER BY [WidgetId], [Sort], [AxisKey], [SeriesKey]`;
 }
 
+export function buildSemanticPreviewQuery({ broker, semanticModel, reportSource }, request) {
+  const loaded = { broker, semanticModel, reportSource };
+  const { widgets, selections, parameters } = validateQueryRequest(request, loaded);
+  const widgetById = new Map(broker.widgets.map((widget) => [widget.id, widget]));
+  const parameterFilters = Object.entries(parameters).map(([name, value]) => {
+    const parameter = reportSource.adapter.parameters.find((candidate) => candidate.name === name);
+    return filterExpression(semanticModel, parameter.target, parameterValues(parameter, value));
+  }).filter(Boolean);
+  const variables = [];
+  const rowSets = [];
+
+  widgets.forEach((widgetId, widgetIndex) => {
+    const widget = widgetById.get(widgetId);
+    const dimensions = widget.dimensions.map((dimension) => ({
+      key: semanticColumn(semanticModel, dimension.key),
+      label: semanticColumn(semanticModel, dimension.label),
+    }));
+    const axis = semanticColumn(semanticModel, widget.axis);
+    const measures = widget.measures.map((measure) => ({ reference: measure, ...semanticMeasure(semanticModel, measure) }));
+    const groupBy = [...new Set(dimensions.flatMap((dimension) => [dimension.key.dax, dimension.label.dax]))];
+    const table = semanticModel.tables.find((candidate) => candidate.name === axis.table);
+    const axisColumn = table?.columns?.find((candidate) => candidate.name === axis.column);
+    if (axisColumn?.sortByColumn) groupBy.push(semanticColumn(semanticModel, `${axis.table}[${axisColumn.sortByColumn}]`).dax);
+    const selectionFilters = Object.entries(selections)
+      .filter(([selectedWidget]) => selectedWidget !== widgetId)
+      .map(([selectedWidget, value]) => filterExpression(semanticModel, widgetById.get(selectedWidget).axis, [value]));
+    const filters = [...selectionFilters, ...parameterFilters].filter(Boolean);
+    const candidate = `__Widget${widgetIndex + 1}Candidates`;
+    const selected = `__Widget${widgetIndex + 1}Selected`;
+    const valueNames = measures.map((_measure, index) => `__Value${index + 1}`);
+    const summarized = [
+      ...groupBy,
+      ...filters,
+      ...measures.flatMap((measure, index) => [daxString(valueNames[index]), `CALCULATE(${measure.dax})`]),
+    ].join(",\n            ");
+    const axisKey = dimensions.map((dimension) => axisKeyExpression(dimension.key)).join(' & "␟" & ');
+    const label = dimensions.map((dimension) => `FORMAT(${dimension.label.dax}, "")`).join(' & "␟" & ');
+    const order = ["top-by-value", "bottom-by-value"].includes(widget.rowSelection)
+      ? `[${valueNames[0]}], ${widget.rowSelection === "bottom-by-value" ? "ASC" : "DESC"}, [__Sort], ASC`
+      : `[__Sort], ${widget.rowSelection === "last-by-axis" ? "DESC" : "ASC"}, [__AxisKey], ASC`;
+    variables.push(`VAR ${candidate} =
+        FILTER(
+            SELECTCOLUMNS(
+                SUMMARIZECOLUMNS(
+                    ${summarized}
+                ),
+                "__AxisKey", ${axisKey},
+                "__Label", ${label},
+                "__Sort", ${sortExpression(semanticModel, axis)},
+                ${measures.flatMap((_measure, index) => [daxString(valueNames[index]), `[${valueNames[index]}]`]).join(",\n                ")}
+            ),
+            NOT ISBLANK([${valueNames[0]}])
+        )
+    VAR ${selected} = TOPN(${widget.rowLimit}, ${candidate}, ${order})`);
+    measures.forEach((measure, measureIndex) => {
+      rowSets.push(`SELECTCOLUMNS(
+            ${selected},
+            "WidgetId", ${daxString(widgetId)},
+            "AxisKey", [__AxisKey],
+            "Label", [__Label],
+            "Sort", [__Sort],
+            "SeriesKey", ${daxString(measure.reference)},
+            "SeriesLabel", ${daxString(measureLabel(measure.reference))},
+            "WidgetValue", [${valueNames[measureIndex]}],
+            "BrokerContext", ${daxString(Object.entries(selections).map(([id, value]) => `${id}=${value}`).join(";"))}
+        )`);
+    });
+  });
+
+  return `EVALUATE
+${variables.join("\n")}
+VAR __SuperVisualRows =
+    ${rowSets.length === 1 ? rowSets[0] : `UNION(\n        ${rowSets.join(",\n        ")}\n    )`}
+RETURN
+    __SuperVisualRows
+ORDER BY [WidgetId], [Sort], [AxisKey], [SeriesKey]`;
+}
+
 function rowValue(row, field) {
   if (Object.hasOwn(row, field)) return row[field];
   if (Object.hasOwn(row, `[${field}]`)) return row[`[${field}]`];
@@ -146,10 +263,47 @@ export function normalizeSemanticBrokerRows(rows) {
   return rows.map((row) => Object.fromEntries(BROKER_FIELDS.map((field) => [field, rowValue(row, field)])));
 }
 
+function usesSemanticCatalog(broker) {
+  return (broker.widgets ?? []).some((widget) => [
+    widget.axis,
+    ...(widget.dimensions ?? []).flatMap((dimension) => [dimension.key, dimension.label]),
+    ...(widget.measures ?? []),
+  ].some((reference) => typeof reference === "string" && reference.startsWith("Super Visual Model Catalog[")));
+}
+
+function semanticCatalogRows(model) {
+  const entities = [{ type: "Model", parent: "", entity: model.displayName }];
+  for (const table of model.tables ?? []) {
+    if (table.name === "Widget Axis" || table.name === "Super Visual Model Catalog") continue;
+    entities.push({ type: "Table", parent: model.displayName, entity: table.name });
+    for (const column of table.columns ?? []) entities.push({ type: "Column", parent: table.name, entity: column.name });
+    for (const measure of table.measures ?? []) entities.push({ type: "Measure", parent: table.name, entity: measure.name });
+    for (const hierarchy of table.hierarchies ?? []) {
+      entities.push({ type: "Hierarchy", parent: table.name, entity: hierarchy.name });
+      for (const level of hierarchy.levels ?? []) entities.push({ type: "Hierarchy level", parent: `${table.name}.${hierarchy.name}`, entity: level.name });
+    }
+  }
+  for (const relationship of model.relationships ?? []) entities.push({ type: "Relationship", parent: `${relationship.from ?? ""} → ${relationship.to ?? ""}`, entity: relationship.name });
+  for (const parameter of model.parameters ?? []) entities.push({ type: "Parameter", parent: model.displayName, entity: parameter.name });
+  return entities.map((item, index) => ({
+    WidgetId: "model-catalog",
+    AxisKey: `${item.type}␟${item.parent}␟${item.entity}`,
+    Label: `${item.type}␟${item.parent}␟${item.entity}`,
+    Sort: index + 1,
+    SeriesKey: "[Entity Count]",
+    SeriesLabel: "Entity Count",
+    WidgetValue: 1,
+    BrokerContext: `model=${model.id}`,
+  }));
+}
+
 export async function executeSemanticPreviewQuery({ client, workspaceId, semanticModelId, loaded, request }) {
   const validated = validateQueryRequest(request, loaded);
-  const query = buildSemanticPreviewQuery(loaded, validated);
   const started = performance.now();
+  if (loaded.catalogRows && validated.widgets.every((widget) => widget === "model-catalog")) {
+    return { rows: loaded.catalogRows, metadata: { requestedWidgets: validated.widgets, rowCount: loaded.catalogRows.length, elapsedMs: Math.round(performance.now() - started) } };
+  }
+  const query = loaded.previewMode === "managed" ? buildManagedSemanticQuery(loaded, validated) : buildSemanticPreviewQuery(loaded, validated);
   const rows = normalizeSemanticBrokerRows(await client.executeDax(workspaceId, semanticModelId, query));
   return { rows, metadata: { requestedWidgets: validated.widgets, rowCount: rows.length, elapsedMs: Math.round(performance.now() - started) } };
 }
@@ -248,12 +402,18 @@ export async function startSemanticPreview({ client, projectFile, workspaceId, w
   const diagnostics = validateCompilation(loaded);
   if (diagnostics.length) throw new Error(`Preview validation failed:\n- ${diagnostics.join("\n- ")}`);
   const inspected = await inspectSemanticModel({ client, workspaceId, workspaceName, semanticModelId });
-  const compatibility = checkSemanticCompatibility(inspected.semanticModel, loaded.semanticModel, loaded.broker);
+  const catalogMode = usesSemanticCatalog(loaded.broker);
   const brokerDiagnostics = previewBrokerSurfaceDiagnostics(inspected.semanticModel);
-  if (!compatibility.ok || brokerDiagnostics.length) {
-    const messages = [...compatibility.diagnostics.map((item) => item.message), ...brokerDiagnostics.map((item) => item.message)];
+  const previewMode = catalogMode ? "catalog" : brokerDiagnostics.length ? "direct" : "managed";
+  const compatibility = catalogMode
+    ? { ok: true, summary: { required: 1, matched: 1, missing: 0, ambiguous: 0 }, checks: [], diagnostics: [] }
+    : checkSemanticCompatibility(inspected.semanticModel, loaded.semanticModel, loaded.broker);
+  if (!compatibility.ok) {
+    const messages = compatibility.diagnostics.map((item) => item.message);
     throw new Error(`Semantic preview compatibility failed:\n- ${messages.join("\n- ")}`);
   }
+  loaded.previewMode = previewMode;
+  if (catalogMode) loaded.catalogRows = semanticCatalogRows(inspected.semanticModel);
 
   const previewRoot = path.join(loaded.root, ".supervisual", "semantic-preview");
   const solutionRoot = path.join(previewRoot, "solution");

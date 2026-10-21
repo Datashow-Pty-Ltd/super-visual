@@ -56,7 +56,7 @@ pages:
         conceptRegionId: model-catalog
         primitive: ranked-table
         title: Semantic model entities
-        subtitle: Generated from the semantic contract and queried through the live adapter
+        subtitle: Read from the selected live Power BI semantic model
         dataset: model-catalog
         reportWidgetIds: [model-catalog]
         businessQuestionIds: [semantic-connectivity]

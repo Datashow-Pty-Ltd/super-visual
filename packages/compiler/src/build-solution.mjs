@@ -107,7 +107,7 @@ export async function buildSolution(projectFile, options = {}) {
   const visual = path.join(output, "Visual");
   const report = path.join(output, "Report.Report");
   await compileTmdl(semanticModel, baseModel);
-  const brokerSemanticModel = semanticModelWithCatalog(semanticModel, broker);
+  const brokerSemanticModel = semanticModelWithCatalog(semanticModel, broker, options.semanticCatalogSource ?? semanticModel);
   const brokerBaseModel = brokerSemanticModel === semanticModel ? baseModel : adapterBaseModel;
   if (brokerBaseModel === baseModel) {
     await compileBrokerAdapter({ baseModelDirectory: baseModel, outputDirectory: adapterModel, broker, semanticModel: brokerSemanticModel });
@@ -131,6 +131,7 @@ export async function buildSolution(projectFile, options = {}) {
       compiler: "@datashow/super-visual-compiler",
       reference: "AdventureWorks deployed v38",
       semanticParameterOverrides: Object.keys(options.semanticParameters ?? {}).sort(),
+      semanticCatalogSource: options.semanticCatalogSource ? { id: options.semanticCatalogSource.id ?? null, displayName: options.semanticCatalogSource.displayName ?? options.semanticCatalogSource.name ?? null } : null,
     },
     files: await hashes(output),
   };

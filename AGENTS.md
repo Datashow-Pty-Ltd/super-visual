@@ -6,5 +6,7 @@ calling package internals. Generated output is disposable and must not be edited
 or committed.
 
 Run the smallest relevant stage test while iterating and `npm test` before a
-release. Any live deployment requires explicit human authorisation for the exact
-plan ID and target workspace.
+release. Any live deployment requires either explicit human authorisation for
+the exact plan ID and target workspace, or an explicit human instruction to use
+`publish --pre-authorize` for that invocation and immutable target workspace.
+Never infer pre-authorisation.

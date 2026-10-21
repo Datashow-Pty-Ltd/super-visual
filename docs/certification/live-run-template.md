@@ -9,12 +9,13 @@ connection secrets, source rows, or customer data.
 - Environment classification: disposable sandbox / controlled test
 - Workspace ID:
 - Expected workspace name:
-- Semantic model item name and ID:
+- Selected Power BI semantic model name and ID:
+- Deployment-result semantic model ID (copy from `publish`; not a user input):
 - Report item name and ID:
-- Connection ID:
+- Deployment-result connection ID:
 - Deployment plan ID:
 - Plan operations: create / update
-- Source profile hash or approved identifier:
+- Advanced source-profile hash or approved identifier (only when overridden):
 - Package manifest verification: pass / fail
 - Connection binding: pass / fail
 - Latest refresh: completed / failed

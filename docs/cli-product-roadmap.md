@@ -1,5 +1,9 @@
 # CLI product roadmap
 
+Status: complete. This is a historical delivery record; use
+[Getting started](getting-started.md) and the [command reference](commands.md)
+for the current workflow.
+
 This roadmap extends the completed nine-stage extraction into a user-facing
 product. A stage is complete only when its commands, documentation, automated
 tests, and fresh-clone path all pass. The deployed AdventureWorks implementation

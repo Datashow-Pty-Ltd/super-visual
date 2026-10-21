@@ -17,9 +17,11 @@ function sqlString(value) {
 }
 
 function catalogEntities(model) {
-  const entities = [{ type: "Model", parent: "", name: model.name }];
+  const modelName = model.name ?? model.displayName ?? "Semantic model";
+  const entities = [{ type: "Model", parent: "", name: modelName }];
   for (const table of model.tables ?? []) {
-    entities.push({ type: "Table", parent: model.name, name: table.name });
+    if ([SEMANTIC_CATALOG_TABLE, "Widget Axis"].includes(table.name)) continue;
+    entities.push({ type: "Table", parent: modelName, name: table.name });
     for (const column of table.columns ?? []) entities.push({ type: "Column", parent: table.name, name: column.name });
     for (const measure of table.measures ?? []) entities.push({ type: "Measure", parent: table.name, name: measure.name });
     for (const hierarchy of table.hierarchies ?? []) {
@@ -28,18 +30,19 @@ function catalogEntities(model) {
     }
   }
   for (const relationship of model.relationships ?? []) {
-    entities.push({ type: "Relationship", parent: `${relationship.fromTable} → ${relationship.toTable}`, name: relationship.name });
+    entities.push({ type: "Relationship", parent: `${relationship.fromTable ?? relationship.from ?? ""} → ${relationship.toTable ?? relationship.to ?? ""}`, name: relationship.name });
   }
-  for (const name of Object.keys(model.sourceParameters ?? {}).sort()) {
-    entities.push({ type: "Parameter", parent: model.name, name: name[0].toUpperCase() + name.slice(1) });
+  const parameterNames = new Set([...Object.keys(model.sourceParameters ?? {}), ...(model.parameters ?? []).map((parameter) => parameter.name)]);
+  for (const name of [...parameterNames].sort()) {
+    entities.push({ type: "Parameter", parent: modelName, name: name[0].toUpperCase() + name.slice(1) });
   }
   return entities;
 }
 
-export function semanticModelWithCatalog(model, broker) {
+export function semanticModelWithCatalog(model, broker, catalogSource = model) {
   if (!brokerUsesSemanticCatalog(broker)) return model;
   if ((model.tables ?? []).some((table) => table.name === SEMANTIC_CATALOG_TABLE)) throw new Error(`${SEMANTIC_CATALOG_TABLE} is reserved for the generated semantic catalog`);
-  const entities = catalogEntities(model);
+  const entities = catalogEntities(catalogSource);
   const values = entities.map((entity, index) => `(${sqlString(entity.type)}, ${sqlString(entity.parent)}, ${sqlString(entity.name)}, ${index + 1})`).join(",\n          ");
   const catalog = {
     name: SEMANTIC_CATALOG_TABLE,

@@ -5,6 +5,11 @@ For the complete source-database-through-report walkthrough, use the runnable
 is `npm run adventureworks:deploy -- --help`. This file documents the lower-level
 Super Visual package and deployment contract.
 
+This sample deliberately provisions its own database and semantic model. It is
+not the normal existing-model workflow; for that, use
+[Getting started](../../docs/getting-started.md) and provide the selected Power
+BI model with `--semantic-model-id`.
+
 ## Prerequisites
 
 - Node.js 22.12 or newer.
@@ -22,7 +27,7 @@ npm ci
 npm run example:package
 ```
 
-This compiles the semantic model and adapter, generates and packages the visual,
+This compiles the semantic binding, generates and packages the visual,
 embeds the `.pbiviz` resource in PBIR, and refreshes the SHA-256 manifest. Do
 not edit anything under `dist/`; change a contract or source asset and rebuild.
 

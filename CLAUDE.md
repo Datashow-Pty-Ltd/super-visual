@@ -16,9 +16,10 @@ source assets, run `check`, then rebuild.
    `--inspect-only` before allowing it to update a project.
 3. Run `npx supervisual check <project> --json` and resolve every diagnostic.
 4. When validating data or interactions locally, run `npx supervisual dev
-   <project> --json` against the exact deployed semantic adapter saved in the
+   <project> --json` against the exact Power BI semantic model selected in the
    project binding. Supply `--workspace-id` and `--semantic-model-id` when no
-   binding exists, or use `preview test` for a bounded browser check. These
+   binding exists, or use `preview test` for a bounded browser check. Any
+   report-specific companion model is managed internally. These
    commands are read-only in Fabric; do not use fixture data as semantic
    acceptance.
 5. Run `npx supervisual compile <project> --json` while iterating. Run
@@ -38,8 +39,11 @@ source assets, run `check`, then rebuild.
 creates an immutable plan and must pause for explicit confirmation of the exact
 plan ID and workspace. Interactive users type the ID at its prompt. Agents and
 JSON callers must return the plan to the human and use `--confirm <plan-id>`
-only after that exact authorization. All update, backup, receipt, and status
-requirements still apply.
+only after that exact authorization. As an explicit alternative, a human may
+request `--pre-authorize` for a particular publish invocation and immutable
+workspace; that flag authorizes the content-derived plan generated in the same
+invocation. Agents must never infer pre-authorization. All update, backup,
+receipt, and status requirements still apply.
 
 Use `--json` for automation. A non-zero exit status or `ok: false` is a failed
 tool call. A deployment plan with blockers is not applyable.
@@ -53,8 +57,8 @@ tool call. A deployment plan with blockers is not applyable.
   Anthropic export standard. Keep private/authenticated source and brand assets
   out of public fixtures.
 - Never add business-specific behavior to `packages/runtime-powerbi`.
-- Never mutate the reusable base model to satisfy one report. Generate a
-  report-specific semantic adapter.
+- Never mutate the user's selected semantic model to satisfy one report. Keep
+  report-specific binding artifacts internal and manage them automatically.
 - Preserve GUID and version identity intentionally. Increment the fourth visual
   version component for every package intended to replace a deployed visual.
 - Use a Fabric workspace ID. A display name alone is not a safe deployment

@@ -20,7 +20,7 @@ It rejects workspaces without Fabric capacity and rejects ambiguous duplicate
 item names. Existing same-named items are blockers unless updates were enabled
 when the plan was created.
 
-Apply always publishes the semantic adapter before the report. Report PBIR is
+Apply always publishes the internally managed semantic binding before the report. Report PBIR is
 rewritten at the deployment boundary to contain exactly one
 `semanticmodelid=<id>` connection. Every update downloads and writes the
 existing remote definition to the requested backup directory first. Each
@@ -36,8 +36,11 @@ backup drift. Restored definitions remain `restored-unverified` until connection
 refresh, DAX, and report-binding status are checked again.
 
 Connection binding, refresh, and business-specific DAX acceptance are explicit
-post-deployment actions recorded in the reviewed plan. Binding requires an
-explicit connection ID and exact source path/type match. The publisher never
-guesses a connection or silently replaces an item. A release is not declared
-healthy until the requested refresh and acceptance query pass. A publication
-without all three is reported as `published-unverified`, never as accepted.
+post-deployment actions recorded in the reviewed plan. The high-level publisher
+reuses a connection only when the selected semantic model exposes exactly one
+connection identity and one source path; otherwise it requires the advanced
+connection and source-path overrides. Lower-level plans require an explicit
+connection ID. The publisher never chooses among ambiguous connections or
+silently replaces an item. A release is not declared healthy until the requested
+refresh and acceptance query pass. A publication without all three is reported
+as `published-unverified`, never as accepted.

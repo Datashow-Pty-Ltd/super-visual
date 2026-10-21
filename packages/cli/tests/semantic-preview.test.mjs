@@ -8,10 +8,10 @@ import { buildSemanticPreviewQuery, executeSemanticPreviewQuery, normalizeSemant
 
 const loaded = {
   semanticModel: {
-    tables: [{ name: "Sales", columns: [{ name: "Category", dataType: "String" }] }],
+    tables: [{ name: "Sales", columns: [{ name: "Category", dataType: "String" }], measures: [{ name: "Total Sales" }] }],
   },
   broker: {
-    widgets: [{ id: "sales", axis: "Sales[Category]", selectable: true }],
+    widgets: [{ id: "sales", axis: "Sales[Category]", dimensions: [{ key: "Sales[Category]", label: "Sales[Category]" }], measures: ["[Total Sales]"], rowLimit: 20, rowSelection: "top-by-value", selectable: true }],
   },
   reportSource: {},
 };
@@ -23,12 +23,12 @@ async function createPreviewTestDirectory(prefix) {
 }
 
 describe("semantic preview", () => {
-  test("builds only contract-derived broker DAX and applies governed selections", () => {
+  test("builds only contract-derived DAX against the selected semantic model", () => {
     const query = buildSemanticPreviewQuery(loaded, { widgets: ["sales"], selections: { sales: 'Bikes "Road"' } });
-    expect(query).toContain("'Widget Axis'[WidgetId]");
-    expect(query).toContain('TREATAS({ "sales" }');
-    expect(query).toContain('TREATAS({ "Bikes ""Road""" }, \'Sales\'[Category])');
-    expect(query).toContain('"WidgetValue", [Widget Value]');
+    expect(query).not.toContain("'Widget Axis'");
+    expect(query).toContain("SUMMARIZECOLUMNS");
+    expect(query).toContain('"WidgetId", "sales"');
+    expect(query).toContain('"WidgetValue", [__Value1]');
     expect(() => buildSemanticPreviewQuery(loaded, { widgets: ["unknown"] })).toThrow(/unknown or empty widget/);
     expect(() => buildSemanticPreviewQuery(loaded, { widgets: ["sales"], selections: { unknown: "x" } })).toThrow(/unknown widget/);
   });
@@ -63,7 +63,7 @@ describe("semantic preview", () => {
     expect(result).toMatchObject({ metadata: { requestedWidgets: ["sales"], rowCount: 1 }, rows: [{ WidgetId: "sales", WidgetValue: 42 }] });
   });
 
-  test("requires the deployed broker surface", () => {
+  test("detects the internally managed broker surface", () => {
     expect(previewBrokerSurfaceDiagnostics({ tables: [] })).toEqual([{ code: "preview.broker.missing", message: expect.any(String) }]);
     expect(previewBrokerSurfaceDiagnostics({ tables: [{
       name: "Widget Axis",
@@ -121,12 +121,33 @@ describe("semantic preview", () => {
     }
   }, 30000);
 
+  test("builds the Hello World catalog from the selected semantic model", async () => {
+    const temporary = await createPreviewTestDirectory("supervisual-catalog-preview-");
+    const project = path.join(temporary, "project");
+    const remote = path.join(temporary, "remote");
+    try {
+      await initializeProject({ directory: project, template: "hello-world" });
+      await buildSolution(path.join(project, "supervisual.yaml"), { outputDirectory: remote });
+      const definition = await encodeDefinition(path.join(remote, "Base.SemanticModel"));
+      const client = {
+        async getWorkspace(id) { return { id, displayName: "Sandbox" }; },
+        async listItems() { return [{ id: "model-1", displayName: "Selected Model", type: "SemanticModel" }]; },
+        async getDefinition() { return { format: "TMDL", parts: definition }; },
+        async executeDax() { throw new Error("The metadata catalog must not require an internal model"); },
+      };
+      const result = await runSemanticPreviewTest({ client, projectFile: path.join(project, "supervisual.yaml"), workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 10000 });
+      expect(result).toMatchObject({ ok: true, status: "passed", semanticModel: { id: "model-1", displayName: "Selected Model" }, baseline: { receivedRowCount: 6 } });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  }, 30000);
+
   test("loads the AdventureWorks application and exercises a semantic selection", async () => {
     const temporary = await createPreviewTestDirectory("supervisual-adventure-preview-");
     const projectFile = path.resolve("examples/adventureworks/supervisual.yaml");
     try {
       await buildSolution(projectFile, { outputDirectory: path.join(temporary, "remote") });
-      const definition = await encodeDefinition(path.join(temporary, "remote", "SemanticAdapter.SemanticModel"));
+      const definition = await encodeDefinition(path.join(temporary, "remote", "Base.SemanticModel"));
       const rows = [
         ["trend", "2024-01", "Jan 2024", 202401, "[Total Sales]", "Total Sales", 100],
         ["category", "Bikes", "Bikes", 1, "[Total Sales]", "Total Sales", 80],
@@ -138,7 +159,10 @@ describe("semantic preview", () => {
         async getWorkspace(id) { return { id, displayName: "Sandbox" }; },
         async listItems() { return [{ id: "model-1", displayName: "AdventureWorks", type: "SemanticModel" }]; },
         async getDefinition() { return { format: "TMDL", parts: definition }; },
-        async executeDax() { return rows; },
+        async executeDax(_workspaceId, _semanticModelId, query) {
+          expect(query).not.toContain("'Widget Axis'");
+          return rows;
+        },
       };
       const result = await runSemanticPreviewTest({ client, projectFile, workspaceId: "workspace-1", workspaceName: "Sandbox", semanticModelId: "model-1", timeoutMs: 15000 });
       expect(result).toMatchObject({ ok: true, status: "passed", interaction: { available: true, tested: true, widget: "category" } });

@@ -80,4 +80,20 @@ describe("semantic compiler", () => {
     expect(catalog).toContain("Total Sales");
     await expect(readFile(path.join(base, "definition", "tables", "Super Visual Model Catalog.tmdl"), "utf8")).rejects.toThrow();
   });
+
+  test("generates the catalog from the user-selected semantic model", async () => {
+    const selected = {
+      id: "model-1",
+      displayName: "Selected Inventory",
+      tables: [{ name: "Inventory", columns: [{ name: "SKU" }], measures: [{ name: "Units" }], hierarchies: [{ name: "Products", levels: [{ name: "SKU" }] }] }],
+      relationships: [],
+      parameters: [],
+    };
+    const augmented = semanticModelWithCatalog(semantic, catalogBroker, selected);
+    const catalog = augmented.tables.find((table) => table.name === "Super Visual Model Catalog");
+    expect(catalog.source.sql).toContain("Selected Inventory");
+    expect(catalog.source.sql).toContain("Inventory");
+    expect(catalog.source.sql).toContain("Hierarchy level");
+    expect(catalog.source.sql).not.toContain("Total Sales");
+  });
 });

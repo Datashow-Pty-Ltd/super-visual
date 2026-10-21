@@ -9,7 +9,7 @@ const definition = [
   part("definition/model.tmdl", "model Model\n\tculture: en-AU\n\nref table Sales\nref table 'Widget Axis'\n"),
   part("definition/expressions.tmdl", 'expression Server = "redacted" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]\n'),
   part("definition/relationships.tmdl", "relationship 'Sales to Date'\n\tcrossFilteringBehavior: oneDirection\n\tfromColumn: Sales.Date\n\ttoColumn: Date.Date\n"),
-  part("definition/tables/Sales.tmdl", "table Sales\n\n\tmeasure 'Total Sales' = SUM(Sales[Amount])\n\n\tcolumn Category\n\t\tdataType: string\n\n\tcolumn Amount\n\t\tdataType: decimal\n"),
+  part("definition/tables/Sales.tmdl", "table Sales\n\n\tmeasure 'Total Sales' = SUM(Sales[Amount])\n\n\tcolumn Category\n\t\tdataType: string\n\n\tcolumn Amount\n\t\tdataType: decimal\n\n\thierarchy Geography\n\t\tlevel Country\n\t\t\tcolumn: Category\n"),
   part("definition/tables/Widget Axis.tmdl", "table 'Widget Axis'\n\n\tcolumn WidgetId\n\t\tdataType: string\n"),
 ];
 
@@ -22,7 +22,7 @@ describe("semantic model inspection", () => {
       parameters: [{ name: "Server", required: true }],
       relationships: [{ name: "Sales to Date", from: "Sales.Date", to: "Date.Date" }],
       tables: [
-        { name: "Sales", columns: [{ name: "Amount", dataType: "decimal" }, { name: "Category", dataType: "string" }], measures: [{ name: "Total Sales" }] },
+        { name: "Sales", columns: [{ name: "Amount", dataType: "decimal" }, { name: "Category", dataType: "string" }], measures: [{ name: "Total Sales" }], hierarchies: [{ name: "Geography", levels: [{ name: "Country" }] }] },
         { name: "Widget Axis", columns: [{ name: "WidgetId" }] },
       ],
     });

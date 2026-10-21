@@ -66,19 +66,26 @@ export function inspectTmdlParts(parts) {
       if (!tableName) continue;
       const table = { name: tableName, columns: [], measures: [], hierarchies: [] };
       let currentColumn = null;
+      let currentHierarchy = null;
       for (const line of text.split(/\r?\n/)) {
         const measure = declaration(line, "measure");
         const column = declaration(line, "column");
         const hierarchy = declaration(line, "hierarchy");
+        const level = declaration(line, "level");
         if (measure) {
           table.measures.push({ name: measure });
           currentColumn = null;
+          currentHierarchy = null;
         } else if (column) {
           currentColumn = { name: column, dataType: null };
           table.columns.push(currentColumn);
+          currentHierarchy = null;
         } else if (hierarchy) {
-          table.hierarchies.push({ name: hierarchy });
+          currentHierarchy = { name: hierarchy, levels: [] };
+          table.hierarchies.push(currentHierarchy);
           currentColumn = null;
+        } else if (level && currentHierarchy) {
+          currentHierarchy.levels.push({ name: level });
         } else if (currentColumn) {
           const dataType = propertyValue(line, "dataType");
           if (dataType) currentColumn.dataType = dataType;

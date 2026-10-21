@@ -21,9 +21,9 @@ be added without changing the Power BI host.
 ## What Super Visual is
 
 Super Visual is an open-source compiler and deployment toolchain for full-page
-web applications in Power BI. It packages a React application, a report-specific
-semantic adapter, the custom-visual host, local assets, and the PBIR report
-wrapper as one inspectable solution.
+web applications in Power BI. It packages a React application, its semantic
+data binding, the custom-visual host, local assets, and the PBIR report wrapper
+as one inspectable solution.
 
 The application never needs to issue SQL or DAX. It asks for named, governed
 datasets through `ReportApplicationProps`. Super Visual batches those requests
@@ -48,7 +48,7 @@ the report in one command. `--app` accepts a source directory containing
 npx supervisual init sales-report \
   --app ./my-react-app \
   --workspace-id <workspace-guid> \
-  --semantic-model-id <deployed-adapter-model-guid>
+  --semantic-model-id <semantic-model-guid>
 ```
 
 The Fabric IDs are saved locally under the ignored `.supervisual/` directory,
@@ -68,6 +68,17 @@ npx supervisual publish
 
 `publish` shows the exact workspace, operations, and plan ID, then asks you to
 type that plan ID to confirm. Press Enter to cancel without changing Fabric.
+When a human intentionally wants a single uninterrupted command, they can
+pre-authorize the plan that this invocation generates:
+
+```bash
+npx supervisual publish --pre-authorize
+```
+
+This skips only the second prompt. The CLI still resolves the immutable
+workspace, packages and verifies the project, writes the content-derived plan,
+rejects blockers and drift, and records the resulting plan ID. Existing items
+still require `--allow-updates` and a backup directory.
 For a non-interactive agent or CI job, the equivalent is:
 
 ```bash
@@ -76,23 +87,71 @@ npx supervisual publish --confirm <plan-id>
 ```
 
 That confirmation prompt is intentional: a live Fabric change must always be
-authorized for the exact plan and workspace. Updates also require
-`--allow-updates` while planning and `--backup <directory>` while applying.
+authorized either by reviewing the exact plan and workspace or by an explicit
+human `--pre-authorize` instruction for that invocation. Agents must never add
+that flag on their own. Updates also require `--allow-updates` while planning
+and `--backup <directory>` while applying.
 
 Use the built-in app when starting from scratch:
 
 ```bash
 npx supervisual init sales-report \
   --workspace-id <workspace-guid> \
-  --semantic-model-id <deployed-adapter-model-guid>
+  --semantic-model-id <semantic-model-guid>
 ```
 
 The default is a clean full-page canvas with the minimum model-binding contract.
 Choose `--template hello-world` for a searchable catalog that proves React is
 receiving live semantic-model metadata, or start with the complete
-[AdventureWorks example](examples/adventureworks). On a first deployment where
-no report-specific adapter exists yet, run `publish` to create it; the returned
-model ID is saved automatically for subsequent local previews.
+[AdventureWorks example](examples/adventureworks). On the first deployment,
+`publish` creates the report and records its deployment state automatically.
+Users work only with the Power BI semantic model they selected.
+
+## CLI reference
+
+Run commands from a Super Visual project directory. Where `[project]` is
+shown, it defaults to the current directory. Use
+`npx supervisual <command> --help` for every available option.
+
+| Command | What it does |
+| --- | --- |
+| `discover [input]` | Detect a Super Visual project or a dashboard format that can be imported. |
+| `inspect [project]` | Summarize project configuration, bindings, policies, and generated output. |
+| `migrate [project]` | Check contract versions and preview or apply recoverable source migrations. |
+| `templates` | List the built-in project templates. |
+| `adapters` | List the supported dashboard import adapters. |
+| `import claude-dashboard <input>` | Inspect and import a supported Claude dashboard bundle. |
+| `init <directory>` | Create a project, optionally from an existing React app or template, and save its Fabric binding. |
+| `check [project]` | Validate project contracts, semantic bindings, and source policy. |
+| `compile [project]` | Build a deterministic, inspectable solution bundle. `build` is an alias. |
+| `package [project]` | Compile the app, build and embed the visual, and verify the deployable solution. |
+| `verify [project]` | Verify every generated file against the solution manifest. |
+| `dev [project]` | Run the React app locally against the bound live semantic model. |
+| `preview test [project]` | Run a headless semantic-data and interaction smoke test against the local preview. |
+| `semantic discover` | Read a live semantic model's TMDL inventory and optionally execute acceptance DAX. |
+| `semantic check [project]` | Compare the project's semantic and broker contracts with a live model. |
+| `publish [project]` | Package, plan, authorize, and safely publish using the saved Fabric binding. |
+| `deploy <command>` | Use the lower-level guarded workflow: `workspaces`, `discover`, `status`, `diff`, `plan`, `apply`, or `restore`. |
+| `certify validate <record>` | Validate and grade a redacted live certification record. |
+
+| Common option | What it does |
+| --- | --- |
+| `--json` | Emit one machine-readable JSON value for agents, scripts, and CI. |
+| `--app <path>` | Initialize from an existing compatible React application. |
+| `--template <name>` | Initialize from a built-in template such as `blank` or `hello-world`. |
+| `--workspace-id <id>` | Select or save the immutable Fabric workspace ID. |
+| `--workspace-name <name>` | Assert the expected workspace display name as an additional safety check. |
+| `--semantic-model-id <id>` | Select the exact Power BI semantic model used by the report and local preview. |
+| `--open` | Open the local semantic preview in the default browser. |
+| `--allow-updates` | Permit a plan to replace same-named remote items; updates remain backup-protected. |
+| `--backup <directory>` | Choose the required recoverable backup destination for updates or written migrations. |
+| `--pre-authorize` | Publish the plan generated by this invocation without a second prompt; use only with explicit human authorization. |
+| `--confirm <plan-id>` | Apply a previously reviewed publish plan by its exact content-derived ID. |
+| `--plan <file>` | Read or write the deployment plan at a non-default path. |
+| `--receipt <file>` | Write deployment progress to a chosen receipt file. |
+| `--resume <file>` | Resume an interrupted deployment from a matching receipt. |
+| `--timeout <seconds>` | Set the maximum time allowed for Fabric operations. |
+| `-h, --help` | Show the complete help for a command or command group. |
 
 ## More than one widget
 

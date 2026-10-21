@@ -5,7 +5,7 @@ data needs separate. The semantic compiler produces a standard TMDL model from
 the governed YAML contract. The broker compiler then copies that model and adds
 one report-specific, disconnected `Widget Axis` table.
 
-The adapter is intentionally source-direct and Import mode. Its calculated
+Internally, the managed binding is source-direct and Import mode. Its calculated
 table materialises the small set of rows required by the report, while `Widget
 Value` applies each row's typed dimension keys back to the governed semantic
 objects with `TREATAS`. Selectable widgets remove their own axis filter before
@@ -44,7 +44,7 @@ React page
                   Widget Axis[WidgetId] IN (...)
                                       |
                                       v
-                 report-specific semantic adapter
+             managed semantic binding (internal)
              (different dimensions, measures and row limits)
                                       |
                                       v
@@ -71,7 +71,7 @@ row limit, ordering rule, selectability, and invalidation dependencies. For
 example, AdventureWorks declares a monthly `trend` dataset with two measures,
 a category dataset with one measure, and a product dataset with a three-level
 hierarchy. The compiler resolves every referenced table, column, and measure
-against `semantic-model.yaml` before generating the adapter.
+against `semantic-model.yaml` before generating the managed binding.
 
 The generated disconnected `Widget Axis` table stores the bounded axis rows for
 all declared datasets. `WidgetId` identifies which logical dataset a row belongs
@@ -118,18 +118,18 @@ React application independent of Power BI APIs.
 
 ## Local semantic preview
 
-The preview deliberately queries the deployed report-specific adapter rather
-than a fixture or source SQL database. Querying source SQL would bypass DAX
-measures, relationships, calculation behaviour, and semantic security. The
-local gateway applies visible widget IDs to `Widget Axis[WidgetId]`, applies
-validated UI selections to their broker-declared semantic columns with typed
-`TREATAS` filters, and projects the eight broker fields. The shared broker-row
-materialiser then builds the same `DashboardModel` consumed in Power BI.
+The preview deliberately queries the Power BI semantic model selected by the
+user rather than a fixture or source SQL database. Querying source SQL would
+bypass DAX measures, relationships, calculation behaviour, and semantic
+security. The local gateway compiles only the datasets and validated UI
+selections declared by the project, then projects the results into the same
+eight broker fields used by the deployed visual. The shared broker-row
+materialiser builds the same `DashboardModel` consumed in Power BI.
 
 Consequently, local preview follows the same multi-widget path: the CLI derives
-the requested dataset IDs from the current page, queries the deployed adapter in
-one batch, and uses the shared broker-row materialiser. It does not issue source
-SQL directly or substitute independent fixture queries for each component.
+the requested dataset IDs from the current page, queries the selected semantic
+model, and uses the shared broker-row materialiser. It does not issue source SQL
+directly or require a user to identify an internal deployment model.
 
 Authentication and DAX execution remain in the local CLI process. The browser
 receives neither credentials nor an arbitrary query facility. The server binds

@@ -58,10 +58,10 @@ async function semanticParameters(file) {
   return { server: profile.source.server.trim(), database: profile.source.database.trim() };
 }
 
-async function build(project, shouldPackage, parametersFile) {
+async function build(project, shouldPackage, parametersFile, semanticCatalogSource = null, semanticParameterOverride = null) {
   await syncProjectSource(projectFile(project));
-  const parameters = await semanticParameters(parametersFile);
-  const result = await buildSolution(projectFile(project), { semanticParameters: parameters });
+  const parameters = semanticParameterOverride ?? await semanticParameters(parametersFile);
+  const result = await buildSolution(projectFile(project), { semanticParameters: parameters, semanticCatalogSource });
   const artifact = shouldPackage ? await packageVisual(result) : null;
   const verified = await verifySolutionManifest(result.outputDirectory);
   return {
@@ -73,8 +73,29 @@ async function build(project, shouldPackage, parametersFile) {
   };
 }
 
+export function selectedConnectionDefaults(references) {
+  const bound = (references ?? []).filter((reference) => reference?.id && reference?.connectionDetails?.path);
+  const identities = new Set(bound.map((reference) => `${reference.id}\u0000${reference.connectivityType ?? "ShareableCloud"}`));
+  const paths = new Set(bound.map((reference) => `${reference.connectionDetails.type ?? ""}\u0000${reference.connectionDetails.path}`));
+  if (identities.size !== 1 || paths.size !== 1) return null;
+  const reference = bound[0];
+  const pathParts = String(reference.connectionDetails.path).split(";").map((part) => part.trim()).filter(Boolean);
+  const sqlSource = String(reference.connectionDetails.type).toLowerCase().includes("sql") && pathParts.length === 2
+    ? { server: pathParts[0], database: pathParts[1] }
+    : null;
+  return { connectionId: reference.id, connectionMode: reference.connectivityType ?? "ShareableCloud", semanticParameters: sqlSource };
+}
+
 function addJsonOption(command) {
   return command.option("--json", "emit one machine-readable JSON value");
+}
+
+function usesSemanticCatalog(broker) {
+  return (broker.widgets ?? []).some((widget) => [
+    widget.axis,
+    ...(widget.dimensions ?? []).flatMap((dimension) => [dimension.key, dimension.label]),
+    ...(widget.measures ?? []),
+  ].some((reference) => typeof reference === "string" && reference.startsWith("Super Visual Model Catalog[")));
 }
 
 async function writeJsonAtomic(file, value) {
@@ -94,8 +115,7 @@ async function waitForPreviewShutdown(preview) {
 }
 
 async function confirmDeploymentPlan(plan) {
-  const operations = plan.actions.map((action) => `${action.operation} ${action.type} “${action.displayName}”`).join("\n  - ");
-  process.stdout.write(`\nReady to publish to ${plan.workspace.displayName} (${plan.workspace.id}):\n  - ${operations}\n\nPlan ID: ${plan.planId}\n`);
+  printDeploymentPlan(plan);
   const prompt = createInterface({ input: process.stdin, output: process.stdout });
   try {
     const answer = await prompt.question(`Type ${plan.planId} to publish, or press Enter to stop: `);
@@ -103,6 +123,11 @@ async function confirmDeploymentPlan(plan) {
   } finally {
     prompt.close();
   }
+}
+
+function printDeploymentPlan(plan) {
+  const operations = plan.actions.map((action) => `${action.operation} ${action.type} “${action.displayName}”`).join("\n  - ");
+  process.stdout.write(`\nReady to publish to ${plan.workspace.displayName} (${plan.workspace.id}):\n  - ${operations}\n\nPlan ID: ${plan.planId}\n`);
 }
 
 async function applySavedDeployment({ loaded, planPath, confirm, backup, receipt: receiptOption, resume, timeout }) {
@@ -211,19 +236,17 @@ function createProgram() {
     .option("--title <title>", "display title")
     .option("--workspace-id <id>", "bind the project to an immutable Fabric workspace ID")
     .option("--workspace-name <name>", "expected workspace display name")
-    .option("--semantic-model-id <id>", "bind local preview to an existing deployed semantic adapter")
-    .option("--semantic-model-name <name>", "target semantic adapter name")
+    .option("--semantic-model-id <id>", "Power BI semantic model that the report uses")
     .option("--report-name <name>", "target report name")
-    .option("--connection-id <id>", "Fabric connection used for deployment verification")
-    .option("--connection-mode <mode>", "Fabric connectivity type", "ShareableCloud")
+    .option("--connection-id <id>", "advanced override for the selected model's Fabric connection")
+    .option("--connection-mode <mode>", "advanced Fabric connectivity override", "ShareableCloud")
     .option("--force", "write into an existing empty directory")
     .action(async (directory, options, command) => {
-      if ((options.workspaceName || options.semanticModelId || options.semanticModelName || options.reportName || options.connectionId) && !options.workspaceId) throw new Error("--workspace-id is required when saving a Fabric binding");
+      if ((options.workspaceName || options.semanticModelId || options.reportName || options.connectionId) && !options.workspaceId) throw new Error("--workspace-id is required when saving a Fabric binding");
       const result = await initializeProject({ directory, template: options.template, name: options.name, title: options.title, app: options.app, force: options.force });
       if (options.workspaceId) {
         const saved = await writeProjectTarget(result.directory, targetUpdate({
           ...options,
-          semanticModelName: options.semanticModelName ?? result.application.title,
           reportName: options.reportName ?? result.application.title,
         }));
         result.binding = { file: saved.file, ...saved.value };
@@ -267,7 +290,7 @@ function createProgram() {
     .description("serve the local React application against a live semantic model")
     .option("--workspace-id <id>", "immutable Fabric workspace ID; defaults to the saved project binding")
     .option("--workspace-name <name>", "expected workspace display name")
-    .option("--semantic-model-id <id>", "exact semantic model ID containing the generated broker; defaults to the saved binding")
+    .option("--semantic-model-id <id>", "Power BI semantic model ID; defaults to the saved project binding")
     .option("--host <host>", "loopback host", "127.0.0.1")
     .option("--port <port>", "local preview port", "5173")
     .option("--open", "open the preview in the default browser")
@@ -282,7 +305,7 @@ function createProgram() {
         projectFile: projectFile(project),
         workspaceId: target.workspaceId,
         workspaceName: target.workspaceName,
-        semanticModelId: target.semanticModelId,
+        semanticModelId: target.semanticModelId ?? target.managedSemanticModelId,
         host: options.host,
         port: Number(options.port),
         open: Boolean(options.open),
@@ -297,7 +320,7 @@ function createProgram() {
     .description("run a headless semantic-data and interaction smoke test")
     .option("--workspace-id <id>", "immutable Fabric workspace ID; defaults to the saved project binding")
     .option("--workspace-name <name>", "expected workspace display name")
-    .option("--semantic-model-id <id>", "exact semantic model ID containing the generated broker; defaults to the saved binding")
+    .option("--semantic-model-id <id>", "Power BI semantic model ID; defaults to the saved project binding")
     .option("--timeout <seconds>", "Fabric operation timeout", "900")
     .option("--browser-timeout <milliseconds>", "browser acceptance timeout", "60000")
     .action(async (project = ".", options, command) => {
@@ -310,7 +333,7 @@ function createProgram() {
         projectFile: projectFile(project),
         workspaceId: target.workspaceId,
         workspaceName: target.workspaceName,
-        semanticModelId: target.semanticModelId,
+        semanticModelId: target.semanticModelId ?? target.managedSemanticModelId,
         timeoutMs: Number(options.browserTimeout),
       });
       output(result, jsonEnabled(command));
@@ -367,14 +390,15 @@ function createProgram() {
     .description("package, plan, and safely publish the report using its saved Fabric binding")
     .option("--workspace-id <id>", "immutable Fabric workspace ID; defaults to the saved project binding")
     .option("--workspace-name <name>", "expected workspace display name")
-    .option("--semantic-model-name <name>", "target semantic adapter name")
+    .option("--semantic-model-id <id>", "Power BI semantic model ID; defaults to the saved project binding")
     .option("--report-name <name>", "target report name")
-    .option("--connection-id <id>", "Fabric connection ID for binding and verification")
-    .option("--connection-mode <mode>", "Fabric connectivity type", "ShareableCloud")
-    .option("--parameters-file <file>", "deployment source profile with service-reachable server and database")
-    .option("--acceptance-query-file <file>", "DAX acceptance query to run after refresh")
+    .option("--connection-id <id>", "advanced override for the selected model's Fabric connection")
+    .option("--connection-mode <mode>", "advanced Fabric connectivity override", "ShareableCloud")
+    .option("--parameters-file <file>", "advanced source-path override for managed deployment")
+    .option("--acceptance-query-file <file>", "advanced DAX acceptance override")
     .option("--allow-updates", "allow a plan that replaces same-named remote items")
     .option("--confirm <plan-id>", "apply the previously reviewed exact plan ID")
+    .option("--pre-authorize", "authorize and apply the plan generated by this invocation without prompting")
     .option("--plan <file>", "deployment plan path; defaults to .supervisual/deploy-plan.json")
     .option("--backup <directory>", "required backup destination for updates")
     .option("--receipt <file>", "deployment progress receipt destination")
@@ -383,13 +407,14 @@ function createProgram() {
     .action(async (project = ".", options, command) => {
       const loaded = await loadProject(projectFile(project));
       const planPath = path.resolve(options.plan ?? path.join(loaded.root, ".supervisual", "deploy-plan.json"));
+      if (options.confirm && options.preAuthorize) throw new Error("--confirm and --pre-authorize are mutually exclusive");
       if (options.confirm) {
         const result = await applySavedDeployment({ loaded, planPath, confirm: options.confirm, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
         await writeProjectTarget(loaded.root, targetUpdate({
           workspaceId: result.workspace.id,
           workspaceName: result.workspace.displayName,
-          semanticModelId: result.items.semanticModel?.id,
-          semanticModelName: result.items.semanticModel?.displayName,
+          managedSemanticModelId: result.items.semanticModel?.id,
+          managedSemanticModelName: result.items.semanticModel?.displayName,
           reportId: result.items.report?.id,
           reportName: result.items.report?.displayName,
         }));
@@ -398,14 +423,26 @@ function createProgram() {
         return result;
       }
 
-      const target = await resolveProjectTarget(loaded.root, options);
-      const semanticModelName = target.semanticModelName ?? loaded.project.application.title;
+      const target = await resolveProjectTarget(loaded.root, options, { requireSemanticModel: true });
       const reportName = target.reportName ?? loaded.project.application.title;
-      const packaged = await build(project, true, options.parametersFile);
-      if (!packaged.ok) throw new Error("Packaged solution manifest verification failed");
+      const semanticModelName = target.managedSemanticModelName ?? `${reportName} — Super Visual data`;
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-      const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : null;
-      const postDeployment = target.connectionId ? { connectionId: target.connectionId, connectivityType: target.connectionMode, timeoutSeconds: Number(options.timeout), acceptanceDax } : null;
+      const selectedSemanticModelId = target.semanticModelId ?? target.managedSemanticModelId;
+      const inspected = await inspectSemanticModel({ client, workspaceId: target.workspaceId, workspaceName: target.workspaceName, semanticModelId: selectedSemanticModelId });
+      const compatibility = usesSemanticCatalog(loaded.broker)
+        ? { ok: true, summary: { required: 1, matched: 1, missing: 0, ambiguous: 0 }, diagnostics: [] }
+        : checkSemanticCompatibility(inspected.semanticModel, loaded.semanticModel, loaded.broker);
+      if (!compatibility.ok) throw new Error(`Selected semantic model is incompatible:\n- ${compatibility.diagnostics.map((item) => item.message).join("\n- ")}`);
+      const selectedConnection = selectedConnectionDefaults(await client.getSemanticConnections(target.workspaceId, selectedSemanticModelId));
+      const connectionId = target.connectionId ?? selectedConnection?.connectionId;
+      const connectionMode = target.connectionId ? target.connectionMode : selectedConnection?.connectionMode ?? target.connectionMode;
+      const automaticParameters = options.parametersFile ? null : selectedConnection?.semanticParameters;
+      if (!connectionId) throw new Error("The selected semantic model does not expose one reusable Fabric connection. Use the advanced --connection-id override.");
+      if (!options.parametersFile && !automaticParameters) throw new Error("The selected semantic model source path cannot be reused automatically. Use the advanced --parameters-file override.");
+      const packaged = await build(project, true, options.parametersFile, inspected.semanticModel, automaticParameters);
+      if (!packaged.ok) throw new Error("Packaged solution manifest verification failed");
+      const acceptanceDax = options.acceptanceQueryFile ? await readFile(path.resolve(options.acceptanceQueryFile), "utf8") : 'EVALUATE ROW("Super Visual", 1)';
+      const postDeployment = { connectionId, connectivityType: connectionMode, timeoutSeconds: Number(options.timeout), acceptanceDax };
       const plan = await createDeploymentPlan({
         client,
         workspaceId: target.workspaceId,
@@ -420,19 +457,42 @@ function createProgram() {
       await writeProjectTarget(loaded.root, targetUpdate({
         workspaceId: target.workspaceId,
         workspaceName: plan.workspace.displayName,
-        semanticModelName,
+        semanticModelId: target.semanticModelId,
+        semanticModelName: target.semanticModelId ? inspected.semanticModel.displayName : target.semanticModelName,
+        managedSemanticModelName: semanticModelName,
         reportName,
-        connectionId: target.connectionId,
-        connectionMode: target.connectionMode,
+        connectionId,
+        connectionMode,
       }));
       const result = {
         ok: plan.blockers.length === 0,
         status: plan.blockers.length ? "blocked" : "planned",
         packaged,
+        selectedSemanticModel: { id: inspected.semanticModel.id, displayName: inspected.semanticModel.displayName, compatibility: compatibility.summary },
         ...plan,
         planPath,
         next: plan.blockers.length ? null : `supervisual publish --confirm ${plan.planId}`,
       };
+      if (!plan.blockers.length && options.preAuthorize) {
+        if (!jsonEnabled(command)) {
+          printDeploymentPlan(plan);
+          process.stdout.write("Pre-authorization accepted; applying this generated plan without a second prompt.\n");
+        }
+        const applied = await applySavedDeployment({ loaded, planPath, confirm: plan.planId, backup: options.backup, receipt: options.receipt, resume: options.resume, timeout: options.timeout });
+        await writeProjectTarget(loaded.root, targetUpdate({
+          workspaceId: applied.workspace.id,
+          workspaceName: applied.workspace.displayName,
+          semanticModelId: target.semanticModelId,
+          semanticModelName: target.semanticModelName,
+          managedSemanticModelId: applied.items.semanticModel?.id,
+          managedSemanticModelName: applied.items.semanticModel?.displayName,
+          reportId: applied.items.report?.id,
+          reportName: applied.items.report?.displayName,
+        }));
+        output({ ok: applied.accepted, preAuthorized: true, ...applied }, jsonEnabled(command));
+        if (!applied.accepted) process.exitCode = 3;
+        return applied;
+      }
       if (!plan.blockers.length && !jsonEnabled(command) && process.stdin.isTTY && process.stdout.isTTY) {
         const confirmed = await confirmDeploymentPlan(plan);
         if (confirmed) {
@@ -440,8 +500,10 @@ function createProgram() {
           await writeProjectTarget(loaded.root, targetUpdate({
             workspaceId: applied.workspace.id,
             workspaceName: applied.workspace.displayName,
-            semanticModelId: applied.items.semanticModel?.id,
-            semanticModelName: applied.items.semanticModel?.displayName,
+            semanticModelId: target.semanticModelId,
+            semanticModelName: target.semanticModelName,
+            managedSemanticModelId: applied.items.semanticModel?.id,
+            managedSemanticModelName: applied.items.semanticModel?.displayName,
             reportId: applied.items.report?.id,
             reportName: applied.items.report?.displayName,
           }));

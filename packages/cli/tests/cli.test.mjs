@@ -1,9 +1,11 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
+import { selectedConnectionDefaults } from "../src/main.mjs";
+import { readProjectTarget } from "../src/project-target.mjs";
 
 const run = promisify(execFile);
 const root = path.resolve(".");
@@ -36,6 +38,34 @@ describe("supervisual CLI", () => {
     expect(semanticHelp.stdout).toContain("check");
     const previewHelp = await run(process.execPath, [cli, "preview", "--help"], { cwd: root });
     expect(previewHelp.stdout).toContain("test");
+    const publishHelp = await run(process.execPath, [cli, "publish", "--help"], { cwd: root });
+    expect(publishHelp.stdout).toContain("--pre-authorize");
+    expect(publishHelp.stdout).toContain("--semantic-model-id");
+    expect(publishHelp.stdout).not.toContain("--semantic-model-name");
+  });
+
+  test("treats legacy saved model IDs as internal managed state", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-target-"));
+    try {
+      await mkdir(path.join(temporary, ".supervisual"));
+      await writeFile(path.join(temporary, ".supervisual", "target.json"), `${JSON.stringify({ contractVersion: 1, kind: "supervisual-project-target", workspace: { id: "workspace-1" }, semanticModel: { id: "legacy-managed-model" } })}\n`);
+      expect(await readProjectTarget(temporary)).toMatchObject({ contractVersion: 2, managedSemanticModel: { id: "legacy-managed-model" } });
+      expect((await readProjectTarget(temporary)).semanticModel).toBeUndefined();
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  test("reuses one selected-model SQL connection without user-supplied adapter settings", () => {
+    expect(selectedConnectionDefaults([{ id: "connection-1", connectivityType: "ShareableCloud", connectionDetails: { type: "SQL", path: "server.example.com;Sales" } }])).toEqual({
+      connectionId: "connection-1",
+      connectionMode: "ShareableCloud",
+      semanticParameters: { server: "server.example.com", database: "Sales" },
+    });
+    expect(selectedConnectionDefaults([
+      { id: "connection-1", connectionDetails: { type: "SQL", path: "one;Sales" } },
+      { id: "connection-2", connectionDetails: { type: "SQL", path: "two;Sales" } },
+    ])).toBeNull();
   });
 
   test("discovers and inspects a Claude-style bundle", async () => {
@@ -126,7 +156,6 @@ describe("supervisual CLI", () => {
         "--workspace-id", "workspace-1",
         "--workspace-name", "Sandbox",
         "--semantic-model-id", "model-1",
-        "--semantic-model-name", "Bound Dashboard",
         "--report-name", "Bound Dashboard",
         "--json",
       ], { cwd: root });
@@ -136,12 +165,12 @@ describe("supervisual CLI", () => {
         reactApplication: path.resolve("examples/hello-world/source"),
         binding: {
           workspace: { id: "workspace-1", name: "Sandbox" },
-          semanticModel: { id: "model-1", name: "Bound Dashboard" },
+          semanticModel: { id: "model-1" },
           report: { name: "Bound Dashboard" },
         },
       });
       const target = JSON.parse(await readFile(path.join(project, ".supervisual", "target.json"), "utf8"));
-      expect(target).toMatchObject({ contractVersion: 1, kind: "supervisual-project-target", workspace: { id: "workspace-1" }, semanticModel: { id: "model-1" } });
+      expect(target).toMatchObject({ contractVersion: 2, kind: "supervisual-project-target", workspace: { id: "workspace-1" }, semanticModel: { id: "model-1" } });
       const checked = await run(process.execPath, [cli, "check", project, "--json"], { cwd: root });
       expect(JSON.parse(checked.stdout).ok).toBe(true);
       const devHelp = await run(process.execPath, [cli, "dev", "--help"], { cwd: root });
@@ -181,6 +210,9 @@ describe("supervisual CLI", () => {
     const profile = path.join(temporary, "source-profile.json");
     try {
       await run(process.execPath, [cli, "init", project, "--template", "hello-world", "--json"], { cwd: root });
+      const initializedSource = JSON.parse(await readFile(path.join(project, "contracts", "report-source.json"), "utf8"));
+      expect(initializedSource.files.find((file) => file.path === "src/reportApplication.tsx")?.content).toContain("TYPE_ORDER");
+      expect(initializedSource.files.find((file) => file.path === "src/reportApplication.tsx")?.content).toContain("selected semantic model");
       await writeFile(profile, `${JSON.stringify({ contractVersion: 1, kind: "fabric-sql-source", source: { server: "warehouse.example.fabric.microsoft.com", database: "SuperVisualSandbox" } }, null, 2)}\n`);
       const built = await run(process.execPath, [cli, "compile", project, "--parameters-file", profile, "--json"], { cwd: root });
       expect(JSON.parse(built.stdout)).toMatchObject({ ok: true, sourceProfileApplied: true });

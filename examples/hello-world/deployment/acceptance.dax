@@ -1,5 +1,0 @@
-EVALUATE
-ROW(
-    "Catalog Entity Count", [Entity Count],
-    "Connectivity Row Count", [Row Count]
-)

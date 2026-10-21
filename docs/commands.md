@@ -51,7 +51,7 @@ compatibility boundary, and writes import provenance.
 supervisual init <directory> [--template blank|hello-world] [--app <path>]
   [--name <id>] [--title <title>]
   [--workspace-id <id>] [--workspace-name <name>]
-  [--semantic-model-id <id>] [--semantic-model-name <name>]
+  [--semantic-model-id <id>]
   [--report-name <name>] [--connection-id <id>]
   [--connection-mode <mode>] [--force]
 supervisual check [project]
@@ -67,10 +67,11 @@ creates a unique visual GUID, and refuses to write into a non-empty directory.
 `--app` imports a compatible `reportApplication.tsx`, optional `report/` modules,
 and optional `report-design.less`. Fabric target options are written only to the
 ignored `.supervisual/target.json` binding. `--force` permits an existing empty
-directory; it does not overwrite files. A source profile overrides only the generated
-semantic model's `server` and `database`; it must use the versioned
+directory; it does not overwrite files. A source profile overrides only the
+deployment source `server` and `database`; it must use the versioned
 `fabric-sql-source` shape and should be stored under the ignored `.supervisual`
-directory.
+directory. This is an advanced compile/package override, not part of the normal
+selected-model workflow.
 
 ## Preview against a semantic model
 
@@ -93,16 +94,16 @@ supervisual preview test [project]
 ```
 
 Both commands are read-only with respect to Fabric. IDs default to the binding
-saved by `init` or a completed `publish`. They require the deployed
-report-specific semantic adapter, including its generated `Widget Axis` table,
-not merely the reusable base model. Before serving, the CLI validates the local
-project, inspects the exact model, and checks every semantic and broker object.
+saved by `init`. The semantic-model ID is the ordinary Power BI semantic model
+selected for the report. Before serving, the CLI validates the local project,
+inspects the exact model, and checks every semantic object required by the
+application.
 
 `dev` compiles disposable preview files under `.supervisual/semantic-preview/`,
 binds only to a loopback address, and emits its ready URL. The browser never
 receives a Fabric bearer token or a general DAX endpoint. It sends only
-allow-listed widget selections and adapter parameters to a nonce-protected local
-gateway; the CLI constructs and executes the broker DAX. React receives the
+allow-listed widget selections and application parameters to a nonce-protected local
+gateway; the CLI constructs and executes governed DAX. React receives the
 same eight broker fields and uses the same row materialiser as the Power BI
 visual. In `--json` mode, the ready object is written before the process waits
 for Ctrl-C.
@@ -118,11 +119,11 @@ local Playwright browser is absent.
 ```text
 supervisual publish [project]
   [--workspace-id <id>] [--workspace-name <name>]
-  [--semantic-model-name <name>] [--report-name <name>]
+  [--semantic-model-id <id>] [--report-name <name>]
   [--connection-id <id>] [--connection-mode <mode>]
   [--parameters-file <file>] [--acceptance-query-file <file>]
   [--allow-updates] [--backup <directory>]
-  [--confirm <plan-id>] [--plan <file>]
+  [--confirm <plan-id> | --pre-authorize] [--plan <file>]
   [--receipt <file>] [--resume <file>] [--timeout <seconds>]
 ```
 
@@ -134,6 +135,20 @@ cancels without changing Fabric. In JSON or another non-interactive environment,
 it returns the plan and the caller must make a second authorized call with
 `--confirm <plan-id>`. The lower-level `deploy` commands remain available for
 inspection, automation, restore, and troubleshooting.
+
+The selected semantic-model ID defaults to the binding saved by `init` and is
+the only semantic-model ID in the normal workflow. For the normal single-source
+case, `publish` also reuses that model's existing Fabric connection and source
+path. `--connection-id`, `--connection-mode`, `--parameters-file`, and
+`--acceptance-query-file` are advanced overrides for unusual or explicitly
+tested deployments.
+
+`--pre-authorize` is the explicit one-command alternative. It authorizes the
+content-derived plan generated during that invocation for the resolved immutable
+workspace and applies it without the plan-ID prompt. It does not bypass
+packaging, verification, blockers, drift protection, update opt-in, backups,
+receipts, refresh, or acceptance checks. Coding agents may pass it only when a
+human explicitly requests pre-authorization for that deployment.
 
 ## Validate certification evidence
 
@@ -173,7 +188,7 @@ compares that inventory with the project's semantic and widget-broker contracts
 and reports every matched, missing, or ambiguous object. An optional acceptance
 query returns row-count and non-null evidence, not the row values.
 
-## Deploy to Fabric
+## Advanced deployment internals
 
 ```text
 supervisual deploy workspaces
@@ -233,6 +248,10 @@ supervisual deploy restore apply
   --confirm <plan-id>
   [--timeout <seconds>]
 ```
+
+These lower-level commands expose managed deployment artifacts for CI,
+troubleshooting, restore, and contributor testing. Normal users should use
+`publish` and do not need to provide managed semantic-model names or IDs.
 
 `workspaces`, `discover`, `status`, and `diff` are read-only. `workspaces`
 returns only accessible workspace display names, immutable IDs, and capacity

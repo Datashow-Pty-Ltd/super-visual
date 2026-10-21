@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Simplified the normal workflow to one selected Power BI semantic-model ID:
+  initialize, preview live data locally, then publish with an exact plan
+  confirmation or explicit one-command pre-authorization.
+- Made Hello World a searchable live catalog of the selected model and ordered
+  its summary by semantic hierarchy.
+- Kept report-specific deployment resources internal while retaining advanced
+  contributor and recovery commands.
+- Added documentation link and legacy-workflow checks to the release gate.
+
 ## 0.1.0-rc.0 — 2026-10-20
 
 - Extracted the long-table Power BI broker runtime, contracts, compliance
