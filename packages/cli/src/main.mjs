@@ -16,7 +16,7 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.1.0-rc.5";
+const VERSION = "0.1.0-rc.6";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;

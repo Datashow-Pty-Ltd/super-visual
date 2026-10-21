@@ -165,8 +165,12 @@ class SemanticPreviewHost {
   }
 }
 
-document.documentElement.style.height = "100%";
-document.body.style.cssText = "height:100%;margin:0";
+// The compiled visual disables document scrolling because Power BI owns its
+// canvas viewport. The standalone preview owns the browser page instead, so it
+// must explicitly restore document flow for applications taller than the
+// viewport.
+document.documentElement.style.cssText = "min-height:100%;height:auto;overflow:auto";
+document.body.style.cssText = "min-height:100%;height:auto;margin:0;overflow:auto";
 const banner = document.getElementById("supervisual-preview-status")!;
 banner.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:2147483647;padding:7px 10px;border-radius:5px;background:#173c36;color:white;font:12px/1.3 system-ui;box-shadow:0 2px 10px #0003";
 new SemanticPreviewHost();

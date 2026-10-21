@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-rc.6 — 2026-10-21
+
+- Restored browser scrolling for semantic previews while retaining the fixed Power BI canvas behavior in deployed visuals.
+- Added a Chromium regression test that verifies tall preview applications can scroll vertically.
+
 ## 0.1.0-rc.5 — 2026-10-21
 
 - Fixed global npm installations by declaring and resolving the Power BI runtime package instead of relying on the monorepo directory layout.
