@@ -243,18 +243,24 @@ AdventureWorksDW2025 database
 
 Super Visual supplies the semantic-model definition, React application,
 binding contracts, report wrapper, and deployment automation. It does not
-redistribute Microsoft's AdventureWorks database. The recipe supports either
-provisioning the full stack from an appropriately licensed BACPAC or reusing an
-existing compatible database or semantic model.
+redistribute Microsoft's AdventureWorks database. The guided setup can obtain
+the official Microsoft backup for you, provision the full stack from a BACPAC,
+or reuse an existing compatible database. If you already have the semantic
+model, you can skip the source stages entirely.
 
-The AdventureWorks helper exposes the ordered workflow directly:
+For a step-by-step setup with prerequisite checks, secure provider sign-in,
+progress feedback, and the normal immutable-plan approval gate, run:
 
 ```bash
-npm run adventureworks:deploy -- --help
+npm run adventureworks:setup
 ```
 
-It does not manage Fabric capacity and it does not create or retain Fabric
-connection credentials.
+The wizard never collects passwords or tokens: Azure CLI owns Azure sign-in,
+and Fabric owns the SQL connection credential. It asks only for non-secret
+target settings and the resulting Fabric connection ID. The lower-level,
+scriptable commands remain available through
+`npm run adventureworks:deploy -- --help`. Neither helper manages Fabric
+capacity.
 
 ## Documentation
 

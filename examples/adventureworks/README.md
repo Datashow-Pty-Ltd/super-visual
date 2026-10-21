@@ -34,6 +34,25 @@ provisioning and supply its ordinary Power BI semantic-model ID to `dev` or
 `publish`. Otherwise, follow the
 [AdventureWorks build-and-deploy recipe](../../docs/recipes/adventureworks.md).
 
+For a guided setup from the repository root, run:
+
+```bash
+npm run adventureworks:setup
+```
+
+It checks Azure sign-in, guides source creation or reuse, pauses while you
+create the Fabric connection in Fabric's own secure interface, validates and
+packages the project, shows the immutable deployment plan, and requires you to
+type its exact plan ID before applying it. It never asks for or stores a
+password, token, client secret, or connection credential.
+
+Microsoft publishes the official AdventureWorksDW2025 sample as a SQL Server
+backup rather than an Azure SQL BACPAC. Choose `download-backup` in the wizard
+to download it from `microsoft/sql-server-samples` and record its provenance and
+SHA-256 digest. The wizard then explains the one-time restore/export step. If
+you already have a BACPAC or a compatible database, the guided flow can run all
+the way through live Fabric acceptance.
+
 The sample deliberately keeps project assets outside the reusable packages:
 
 - `contracts/semantic-model.yaml` is the proven AdventureWorks semantic model.

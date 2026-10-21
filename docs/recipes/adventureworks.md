@@ -41,6 +41,61 @@ The proven source is Azure SQL. The semantic model and report are Fabric items.
 Fabric capacity must already be running, and capacity start/stop remains an
 operator responsibility outside this project.
 
+## Guided setup
+
+The shortest complete route is the interactive wizard:
+
+```bash
+npm ci
+npm run adventureworks:setup
+```
+
+It walks through five visible stages:
+
+1. Check Azure CLI and open `az login` when authentication is required.
+2. Verify an existing Azure SQL database or provision one from a BACPAC.
+3. Pause while you create the SQL connection in Fabric's secure connection
+   interface, then collect only its non-secret connection ID.
+4. Validate and package the project, discover the target workspace, and show
+   the immutable deployment plan and any blockers.
+5. Require you to type the exact plan ID before deployment, then verify the
+   source binding, refresh, report binding, and live acceptance query.
+
+Passwords, access tokens, client secrets, and connection credentials are never
+accepted in the wizard or its optional answers file. Authentication stays in
+Azure CLI and Fabric. The answers file is intended only for a repeatable dry
+run:
+
+```bash
+npm run adventureworks:setup -- \
+  --answers examples/adventureworks/deployment/guided-answers.example.json \
+  --dry-run
+```
+
+Copy the example before replacing its placeholder IDs. The answers file cannot
+pre-authorize a deployment. In a live run, the human must still type the plan ID
+displayed for the exact workspace.
+
+To obtain Microsoft's official sample asset, choose `download-backup` in the
+wizard or run:
+
+```bash
+npm run adventureworks:setup -- --download-only
+```
+
+The wizard resolves `AdventureWorksDW2025.bak` from the official
+`microsoft/sql-server-samples` GitHub release, saves it beneath the ignored
+`.supervisual/assets/` directory, and records its source URL and SHA-256 digest.
+Microsoft does not publish that release as an Azure SQL BACPAC. The wizard
+therefore pauses at this point so you can restore the `.bak` in SQL Server and
+export the database as a BACPAC with SqlPackage or SQL Server Management Studio.
+Rerun the wizard, choose `bacpac`, and it continues from source provisioning
+through live report acceptance. Users with an existing database can choose
+`existing-database` and skip the import.
+
+The remaining sections document the same stages as explicit commands. Use them
+for automation, troubleshooting, or closer control.
+
 ## What you need
 
 - Node.js 22.12 or newer and `npm ci` completed.
@@ -51,9 +106,10 @@ operator responsibility outside this project.
 - Permission to create a Fabric cloud connection to the resulting Azure SQL
   endpoint.
 
-Super Visual does not redistribute the Microsoft sample database. Obtain the
-official AdventureWorks backup, restore it in SQL Server, and export a BACPAC,
-or supply an equivalent existing AdventureWorksDW2025 BACPAC.
+Super Visual does not redistribute the Microsoft sample database. The guided
+setup can download the official backup on your behalf; restore it in SQL Server
+and export a BACPAC, or supply an equivalent existing AdventureWorksDW2025
+BACPAC.
 
 ## 1. Inspect and validate the sample
 
