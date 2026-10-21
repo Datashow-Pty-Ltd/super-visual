@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
-import { selectedConnectionDefaults } from "../src/main.mjs";
+import { selectedConnectionDefaults, validateFabricId } from "../src/main.mjs";
 import { readProjectTarget } from "../src/project-target.mjs";
 
 const run = promisify(execFile);
@@ -26,7 +26,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.1.0-rc.1");
+    expect(version.stdout.trim()).toBe("0.1.0-rc.2");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");
@@ -66,6 +66,26 @@ describe("supervisual CLI", () => {
       { id: "connection-1", connectionDetails: { type: "SQL", path: "one;Sales" } },
       { id: "connection-2", connectionDetails: { type: "SQL", path: "two;Sales" } },
     ])).toBeNull();
+  });
+
+  test("rejects malformed Fabric IDs before attempting live validation", async () => {
+    const validWorkspaceId = "ca9d62ac-0a1c-4fa2-b384-5d6604f1b664";
+    expect(validateFabricId(validWorkspaceId, "--workspace-id")).toBeUndefined();
+    expect(() => validateFabricId("a9d62ac-0a1c-4fa2-b384-5d6604f1b664", "--workspace-id")).toThrow(/--workspace-id must be a 36-character GUID.*35 characters/);
+
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-invalid-id-"));
+    const project = path.join(temporary, "invalid-binding");
+    try {
+      await expect(run(process.execPath, [
+        cli, "init", project,
+        "--workspace-id", "a9d62ac-0a1c-4fa2-b384-5d6604f1b664",
+        "--semantic-model-id", "408d70eb-491e-45ac-8230-8d76e6be525a",
+      ], { cwd: root })).rejects.toMatchObject({
+        stderr: expect.stringMatching(/Super Visual could not initialize the project because the workspace ID is not valid\.[\s\S]*Copy the complete workspace ID from Fabric[\s\S]*Technical details: --workspace-id must be a 36-character GUID.*35 characters/),
+      });
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
   });
 
   test("discovers and inspects a Claude-style bundle", async () => {
@@ -175,13 +195,15 @@ describe("supervisual CLI", () => {
   test("initializes a project with a reusable Fabric binding and existing React application", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-bound-"));
     const project = path.join(temporary, "bound-dashboard");
+    const workspaceId = "11111111-1111-1111-1111-111111111111";
+    const semanticModelId = "22222222-2222-2222-2222-222222222222";
     try {
       const initialized = await run(process.execPath, [
         cli, "init", project,
         "--app", "examples/hello-world/source",
-        "--workspace-id", "workspace-1",
+        "--workspace-id", workspaceId,
         "--workspace-name", "Sandbox",
-        "--semantic-model-id", "model-1",
+        "--semantic-model-id", semanticModelId,
         "--report-name", "Bound Dashboard",
         "--skip-live-validation",
         "--json",
@@ -191,13 +213,13 @@ describe("supervisual CLI", () => {
         template: "blank",
         reactApplication: path.resolve("examples/hello-world/source"),
         binding: {
-          workspace: { id: "workspace-1", name: "Sandbox" },
-          semanticModel: { id: "model-1" },
+          workspace: { id: workspaceId, name: "Sandbox" },
+          semanticModel: { id: semanticModelId },
           report: { name: "Bound Dashboard" },
         },
       });
       const target = JSON.parse(await readFile(path.join(project, ".supervisual", "target.json"), "utf8"));
-      expect(target).toMatchObject({ contractVersion: 2, kind: "supervisual-project-target", workspace: { id: "workspace-1" }, semanticModel: { id: "model-1" } });
+      expect(target).toMatchObject({ contractVersion: 2, kind: "supervisual-project-target", workspace: { id: workspaceId }, semanticModel: { id: semanticModelId } });
       const checked = await run(process.execPath, [cli, "check", project, "--json"], { cwd: root });
       expect(JSON.parse(checked.stdout).ok).toBe(true);
       const devHelp = await run(process.execPath, [cli, "dev", "--help"], { cwd: root });

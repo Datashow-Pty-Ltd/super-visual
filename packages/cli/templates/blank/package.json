@@ -10,6 +10,6 @@
     "verify": "supervisual verify ."
   },
   "devDependencies": {
-    "@datashow/super-visual-cli": "0.1.0-rc.1"
+    "@datashow/super-visual-cli": "0.1.0-rc.2"
   }
 }

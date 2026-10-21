@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-rc.2 — 2026-10-21
+
+- Reject malformed workspace and semantic-model IDs locally during `init`,
+  before sending a Fabric request, with the invalid value length and expected
+  GUID format in the error.
+- Lead terminal failures with a plain-language summary and corrective action,
+  followed by labelled technical details, and animate in-progress `init` steps
+  with an ASCII spinner in interactive terminals.
+
 ## 0.1.0-rc.1 — 2026-10-21
 
 - Simplified the normal workflow to one selected Power BI semantic-model ID:
