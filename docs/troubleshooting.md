@@ -1,5 +1,12 @@
 # Troubleshooting
 
+## `init` reports an invalid workspace or semantic-model ID
+
+Both IDs must be the full 36-character GUID copied from Fabric. A missing or
+extra character cannot identify the target, even when the rest of the value
+looks correct. Re-copy the ID and retry; Super Visual validates the format
+locally before making a read-only Fabric request.
+
 ## Input is detected but unsupported
 
 `discover` deliberately does not guess an arbitrary HTML/JavaScript layout.

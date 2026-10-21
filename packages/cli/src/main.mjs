@@ -15,7 +15,29 @@ import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./projec
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.1.0-rc.1";
+const VERSION = "0.1.0-rc.2";
+const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SPINNER_FRAMES = ["|", "/", "-", "\\"];
+let activeProgress = null;
+
+export class CliUserError extends Error {
+  constructor(message, { summary, guidance } = {}) {
+    super(message);
+    this.name = "CliUserError";
+    this.summary = summary;
+    this.guidance = guidance;
+  }
+}
+
+export function validateFabricId(value, optionName) {
+  if (value === undefined) return;
+  if (FABRIC_ID_PATTERN.test(value)) return;
+  const target = optionName === "--workspace-id" ? "workspace" : "semantic model";
+  throw new CliUserError(`${optionName} must be a 36-character GUID in 8-4-4-4-12 format; received "${value}" (${String(value).length} characters).`, {
+    summary: `Super Visual could not initialize the project because the ${target} ID is not valid.`,
+    guidance: `Copy the complete ${target} ID from Fabric and run the command again.`,
+  });
+}
 
 function projectFile(input = ".") {
   const resolved = path.resolve(input);
@@ -26,7 +48,29 @@ function output(value, json) {
   process.stdout.write(`${json ? JSON.stringify(value) : typeof value === "string" ? value : JSON.stringify(value, null, 2)}\n`);
 }
 
+export function stopActiveProgress() {
+  if (!activeProgress) return;
+  clearInterval(activeProgress.timer);
+  process.stdout.write(`\r${" ".repeat(activeProgress.width)}\r`);
+  activeProgress = null;
+}
+
 function writeInitProgress(event) {
+  if (event.status === "running" && process.stdout.isTTY) {
+    stopActiveProgress();
+    let frame = 0;
+    const render = () => {
+      const line = `${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]} ${event.message}`;
+      process.stdout.write(`\r${line}`);
+      activeProgress.width = Math.max(activeProgress.width, line.length);
+      frame += 1;
+    };
+    activeProgress = { timer: null, width: event.message.length + 2 };
+    render();
+    activeProgress.timer = setInterval(render, 80);
+    return;
+  }
+  stopActiveProgress();
   const marker = event.status === "passed" ? "✓" : "…";
   process.stdout.write(`${marker} ${event.message}\n`);
 }
@@ -275,13 +319,23 @@ function createProgram() {
     .option("--force", "write into an existing empty directory")
     .action(async (directory, options, command) => {
       if ((options.workspaceName || options.semanticModelId || options.reportName || options.connectionId) && !options.workspaceId) throw new Error("--workspace-id is required when saving a Fabric binding");
+      validateFabricId(options.workspaceId, "--workspace-id");
+      validateFabricId(options.semanticModelId, "--semantic-model-id");
       const json = jsonEnabled(command);
       if (!json) process.stdout.write(`\nSuper Visual init\n\n`);
       let liveValidation = null;
       if (options.workspaceId && options.semanticModelId && !options.skipLiveValidation) {
         if (!json) writeInitProgress({ status: "running", message: "Verifying the Fabric workspace and Power BI semantic model (read-only)" });
-        const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
-        const inspected = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId });
+        let inspected;
+        try {
+          const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+          inspected = await inspectSemanticModel({ client, workspaceId: options.workspaceId, workspaceName: options.workspaceName, semanticModelId: options.semanticModelId });
+        } catch (error) {
+          throw new CliUserError(error instanceof Error ? error.message : String(error), {
+            summary: "Super Visual could not verify the Fabric workspace and semantic model.",
+            guidance: "Confirm that you are signed in, can access the workspace, and copied both IDs from the same Fabric workspace.",
+          });
+        }
         liveValidation = {
           ok: true,
           status: "passed",
