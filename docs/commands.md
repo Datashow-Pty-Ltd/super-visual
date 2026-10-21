@@ -139,14 +139,19 @@ supervisual publish [project]
   [--receipt <file>] [--resume <file>] [--timeout <seconds>]
 ```
 
-`publish` is the normal product workflow. Without `--confirm`, it packages and
-verifies the project, discovers the saved workspace, and writes an immutable
-deployment plan. In an interactive terminal it displays the target and actions,
-then asks the user to type the exact plan ID before applying. Pressing Enter
-cancels without changing Fabric. In JSON or another non-interactive environment,
-it returns the plan and the caller must make a second authorized call with
-`--confirm <plan-id>`. The lower-level `deploy` commands remain available for
-inspection, automation, restore, and troubleshooting.
+`publish` is the normal product workflow. Without `--confirm`, it first checks
+the saved workspace and exact target names using read-only APIs. When a
+same-named report or managed semantic model exists and `--allow-updates` is
+absent, it exits before semantic-model inspection, compilation, packaging, or
+plan creation and prints the existing report URL when available. Otherwise it
+inspects the selected model, packages and verifies the project, and writes an
+immutable deployment plan. In an interactive terminal it displays the target
+and actions, then asks the user to type the exact plan ID before applying.
+Pressing Enter cancels without changing Fabric. In JSON or another
+non-interactive environment, it returns the plan and the caller must make a
+second authorized call with `--confirm <plan-id>`. The lower-level `deploy`
+commands remain available for inspection, automation, restore, and
+troubleshooting.
 
 The selected semantic-model ID defaults to the binding saved by `init` and is
 the only semantic-model ID in the normal workflow. For the normal single-source

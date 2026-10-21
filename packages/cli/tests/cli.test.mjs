@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
-import { createCommandProgressRenderer, formatPublishPlanResult, formatPublishResult, selectedConnectionDefaults, validateFabricId } from "../src/main.mjs";
+import { createCommandProgressRenderer, formatPublishPlanResult, formatPublishPreflightResult, formatPublishResult, selectedConnectionDefaults, validateFabricId } from "../src/main.mjs";
 import { readProjectTarget } from "../src/project-target.mjs";
 
 const run = promisify(execFile);
@@ -108,6 +108,35 @@ describe("supervisual CLI", () => {
     expect(included.trimEnd().endsWith(url)).toBe(true);
   });
 
+  test("explains an early publish collision without implying that a plan or package exists", () => {
+    const url = "https://app.powerbi.com/groups/workspace-1/reports/report-1";
+    const result = {
+      ok: false,
+      status: "blocked",
+      phase: "target-preflight",
+      workspace: { id: "workspace-1", displayName: "Release Workspace" },
+      actions: [
+        { key: "semanticModel", type: "SemanticModel", displayName: "Sales Report — Super Visual data", operation: "blocked", existingId: "model-1" },
+        { key: "report", type: "Report", displayName: "Sales Report", operation: "blocked", existingId: "report-1" },
+      ],
+      blockers: ["Report Sales Report already exists; create a plan with updates explicitly enabled"],
+      next: "supervisual publish --allow-updates --backup <backup-directory>",
+    };
+
+    const output = formatPublishPreflightResult(result);
+    expect(output).toContain("Publishing stopped before model inspection and packaging");
+    expect(output).toContain("No semantic-model definition was downloaded, no React application was compiled, and no deployment package or plan was created.");
+    expect(output).not.toContain("Plan ID:");
+    expect(output).not.toContain('"actions"');
+    expect(output).toContain(`Open the existing report:\n${url}\n`);
+    expect(output.trimEnd().endsWith(url)).toBe(true);
+
+    const included = formatPublishPreflightResult(result, { includeJson: true });
+    expect(included).toContain("\nTarget preflight (JSON):\n{");
+    expect(included).toContain('"phase": "target-preflight"');
+    expect(included.trimEnd().endsWith(url)).toBe(true);
+  });
+
   test("exposes a discoverable command surface and version", async () => {
     const help = await run(process.execPath, [cli, "--help"], { cwd: root });
     expect(help.stdout).toContain("discover");
@@ -122,7 +151,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.2.0-alpha.3");
+    expect(version.stdout.trim()).toBe("0.2.0-alpha.4");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");
@@ -317,7 +346,7 @@ describe("supervisual CLI", () => {
     }
   });
 
-  test("streams publish progress before Fabric validation completes", async () => {
+  test("streams the early target preflight before Fabric authentication completes", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-publish-progress-"));
     const project = path.join(temporary, "publish-progress");
     const fakeBin = path.join(temporary, "bin");
@@ -348,7 +377,7 @@ describe("supervisual CLI", () => {
         const timer = setTimeout(() => reject(new Error(`Publish did not stream progress before timeout:\n${stderr}`)), 5000);
         child.stderr.on("data", (chunk) => {
           stderr += chunk.toString();
-          if (stderr.includes("> Checking Fabric workspace 11111111-1111-1111-1111-111111111111")) {
+          if (stderr.includes("> Checking the target workspace for existing report items")) {
             clearTimeout(timer);
             resolve();
           }
@@ -360,6 +389,7 @@ describe("supervisual CLI", () => {
       expect(stderr).toContain("> Loading and validating the Super Visual project");
       expect(stderr).toContain("✓ Loaded and validated the Super Visual project");
       expect(stderr).toContain("> Loading the saved Fabric workspace and semantic-model binding");
+      expect(stderr).toContain("> Checking the target workspace for existing report items");
       expect(await completed).not.toBe(0);
     } finally {
       await rm(temporary, { recursive: true, force: true });

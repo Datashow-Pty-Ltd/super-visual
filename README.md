@@ -77,15 +77,19 @@ cd hello-world
 supervisual dev --open
 ```
 
-When the page is ready, package, verify, and create its deployment plan with one
-command:
+When the page is ready, check the target, package, verify, and create its
+deployment plan with one command:
 
 ```bash
 supervisual publish
 ```
 
-`publish` shows the exact workspace, operations, and plan ID, then asks you to
-type that plan ID to confirm. Press Enter to cancel without changing Fabric.
+`publish` first performs a quick read-only workspace check. If a same-named
+report or managed semantic model already exists and `--allow-updates` was not
+supplied, it stops before downloading the selected model definition, compiling
+the React application, or building a deployment package. Otherwise it shows the
+exact workspace, operations, and plan ID, then asks you to type that plan ID to
+confirm. Press Enter to cancel without changing Fabric.
 When a human intentionally wants a single uninterrupted command, they can
 pre-authorize the plan that this invocation generates:
 
@@ -94,9 +98,9 @@ supervisual publish --pre-authorize
 ```
 
 This skips only the second prompt. The CLI still resolves the immutable
-workspace, packages and verifies the project, writes the content-derived plan,
-rejects blockers and drift, and records the resulting plan ID. Existing items
-still require `--allow-updates` and a backup directory.
+workspace, runs the target preflight, packages and verifies the project, writes
+the content-derived plan, rejects blockers and drift, and records the resulting
+plan ID. Existing items still require `--allow-updates` and a backup directory.
 For a non-interactive agent or CI job, the equivalent is:
 
 ```bash

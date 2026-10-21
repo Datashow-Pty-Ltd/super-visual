@@ -20,6 +20,12 @@ It rejects workspaces without Fabric capacity and rejects ambiguous duplicate
 item names. Existing same-named items are blockers unless updates were enabled
 when the plan was created.
 
+The high-level `publish` command performs that same name and workspace check
+before semantic-model inspection or local packaging. If existing items would be
+blocked, it returns a read-only `target-preflight` result and does not create an
+immutable deployment plan. A later plan still repeats target discovery so an
+item created during compilation cannot bypass collision or drift protection.
+
 Apply always publishes the internally managed semantic binding before the report. Report PBIR is
 rewritten at the deployment boundary to contain exactly one
 `semanticmodelid=<id>` connection. Every update downloads and writes the

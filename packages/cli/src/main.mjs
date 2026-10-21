@@ -9,14 +9,14 @@ import { Command, CommanderError, Option } from "commander";
 import { importClaudeDashboard, inspectClaudeDashboard } from "@datashow/super-visual-adapter-claude-dashboard";
 import { buildSolution, embedVisualPackage, loadProject, refreshSolutionManifest, validateCompilation, verifySolutionManifest } from "@datashow/super-visual-compiler";
 import { evaluateLiveCertification, loadContract, migrateProjectContracts } from "@datashow/super-visual-contracts";
-import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, discoverFabricWorkspaces, inspectSemanticModel, readDeploymentStatus } from "@datashow/super-visual-fabric";
+import { applyDeploymentPlan, applyRestorePlan, checkSemanticCompatibility, createDeploymentDiff, createDeploymentPlan, createRestorePlan, discoverFabric, discoverFabricWorkspaces, inspectSemanticModel, preflightDeploymentTarget, readDeploymentStatus } from "@datashow/super-visual-fabric";
 import { discoverInput, initializeProject, inspectProject, supportedAdapters, supportedTemplates, syncProjectSource } from "./project.mjs";
 import { FabricHttpClient } from "./fabric-client.mjs";
 import { resolveProjectTarget, targetUpdate, writeProjectTarget } from "./project-target.mjs";
 import { runSemanticPreviewTest, startSemanticPreview } from "./semantic-preview.mjs";
 
 const run = promisify(execFile);
-const VERSION = "0.2.0-alpha.3";
+const VERSION = "0.2.0-alpha.4";
 const FABRIC_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPINNER_FRAMES = ["|", "/", "-", "\\"];
 const progressStream = process.stderr;
@@ -381,6 +381,28 @@ export function formatPublishPlanResult(result, { includeJson = false } = {}) {
       : `Next: ${result.next ?? `supervisual publish --confirm ${result.planId}`}`,
     ...(includeJson ? ["", "Deployment plan (JSON):", JSON.stringify(structured, null, 2)] : []),
     ...(reportUrl ? ["", "Open the report:", reportUrl] : []),
+    ...(includeJson && !reportUrl ? [""] : []),
+    "",
+  ];
+  return lines.join("\n");
+}
+
+export function formatPublishPreflightResult(result, { includeJson = false } = {}) {
+  const reportUrl = resultReportUrl(result);
+  const structured = { ...result, ...(reportUrl ? { reportUrl } : {}) };
+  const existing = (result.actions ?? []).filter((action) => action.existingId);
+  const lines = [
+    "",
+    "Publishing stopped before model inspection and packaging — matching Fabric items already exist.",
+    "",
+    `Workspace: ${result.workspace?.displayName ?? "Unknown"} (${result.workspace?.id ?? "unknown"})`,
+    ...(existing.length ? ["", "Existing items:", ...existing.map((action) => `  - ${action.type} — ${action.displayName} (${action.existingId})`)] : []),
+    ...(result.blockers?.length ? ["", "Blockers:", ...result.blockers.map((blocker) => `  - ${blocker}`)] : []),
+    "",
+    "No semantic-model definition was downloaded, no React application was compiled, and no deployment package or plan was created.",
+    `Next: ${result.next ?? "rerun supervisual publish with --allow-updates and a recoverable --backup directory."}`,
+    ...(includeJson ? ["", "Target preflight (JSON):", JSON.stringify(structured, null, 2)] : []),
+    ...(reportUrl ? ["", "Open the existing report:", reportUrl] : []),
     ...(includeJson && !reportUrl ? [""] : []),
     "",
   ];
@@ -803,6 +825,36 @@ function createProgram() {
       const reportName = target.reportName ?? loaded.project.application.title;
       const semanticModelName = target.managedSemanticModelName ?? `${reportName} — Super Visual data`;
       const client = new FabricHttpClient({ timeoutSeconds: Number(options.timeout) });
+      onProgress?.({ status: "running", step: "target-preflight", message: "Checking the target workspace for existing report items" });
+      const targetPreflight = await preflightDeploymentTarget({
+        client,
+        workspaceId: target.workspaceId,
+        workspaceName: target.workspaceName,
+        semanticModelName,
+        reportName,
+        allowUpdates: Boolean(options.allowUpdates),
+      });
+      const existingTargetItems = targetPreflight.actions.filter((action) => action.existingId);
+      if (targetPreflight.blockers.length) {
+        onProgress?.({ status: "failed", step: "target-preflight", message: `Found ${existingTargetItems.length} existing target item${existingTargetItems.length === 1 ? "" : "s"}; stopped before model inspection and packaging` });
+        const result = {
+          ...targetPreflight,
+          phase: "target-preflight",
+          reportUrl: resultReportUrl(targetPreflight),
+          next: "supervisual publish --allow-updates --backup <backup-directory>",
+        };
+        if (json) output(result, true);
+        else process.stdout.write(formatPublishPreflightResult(result, { includeJson: includeJsonEnabled(command) }));
+        process.exitCode = 2;
+        return result;
+      }
+      onProgress?.({
+        status: "passed",
+        step: "target-preflight",
+        message: existingTargetItems.length
+          ? `Found ${existingTargetItems.length} existing target item${existingTargetItems.length === 1 ? "" : "s"}; updates were explicitly enabled`
+          : "Confirmed the target report names are available",
+      });
       const selectedSemanticModelId = target.semanticModelId ?? target.managedSemanticModelId;
       const inspected = await inspectSemanticModel({ client, workspaceId: target.workspaceId, workspaceName: target.workspaceName, semanticModelId: selectedSemanticModelId, onProgress });
       onProgress?.({ status: "running", step: "compatibility", message: "Checking application queries against the selected semantic model" });

@@ -1,6 +1,6 @@
 {
   "name": "@datashow/super-visual-fabric",
-  "version": "0.2.0-alpha.3",
+  "version": "0.2.0-alpha.4",
   "description": "Plan-based, backup-first Fabric deployment primitives for Super Visual bundles.",
   "type": "module",
   "exports": "./src/index.mjs",
