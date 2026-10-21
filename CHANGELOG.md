@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-rc.7 — 2026-10-21
+
+- Streamed `supervisual publish` validation, packaging, planning, deployment,
+  refresh, and acceptance milestones on both sides of the authorization prompt.
+- Kept an in-place ASCII spinner active while each interactive publish stage is
+  waiting, with synchronous terminal writes so progress is visible immediately.
+- Replaced the successful human-mode JSON dump with a concise deployment summary
+  and direct Power BI report URL while preserving full JSON output for automation.
+
 ## 0.1.0-rc.6 — 2026-10-21
 
 - Restored browser scrolling for semantic previews while retaining the fixed Power BI canvas behavior in deployed visuals.

@@ -1,10 +1,10 @@
-import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
-import { selectedConnectionDefaults, validateFabricId } from "../src/main.mjs";
+import { createCommandProgressRenderer, formatPublishResult, selectedConnectionDefaults, validateFabricId } from "../src/main.mjs";
 import { readProjectTarget } from "../src/project-target.mjs";
 
 const run = promisify(execFile);
@@ -12,6 +12,62 @@ const root = path.resolve(".");
 const cli = path.join(root, "packages", "cli", "bin", "supervisual.mjs");
 
 describe("supervisual CLI", () => {
+  test("animates an in-place ASCII spinner while a terminal step is running", () => {
+    const writes = [];
+    const scheduled = [];
+    const cancelled = [];
+    const renderer = createCommandProgressRenderer({
+      write: (value) => writes.push(value),
+      isTTY: () => true,
+      startTimer: (callback, milliseconds) => {
+        scheduled.push({ callback, milliseconds });
+        return "spinner-timer";
+      },
+      cancelTimer: (timer) => cancelled.push(timer),
+    });
+
+    renderer.handle({ status: "running", message: "Creating the deployment plan" });
+    scheduled[0].callback();
+    scheduled[0].callback();
+    renderer.handle({ status: "passed", message: "Created the deployment plan" });
+
+    expect(scheduled[0].milliseconds).toBe(120);
+    expect(writes).toEqual(expect.arrayContaining([
+      "> Creating the deployment plan\n",
+      "\r| Working...",
+      "\r/ Working...",
+      "\r- Working...",
+      "✓ Created the deployment plan\n",
+    ]));
+    expect(cancelled).toEqual(["spinner-timer"]);
+  });
+
+  test("describes a completed publish and prints its Power BI report URL", () => {
+    const summary = formatPublishResult({
+      accepted: true,
+      planId: "plan-123",
+      workspace: { id: "workspace-1", displayName: "Release Workspace" },
+      items: {
+        semanticModel: { id: "model-1", displayName: "Sales Report — Super Visual data" },
+        report: { id: "report-1", displayName: "Sales Report" },
+      },
+      verification: {
+        binding: { connectionId: "connection-1" },
+        refresh: { status: "Completed" },
+        acceptance: { rowCount: 1, columnCount: 1, nonNull: true },
+      },
+      receiptPath: "/tmp/deploy-receipt.json",
+    });
+
+    expect(summary).toContain("Publish complete — Sales Report is live.");
+    expect(summary).toContain("Open the report:\nhttps://app.powerbi.com/groups/workspace-1/reports/report-1");
+    expect(summary).toContain("Workspace: Release Workspace (workspace-1)");
+    expect(summary).toContain("Semantic model: Sales Report — Super Visual data (model-1)");
+    expect(summary).toContain("Verification: connection bound · refresh Completed · acceptance query passed (1 row)");
+    expect(summary).toContain("Receipt: /tmp/deploy-receipt.json");
+    expect(summary.trimStart()).not.toMatch(/^\{/);
+  });
+
   test("exposes a discoverable command surface and version", async () => {
     const help = await run(process.execPath, [cli, "--help"], { cwd: root });
     expect(help.stdout).toContain("discover");
@@ -26,7 +82,7 @@ describe("supervisual CLI", () => {
     expect(help.stdout).toContain("certify");
     expect(help.stdout).toContain("deploy");
     const version = await run(process.execPath, [cli, "--version"], { cwd: root });
-    expect(version.stdout.trim()).toBe("0.1.0-rc.6");
+    expect(version.stdout.trim()).toBe("0.1.0-rc.7");
     const deployHelp = await run(process.execPath, [cli, "deploy", "--help"], { cwd: root });
     expect(deployHelp.stdout).toContain("discover");
     expect(deployHelp.stdout).toContain("workspaces");
@@ -195,6 +251,55 @@ describe("supervisual CLI", () => {
       await rm(temporary, { recursive: true, force: true });
     }
   });
+
+  test("streams publish progress before Fabric validation completes", async () => {
+    const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-publish-progress-"));
+    const project = path.join(temporary, "publish-progress");
+    const fakeBin = path.join(temporary, "bin");
+    const fakeAz = path.join(fakeBin, "az");
+    try {
+      await run(process.execPath, [
+        cli, "init", project,
+        "--workspace-id", "11111111-1111-1111-1111-111111111111",
+        "--semantic-model-id", "22222222-2222-2222-2222-222222222222",
+        "--skip-live-validation",
+        "--json",
+      ], { cwd: root });
+      await mkdir(fakeBin);
+      await writeFile(fakeAz, `#!/usr/bin/env node\nsetTimeout(() => { process.stderr.write("delayed mock authentication failure\\n"); process.exit(1); }, 1000);\n`);
+      await chmod(fakeAz, 0o755);
+
+      const child = spawn(process.execPath, [cli, "publish", project], {
+        cwd: root,
+        env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}` },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let stderr = "";
+      const completed = new Promise((resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (code) => resolve(code));
+      });
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`Publish did not stream progress before timeout:\n${stderr}`)), 5000);
+        child.stderr.on("data", (chunk) => {
+          stderr += chunk.toString();
+          if (stderr.includes("> Checking Fabric workspace 11111111-1111-1111-1111-111111111111")) {
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+      });
+
+      expect(child.exitCode).toBeNull();
+      expect(stderr).toContain("Super Visual publish");
+      expect(stderr).toContain("> Loading and validating the Super Visual project");
+      expect(stderr).toContain("✓ Loaded and validated the Super Visual project");
+      expect(stderr).toContain("> Loading the saved Fabric workspace and semantic-model binding");
+      expect(await completed).not.toBe(0);
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  }, 15000);
 
   test("initializes a project with a reusable Fabric binding and existing React application", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-bound-"));
