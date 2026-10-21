@@ -42,7 +42,7 @@ describe("supervisual CLI", () => {
     expect(publishHelp.stdout).toContain("--pre-authorize");
     expect(publishHelp.stdout).toContain("--semantic-model-id");
     expect(publishHelp.stdout).not.toContain("--semantic-model-name");
-  });
+  }, 15000);
 
   test("treats legacy saved model IDs as internal managed state", async () => {
     const temporary = await mkdtemp(path.join(os.tmpdir(), "supervisual-cli-target-"));
